@@ -8,6 +8,8 @@ import java.io.Serializable;
  */
 public class User implements Serializable {
     private int id;
+    private String password;
+    private String role_code;
     private String firstName;
     private String lastName;
     private String email;
@@ -44,6 +46,13 @@ public class User implements Serializable {
         this.lastName = lastName;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
     /**
      * Helper method to get full name for display purposes.
      * Use this in JSP like: <%= user.getFullName() %>
@@ -82,5 +91,9 @@ public class User implements Serializable {
 
     public void setOffice(String office) {
         this.office = office;
+    }
+   
+    public void setRoleCode(String role_code) {
+        this.role_code = role_code;
     }
 }

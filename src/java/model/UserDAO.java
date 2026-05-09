@@ -56,23 +56,30 @@ public class UserDAO {
     // --- 2. GET ALL INTERNS (For Master List) ---
     public static List<User> getAllInterns(ServletContext context) {
         List<User> list = new ArrayList<>();
-        Connection conn = DBConnection.getDerbyConnection(context);
-        
-        if (conn == null) return list;
 
-        try {
-            String sql = "SELECT * FROM INTERN ORDER BY LAST_NAME ASC";
+        // Establishing connection using the centralized DBConnection utility
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            String sql = "SELECT * FROM INTERN";
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                list.add(mapResultSetToUser(rs, rs.getString("ROLE_CODE")));
+                User u = new User();
+
+                // Mapping Database Columns to User Object Fields
+                u.setId(rs.getInt("INTERN_ID"));
+                u.setFirstName(rs.getString("FIRST_NAME"));
+                u.setLastName(rs.getString("LAST_NAME"));
+                u.setEmail(rs.getString("EMAIL"));
+                u.setPassword(rs.getString("PASSWORD"));
+                u.setUniversity(rs.getString("UNIVERSITY"));
+                u.setRoleCode(rs.getString("ROLE_CODE"));
+                u.setOffice(rs.getString("OFFICE"));
+
+                list.add(u);
             }
-            
-            rs.close();
-            ps.close();
-            conn.close();
-        } catch (SQLException e) {
+        } catch (Exception e) {
+            // Essential for debugging connection or SQL issues in GlassFish
             e.printStackTrace();
         }
         return list;

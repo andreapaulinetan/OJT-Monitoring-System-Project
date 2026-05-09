@@ -9,7 +9,11 @@
     --card-green: #d1f7c4;
     --card-blue: #d1e9ff;
 }
-
+.page-title {
+    margin: 0;
+    white-space: nowrap;
+    flex: 0 1 auto;
+}
 body {
     background-color: var(--bg-cream);
     font-family: 'Inter', -apple-system, sans-serif;
@@ -81,15 +85,23 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    gap: 20px;
 }
 
+.search-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
 .search-input {
     background: white;
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 10px 20px;
-    width: 300px;
+    width: 100%;
+    max-width: 450px; /* Controls how wide the middle search box gets */
     outline: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .profile-chip {
