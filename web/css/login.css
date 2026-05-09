@@ -1,0 +1,193 @@
+/* General Page Styling */
+body {
+    background-color: #f7f3e9; /* Light cream background */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.login-card {
+    width: 380px;
+    background-color: #f4d36f; /* The signature yellow from your reference */
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Header Section */
+.header-section {
+    background-color: #222; /* Dark top bar */
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.brand-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    display: block;
+}
+
+.sub-header {
+    margin: 5px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Toggle Access Buttons */
+.access-toggle {
+    display: flex;
+    padding: 15px 20px;
+    gap: 10px;
+}
+
+.toggle-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.toggle-btn.active {
+    background-color: #d63384; /* Pinkish-red active state */
+    color: white;
+}
+
+/* Form Body */
+.form-body {
+    padding: 0 25px 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+/* Input Symbol Logic */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 12px 12px 12px 40px; /* Padding-left makes room for symbol */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 1rem;
+}
+
+.instruction-text {
+    font-size: 0.8rem;
+    color: #444;
+    margin: 10px 0;
+}
+
+/* Remember Me */
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+}
+
+/* Login Button */
+.btn-login {
+    width: 100%;
+    background-color: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 30px; /* Pill shape */
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.3s;
+}
+
+.btn-login:hover {
+    background-color: #111;
+}
+
+.secure-text {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.form-footer {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 15px;
+}
+
+.form-footer a {
+    font-size: 0.8rem;
+    color: #222;
+    text-decoration: none;
+}
+
+/* Security Verification Section */
+.security-section {
+    background-color: #c5d9f1; /* Light blue section */
+    padding: 15px 25px 25px;
+}
+
+.security-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.captcha-display {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+#captchaImg {
+    background: white;
+    border-radius: 5px;
+    border: 1px solid #999;
+    flex-grow: 1;
+    height: 45px;
+}
+
+.refresh-btn-small {
+    background: white;
+    border: 1px solid #999;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.captcha-input input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #999;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
