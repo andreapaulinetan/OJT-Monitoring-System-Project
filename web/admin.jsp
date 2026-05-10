@@ -45,7 +45,7 @@
            <header class="top-bar">
     <h2 class="page-title">Coordinator's Dashboard</h2>
     <div class="search-container">
-        <input type="text" id="internSearch" class="search-input" placeholder="Search by name..." onkeyup="filterTable()">
+        <input type="text" id="internSearch" class="search-input" placeholder="Search by ID, Name, University..." onkeyup="filterTable()">
     </div>
     <div class="user-profile">
         <div class="profile-chip">
@@ -219,7 +219,6 @@
                              rRole.includes(searchVal) || 
                              rOffice.includes(searchVal) || 
                              rStatus.includes(searchVal);
-
         // 2. Check if the active dropdown filters also match
         const matchesFilters = (activeFilters.university === "" || rUni === activeFilters.university) &&
                                (activeFilters.role === "" || rRole === activeFilters.role) &&
