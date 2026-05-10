@@ -3,10 +3,11 @@ package model;
 import java.io.Serializable;
 
 /**
- * Model class representing a User (Admin or Intern).
- * Implements Serializable as it is stored in the HttpSession.
+ * Model class representing a User (Admin or Intern). Implements Serializable as
+ * it is stored in the HttpSession.
  */
 public class User implements Serializable {
+
     private int id;
     private String password;
     private String role_code;
@@ -16,12 +17,13 @@ public class User implements Serializable {
     private String role;
     private String university;
     private String office;
+    private String logStatus;
 
     // Default Constructor
-    public User() {}
+    public User() {
+    }
 
     // --- GETTERS AND SETTERS ---
-
     public int getId() {
         return id;
     }
@@ -53,9 +55,10 @@ public class User implements Serializable {
     public void setPassword(String password) {
         this.password = password;
     }
+
     /**
-     * Helper method to get full name for display purposes.
-     * Use this in JSP like: <%= user.getFullName() %>
+     * Helper method to get full name for display purposes. Use this in JSP
+     * like: <%= user.getFullName() %>
      */
     public String getFullName() {
         return (firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "");
@@ -92,8 +95,16 @@ public class User implements Serializable {
     public void setOffice(String office) {
         this.office = office;
     }
-   
+
     public void setRoleCode(String role_code) {
         this.role_code = role_code;
+    }
+
+    public String getLogStatus() {
+        return logStatus;
+    }
+
+    public void setLogStatus(String logStatus) {
+        this.logStatus = logStatus;
     }
 }

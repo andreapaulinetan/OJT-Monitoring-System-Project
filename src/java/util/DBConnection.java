@@ -27,16 +27,15 @@ public class DBConnection {
     }
 
     // Method for DBMS 2 (MySQL) - Member 2's focus
-    public static Connection getMySQLConnection(ServletContext context) {
+    public static Connection getOJTDerbyConnection(ServletContext context) {
         try {
-            Class.forName(context.getInitParameter("mysql.driver"));
+            Class.forName(context.getInitParameter("derby.driver"));
             return DriverManager.getConnection(
-                context.getInitParameter("mysql.url"),
-                context.getInitParameter("mysql.username"),
-                context.getInitParameter("mysql.password")
+                    context.getInitParameter("ojt.derby.url"), // Points to ojtdb
+                    context.getInitParameter("derby.username"),
+                    context.getInitParameter("derby.password")
             );
-        } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
             return null;
         }
     }

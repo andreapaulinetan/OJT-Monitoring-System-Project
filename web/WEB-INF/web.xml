@@ -37,7 +37,7 @@
     </context-param>
     <context-param>
         <param-name>mysql.password</param-name>
-        <param-value>your_password</param-value>
+        <param-value>app</param-value> 
     </context-param>
 
     <context-param>
@@ -56,7 +56,10 @@
         <param-name>pgsql.password</param-name>
         <param-value>your_password</param-value>
     </context-param>
-
+<context-param>
+    <param-name>ojt.derby.url</param-name>
+    <param-value>jdbc:derby://localhost:1527/ojtdb</param-value>
+</context-param>
     <context-param>
         <param-name>report.header</param-name>
         <param-value>Active Learning, Inc. — Internship Learning Tracker</param-value>
