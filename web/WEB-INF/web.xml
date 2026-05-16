@@ -24,6 +24,11 @@
     </context-param>
 
     <context-param>
+        <param-name>ojt.derby.url</param-name>
+        <param-value>jdbc:derby://localhost:1527/ojtdb</param-value>
+    </context-param>
+
+    <context-param>
         <param-name>mysql.driver</param-name>
         <param-value>com.mysql.cj.jdbc.Driver</param-value>
     </context-param>
@@ -37,7 +42,7 @@
     </context-param>
     <context-param>
         <param-name>mysql.password</param-name>
-        <param-value>app</param-value> 
+        <param-value>app</param-value>
     </context-param>
 
     <context-param>
@@ -56,10 +61,7 @@
         <param-name>pgsql.password</param-name>
         <param-value>your_password</param-value>
     </context-param>
-<context-param>
-    <param-name>ojt.derby.url</param-name>
-    <param-value>jdbc:derby://localhost:1527/ojtdb</param-value>
-</context-param>
+
     <context-param>
         <param-name>report.header</param-name>
         <param-value>Active Learning, Inc. — Internship Learning Tracker</param-value>
@@ -122,8 +124,9 @@
         <location>/error_404.jsp</location>
     </error-page>
     <error-page>
-        <error-code>500</error-code>
-        <location>/error_500.jsp</location>
+        <error-page>
+            <error-code>500</error-code>
+            <location>/error_500.jsp</location>
+        </error-page>
     </error-page>
-
 </web-app>
