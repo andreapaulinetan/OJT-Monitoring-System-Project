@@ -33,20 +33,19 @@
     </head>
     <body>
 
-        <div class="dashboard-wrapper">
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <h4 class="brand-name">Active Learning</h4>
-                </div>
-                <nav class="sidebar-nav">
-                    <a href="#" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
-                    <a href="#" class="nav-item"><i class="fas fa-users"></i> Intern Management</a>
-                    <a href="#" class="nav-item"><i class="fas fa-file-alt"></i> Log Review</a>
-                    <a href="#" class="nav-item"><i class="fas fa-chart-bar"></i> Report Center</a>
-                    <a href="#" class="nav-item"><i class="fas fa-history"></i> Audit Trail</a>
-                    <a href="LogoutServlet" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Log out</a>
-                </nav>
-            </aside>
+        <main class="main-content">
+           <header class="top-bar">
+    <h2 class="page-title">Coordinator's Dashboard</h2>
+    <div class="search-container">
+        <input type="text" id="internSearch" class="search-input" placeholder="Search by ID, Name, University..." onkeyup="filterTable()">
+    </div>
+    <div class="user-profile">
+        <div class="profile-chip">
+            <span><%= user.getFullName()%></span>
+            <img src="https://ui-avatars.com/api/?name=<%= user.getFullName()%>&background=d63384&color=fff" alt="Admin">
+        </div>
+    </div>
+</header>
 
             <main class="main-content">
                 <header class="top-bar">
@@ -250,18 +249,19 @@
                     const rOffice = row.querySelector(".col-office").innerText.toUpperCase().trim();
                     const rStatus = row.querySelector(".col-status span").textContent.toUpperCase().trim();
 
-                    const matchesSearch = searchVal === "" || 
-                                         rId.includes(searchVal) || 
-                                         rName.includes(searchVal) || 
-                                         rUni.includes(searchVal) || 
-                                         rRole.includes(searchVal) || 
-                                         rOffice.includes(searchVal) || 
-                                         rStatus.includes(searchVal);
-
-                    const matchesFilters = (activeFilters.university === "" || rUni === activeFilters.university) &&
-                                           (activeFilters.role === "" || rRole === activeFilters.role) &&
-                                           (activeFilters.office === "" || rOffice === activeFilters.office) &&
-                                           (activeFilters.status === "" || rStatus === activeFilters.status);
+        // 1. Check if the search term matches ANY of the columns
+        const matchesSearch = searchVal === "" || 
+                             rId.includes(searchVal) || 
+                             rName.includes(searchVal) || 
+                             rUni.includes(searchVal) || 
+                             rRole.includes(searchVal) || 
+                             rOffice.includes(searchVal) || 
+                             rStatus.includes(searchVal);
+        // 2. Check if the active dropdown filters also match
+        const matchesFilters = (activeFilters.university === "" || rUni === activeFilters.university) &&
+                               (activeFilters.role === "" || rRole === activeFilters.role) &&
+                               (activeFilters.office === "" || rOffice === activeFilters.office) &&
+                               (activeFilters.status === "" || rStatus === activeFilters.status);
 
                     row.style.display = (matchesSearch && matchesFilters) ? "" : "none";
                 });
