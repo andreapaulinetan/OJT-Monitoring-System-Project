@@ -7,16 +7,21 @@ import java.io.Serializable;
  * Implements Serializable as it is stored in the HttpSession.
  */
 public class User implements Serializable {
+
     private int id;
     private String firstName;
     private String lastName;
     private String email;
+    private String password;
     private String role;
+    private String roleCode;
     private String university;
     private String office;
+    private String logStatus;
 
     // Default Constructor
-    public User() {}
+    public User() {
+    }
 
     // --- GETTERS AND SETTERS ---
 
@@ -45,7 +50,7 @@ public class User implements Serializable {
     }
 
     /**
-     * Helper method to get full name for display purposes.
+     * Helper method to get full name for display purposes. 
      * Use this in JSP like: <%= user.getFullName() %>
      */
     public String getFullName() {
@@ -60,12 +65,28 @@ public class User implements Serializable {
         this.email = email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public String getRole() {
         return role;
     }
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getRoleCode() {
+        return roleCode;
+    }
+
+    public void setRoleCode(String roleCode) {
+        this.roleCode = roleCode;
     }
 
     public String getUniversity() {
@@ -82,5 +103,13 @@ public class User implements Serializable {
 
     public void setOffice(String office) {
         this.office = office;
+    }
+
+    public String getLogStatus() {
+        return logStatus;
+    }
+
+    public void setLogStatus(String logStatus) {
+        this.logStatus = logStatus;
     }
 }
