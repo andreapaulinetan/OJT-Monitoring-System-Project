@@ -26,10 +26,10 @@
     <aside class="sidebar">
         <div class="brand-name"><i class="fa-solid fa-layer-group"></i> Active Learning</div>
         <nav class="sidebar-nav">
-            <a class="nav-item active" id="navDashboard" onclick="switchTab('dashboard')">
+            <a class="nav-item active" id="navDashboard" href="javascript:void(0)" onclick="switchTab('dashboard')">
                 <i class="fa-solid fa-chart-pie"></i> Dashboard
             </a>
-            <a class="nav-item" id="navConfig" onclick="switchTab('config')">
+            <a class="nav-item" id="navConfig" href="javascript:void(0)" onclick="switchTab('config')">
                 <i class="fa-solid fa-sliders"></i> Configuration
             </a>
         </nav>
@@ -104,7 +104,7 @@
                         <span id="statusText">Not Clocked In</span>
                     </div>
                     <div class="timer-display" id="timerDisplay">00:00:00</div>
-                    <button class="btn-timein" id="timerBtn" onclick="toggleTimer()">
+                    <button type="button" class="btn-timein" id="timerBtn" onclick="toggleTimer()">
                         <i class="fa-solid fa-play"></i> <span>Time In</span>
                     </button>
                     <p class="timer-note">*Optional: Use this timer if you want to track runtime parameters natively.</p>
@@ -127,7 +127,7 @@
                             <p class="file-name" id="fileName" style="display:none"></p>
                         </div>
                     </div>
-                    <button class="btn-inject" id="injectBtn" onclick="injectHours()">
+                    <button type="button" class="btn-inject" id="injectBtn" onclick="injectHours()">
                         <i class="fa-solid fa-paper-plane"></i> Inject Simulation Hours
                     </button>
                 </div>
@@ -153,7 +153,7 @@
                     <h2><i class="fa-solid fa-sliders"></i> Internship Setup Configuration</h2>
                     <p>Customize your target goals and weekly work shifts to update your live progress metric.</p>
                 </div>
-                <button class="btn-reset" onclick="resetDefaults()"><i class="fa-solid fa-rotate-left"></i> Reset Defaults</button>
+                <button type="button" class="btn-reset" onclick="resetDefaults()"><i class="fa-solid fa-rotate-left"></i> Reset Defaults</button>
             </div>
 
             <div class="config-grid">
@@ -183,8 +183,8 @@
                     <div class="toggle-row">
                         <span>Exclude PH Holidays (2026)?</span>
                         <div class="toggle-switch">
-                            <button class="toggle-option active-yes" id="holYes" onclick="setHoliday(true)"><i class="fa-solid fa-lock"></i> Yes</button>
-                            <button class="toggle-option" id="holNo" onclick="setHoliday(false)"><i class="fa-solid fa-lock-open"></i> No</button>
+                            <button type="button" class="toggle-option active-yes" id="holYes" onclick="setHoliday(true)"><i class="fa-solid fa-lock"></i> Yes</button>
+                            <button type="button" class="toggle-option" id="holNo" onclick="setHoliday(false)"><i class="fa-solid fa-lock-open"></i> No</button>
                         </div>
                     </div>
                 </div>
@@ -194,13 +194,13 @@
                     <h4>Work Schedule</h4>
                     <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6c757d;margin-bottom:12px;">Weekly Work Days</p>
                     <div class="day-toggle-row" id="dayToggleRow">
-                        <button class="day-btn weekend-btn" data-day="0" onclick="toggleDay(this)">S</button>
-                        <button class="day-btn active" data-day="1" onclick="toggleDay(this)">M</button>
-                        <button class="day-btn active" data-day="2" onclick="toggleDay(this)">T</button>
-                        <button class="day-btn active" data-day="3" onclick="toggleDay(this)">W</button>
-                        <button class="day-btn active" data-day="4" onclick="toggleDay(this)">T</button>
-                        <button class="day-btn active" data-day="5" onclick="toggleDay(this)">F</button>
-                        <button class="day-btn weekend-btn" data-day="6" onclick="toggleDay(this)">S</button>
+                        <button type="button" class="day-btn weekend-btn" data-day="0" onclick="toggleDay(this, event)">S</button>
+                        <button type="button" class="day-btn active" data-day="1" onclick="toggleDay(this, event)">M</button>
+                        <button type="button" class="day-btn active" data-day="2" onclick="toggleDay(this, event)">T</button>
+                        <button type="button" class="day-btn active" data-day="3" onclick="toggleDay(this, event)">W</button>
+                        <button type="button" class="day-btn active" data-day="4" onclick="toggleDay(this, event)">T</button>
+                        <button type="button" class="day-btn active" data-day="5" onclick="toggleDay(this, event)">F</button>
+                        <button type="button" class="day-btn weekend-btn" data-day="6" onclick="toggleDay(this, event)">S</button>
                     </div>
                     <p class="day-count-note" id="dayCountNote">&#11088; 5 selected active days count as projectable work terms</p>
                 </div>
@@ -209,15 +209,15 @@
                 <div class="config-card projection">
                     <h4>Projection Mode</h4>
                     <div class="projection-toggle">
-                        <button class="proj-option" id="projManual" onclick="setProjection('manual')"><i class="fa-solid fa-pen"></i> Manual</button>
-                        <button class="proj-option active" id="projAuto" onclick="setProjection('auto')"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto</button>
+                        <button type="button" class="proj-option" id="projManual" onclick="setProjection('manual')"><i class="fa-solid fa-pen"></i> Manual</button>
+                        <button type="button" class="proj-option active" id="projAuto" onclick="setProjection('auto')"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto</button>
                     </div>
                 </div>
             </div>
 
             <div class="config-footer">
                 <span class="config-note">Simulating analytics metrics live inside your browser session</span>
-                <button class="btn-apply" onclick="applyConfig()"><i class="fa-solid fa-check"></i> Apply Schedule Shifts</button>
+                <button type="button" class="btn-apply" onclick="applyConfig()"><i class="fa-solid fa-check"></i> Apply Schedule Shifts</button>
             </div>
         </div>
     </div>
@@ -294,6 +294,7 @@ function toggleTimer() {
         state.timerRunning = true;
         state.timerStart = Date.now() - (state.timerElapsed || 0);
         saveState();
+        tickOnce();
         startTimerTick();
         document.getElementById('statusDot').className = 'status-dot active';
         document.getElementById('statusText').textContent = 'Clocked In & Tracking Time';
@@ -303,6 +304,7 @@ function toggleTimer() {
     } else {
         state.timerRunning = false;
         state.timerElapsed = Date.now() - state.timerStart;
+        if (state.timerElapsed < 0) state.timerElapsed = 0;
         clearInterval(timerInterval); timerInterval = null;
         saveState();
         document.getElementById('statusDot').className = 'status-dot inactive';
@@ -314,14 +316,18 @@ function toggleTimer() {
     }
 }
 
+function tickOnce() {
+    const elapsed = Date.now() - state.timerStart;
+    const s = Math.floor(Math.max(0, elapsed) / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = h + ':' + m + ':' + sec;
+}
+
 function startTimerTick() {
     timerInterval = setInterval(() => {
-        const elapsed = Date.now() - state.timerStart;
-        const s = Math.floor(elapsed / 1000);
-        const h = String(Math.floor(s / 3600)).padStart(2, '0');
-        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-        const sec = String(s % 60).padStart(2, '0');
-        document.getElementById('timerDisplay').textContent = h + ':' + m + ':' + sec;
+        tickOnce();
     }, 1000);
 }
 
@@ -349,7 +355,11 @@ function initDropZone() {
     const dz = document.getElementById('dropZone');
     const fi = document.getElementById('fileInput');
 
-    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('click', (e) => {
+        if (e.target === fi) return;
+        fi.value = '';
+        fi.click();
+    });
     dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag-over'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
     dz.addEventListener('drop', (e) => {
@@ -431,7 +441,8 @@ function renderCalendar() {
 function changeMonth(delta) { calendarDate.setMonth(calendarDate.getMonth() + delta); renderCalendar(); }
 
 // ======================== DAY TOGGLE (Task 2 fix) ========================
-function toggleDay(btn) {
+function toggleDay(btn, event) {
+    if (event) event.preventDefault();
     btn.classList.toggle('active');
     updateActiveDays();
 }
