@@ -46,10 +46,10 @@ public class AuthFilter implements Filter {
 
         // 3. THE SECURITY LOGIC
         if (loggedIn || isStaticResource || isLoginPage || isLoginServlet || isCaptcha || isRoot) {
-            // Add headers to prevent CSS caching issues during development
-            if (isStaticResource) {
-                res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-            }
+            // Prevent stale-session caching for ALL responses (fixes Configuration tab redirect loop)
+            res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            res.setHeader("Pragma", "no-cache");
+            res.setDateHeader("Expires", 0);
             chain.doFilter(request, response);
         } else {
             // Unauthorized access to protected JSP

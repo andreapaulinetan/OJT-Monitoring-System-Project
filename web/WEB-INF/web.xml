@@ -124,9 +124,7 @@
         <location>/error_404.jsp</location>
     </error-page>
     <error-page>
-        <error-page>
             <error-code>500</error-code>
             <location>/error_500.jsp</location>
-        </error-page>
     </error-page>
 </web-app>
