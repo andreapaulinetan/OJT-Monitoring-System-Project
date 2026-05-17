@@ -1,0 +1,208 @@
+/* General Page Styling */
+body {
+    background-color: #f7f3e9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.login-card {
+    width: 380px;
+    background-color: #f4d36f;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Header Section */
+.header-section {
+    background-color: #222;
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.brand-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    display: block;
+}
+
+.sub-header {
+    margin: 5px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Form Layout & Spacing */
+.form-body {
+    padding: 20px 25px; /* Added top padding for better spacing */
+}
+
+/* Alert Spacing Fix */
+.message-container {
+    padding: 0 25px;
+    margin-top: 15px;
+    margin-bottom: 10px; /* Space between alert and Email Address label */
+}
+
+.alert {
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px; /* Increased margin for Email Address title */
+    font-size: 0.9rem;
+}
+
+/* Input Fields */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 12px 12px 12px 40px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    background-color: rgba(255,255,255,0.3);
+}
+
+.input-with-icon input:disabled {
+    background-color: rgba(0,0,0,0.05);
+    cursor: not-allowed;
+}
+
+/* Remember Me */
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+}
+
+/* Login Button & Lockout Logic */
+.btn-login {
+    width: 100%;
+    background-color: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 35px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.btn-login:hover:not(:disabled) {
+    background-color: #111;
+}
+
+.btn-login:disabled {
+    background-color: #f8d7da; /* Light pink background from image_84610e.png */
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    cursor: not-allowed;
+}
+
+.secure-text {
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 4px;
+}
+
+.lockout-timer-text {
+    color: #ff4d4d;
+    font-weight: bold;
+}
+
+/* Footer Links */
+.form-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.form-footer a {
+    font-size: 0.85rem;
+    color: #222;
+    text-decoration: none;
+}
+
+/* Security Verification Section */
+.security-section {
+    background-color: #c5d9f1;
+    padding: 20px 25px 25px;
+}
+
+.security-header {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.captcha-display {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#captchaImg {
+    background: white;
+    border-radius: 5px;
+    border: 1px solid #999;
+    flex-grow: 1;
+    height: 48px;
+}
+
+.refresh-btn-small {
+    background: white;
+    border: 1px solid #999;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.captcha-input input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #999;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
