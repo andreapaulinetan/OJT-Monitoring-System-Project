@@ -3,18 +3,25 @@ package model;
 import java.io.Serializable;
 
 /**
- * Model class representing a User (Admin or Intern). Implements Serializable as
- * it is stored in the HttpSession.
+ * Model class representing a User (Admin or Intern). 
+ * Implements Serializable as it is stored in the HttpSession.
  */
 public class User implements Serializable {
 
-    private int id;
-    private String password;
-    private String role_code;
-    private String firstName;
-    private String lastName;
+    // --- SYSTEM IDENTIFICATION ---
+    private String id; // Changed from int to String to support format like 'INT2026-70001'
+    private String role; // e.g., 'Admin', 'Backend Developer Intern'
+    private String roleCode; // e.g., 'admin', 'be', 'uiux' (Changed from role_code to camelCase)
     private String email;
-    private String role;
+    private String password;
+
+    // --- PERSONAL INFORMATION ---
+    private String firstName;
+    private String middleName; // Added to match database columns
+    private String lastName;
+    private String city; 
+
+    // --- INTERN SPECIFIC INFORMATION ---
     private String university;
     private String office;
     private String logStatus;
@@ -23,45 +30,32 @@ public class User implements Serializable {
     public User() {
     }
 
-    // --- GETTERS AND SETTERS ---
-    public int getId() {
+    // ==========================================
+    // GETTERS AND SETTERS
+    // ==========================================
+
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public String getFirstName() {
-        return firstName;
+    public String getRole() {
+        return role;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    public void setRole(String role) {
+        this.role = role;
     }
 
-    public String getLastName() {
-        return lastName;
+    public String getRoleCode() {
+        return roleCode;
     }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    /**
-     * Helper method to get full name for display purposes. Use this in JSP
-     * like: <%= user.getFullName() %>
-     */
-    public String getFullName() {
-        return (firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "");
+    public void setRoleCode(String roleCode) {
+        this.roleCode = roleCode;
     }
 
     public String getEmail() {
@@ -72,12 +66,44 @@ public class User implements Serializable {
         this.email = email;
     }
 
-    public String getRole() {
-        return role;
+    public String getPassword() {
+        return password;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
     }
 
     public String getUniversity() {
@@ -96,15 +122,38 @@ public class User implements Serializable {
         this.office = office;
     }
 
-    public void setRoleCode(String role_code) {
-        this.role_code = role_code;
-    }
-
     public String getLogStatus() {
         return logStatus;
     }
 
     public void setLogStatus(String logStatus) {
         this.logStatus = logStatus;
+    }
+
+    // ==========================================
+    // UTILITY HELPER METHODS
+    // ==========================================
+
+    /**
+     * Helper method to get full name for display purposes. 
+     * Handles cases where middle name might be null or empty.
+     * Use this in JSP like: <%= user.getFullName() %>
+     */
+    public String getFullName() {
+        StringBuilder fullName = new StringBuilder();
+        
+        if (firstName != null && !firstName.trim().isEmpty()) {
+            fullName.append(firstName.trim()).append(" ");
+        }
+        
+        if (middleName != null && !middleName.trim().isEmpty()) {
+            fullName.append(middleName.trim()).append(" ");
+        }
+        
+        if (lastName != null && !lastName.trim().isEmpty()) {
+            fullName.append(lastName.trim());
+        }
+        
+        return fullName.toString().trim();
     }
 }
