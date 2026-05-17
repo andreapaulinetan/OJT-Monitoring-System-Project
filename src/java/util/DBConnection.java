@@ -6,12 +6,12 @@ import java.sql.SQLException;
 import javax.servlet.ServletContext;
 
 /**
- * Centralized Database Connection Utility
+ * Member 1: Centralized Database Connection Utility
  * Fetches credentials from web.xml to prevent hardcoding.
  */
 public class DBConnection {
 
-    // 1. Primary Derby Connection (AuthDB - Member 1 & 4)
+    // Method for DBMS 1 (Apache Derby) - Member 1 & 4's focus
     public static Connection getDerbyConnection(ServletContext context) {
         try {
             Class.forName(context.getInitParameter("derby.driver"));
@@ -26,37 +26,21 @@ public class DBConnection {
         }
     }
 
-    // 2. OJT Derby Connection (OJTDB - Used for Dashboard stats)
+    // Method for DBMS 2 (MySQL) - Member 2's focus
     public static Connection getOJTDerbyConnection(ServletContext context) {
         try {
             Class.forName(context.getInitParameter("derby.driver"));
             return DriverManager.getConnection(
-                    context.getInitParameter("ojt.derby.url"), 
+                    context.getInitParameter("ojt.derby.url"), // Points to ojtdb
                     context.getInitParameter("derby.username"),
                     context.getInitParameter("derby.password")
             );
-        } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
             return null;
         }
     }
 
-    // 3. MySQL Connection (Member 2)
-    public static Connection getMySQLConnection(ServletContext context) {
-        try {
-            Class.forName(context.getInitParameter("mysql.driver"));
-            return DriverManager.getConnection(
-                context.getInitParameter("mysql.url"),
-                context.getInitParameter("mysql.username"),
-                context.getInitParameter("mysql.password")
-            );
-        } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    // 4. PostgreSQL Connection (Member 3)
+    // Method for DBMS 3 (PostgreSQL) - Member 3's focus
     public static Connection getPgConnection(ServletContext context) {
         try {
             Class.forName(context.getInitParameter("pgsql.driver"));

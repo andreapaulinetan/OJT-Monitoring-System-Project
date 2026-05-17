@@ -3,18 +3,18 @@ package model;
 import java.io.Serializable;
 
 /**
- * Model class representing a User (Admin or Intern).
- * Implements Serializable as it is stored in the HttpSession.
+ * Model class representing a User (Admin or Intern). Implements Serializable as
+ * it is stored in the HttpSession.
  */
 public class User implements Serializable {
 
     private int id;
+    private String password;
+    private String role_code;
     private String firstName;
     private String lastName;
     private String email;
-    private String password;
     private String role;
-    private String roleCode;
     private String university;
     private String office;
     private String logStatus;
@@ -24,7 +24,6 @@ public class User implements Serializable {
     }
 
     // --- GETTERS AND SETTERS ---
-
     public int getId() {
         return id;
     }
@@ -49,9 +48,17 @@ public class User implements Serializable {
         this.lastName = lastName;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     /**
-     * Helper method to get full name for display purposes. 
-     * Use this in JSP like: <%= user.getFullName() %>
+     * Helper method to get full name for display purposes. Use this in JSP
+     * like: <%= user.getFullName() %>
      */
     public String getFullName() {
         return (firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "");
@@ -65,28 +72,12 @@ public class User implements Serializable {
         this.email = email;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getRole() {
         return role;
     }
 
     public void setRole(String role) {
         this.role = role;
-    }
-
-    public String getRoleCode() {
-        return roleCode;
-    }
-
-    public void setRoleCode(String roleCode) {
-        this.roleCode = roleCode;
     }
 
     public String getUniversity() {
@@ -103,6 +94,10 @@ public class User implements Serializable {
 
     public void setOffice(String office) {
         this.office = office;
+    }
+
+    public void setRoleCode(String role_code) {
+        this.role_code = role_code;
     }
 
     public String getLogStatus() {
