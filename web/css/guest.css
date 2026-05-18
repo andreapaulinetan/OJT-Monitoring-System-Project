@@ -1269,3 +1269,551 @@ body {
     font-size: 0.95rem;
     opacity: 0.9;
 }
+
+/* Custom CSS Overrides to match the sleek screenshots exactly */
+:root {
+    --card-yellow-bg: #fef9c3;
+    --card-green-bg: #dcfce7;
+    --card-pink-bg: #fce7f3;
+    --card-blue-bg: #e0f2fe;
+    --text-dark: #1f2937;
+}
+
+body {
+    background-color: #f9fafb;
+    color: var(--text-dark);
+}
+
+.content-header h1 {
+    font-weight: 700;
+    font-size: 28px;
+    color: #111827;
+}
+
+.welcome-text {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* 2x2 Grid Configuration Setup Container */
+.configuration-grid-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+@media(max-width: 992px) {
+    .configuration-grid-wrapper {
+        grid-template-columns: 1fr;
+    }
+}
+
+.config-card {
+    border: none;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 200px;
+}
+
+.card-ui-yellow { background-color: var(--card-yellow-bg); }
+.card-ui-green { background-color: var(--card-green-bg); }
+.card-ui-pink { background-color: var(--card-pink-bg); }
+.card-ui-blue { background-color: var(--card-blue-bg); }
+
+.card-title-custom {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 20px;
+}
+
+.custom-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4b5563;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+/* Horizontal Input Rows alignment */
+.horizontal-inputs {
+    display: flex;
+    gap: 16px;
+}
+.horizontal-inputs > div {
+    flex: 1;
+}
+
+.form-control, .input-group-text {
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    padding: 10px 14px;
+    background-color: #ffffff;
+}
+
+/* Modern Toggle Buttons styling */
+.modern-toggle-group {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 4px;
+    border-radius: 12px;
+    display: flex;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.modern-toggle-group .btn {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: #4b5563;
+}
+
+/* Toggle State overrides to match image colors */
+.card-ui-green .modern-toggle-group .btn.active {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+}
+.card-ui-blue .modern-toggle-group .btn.active {
+    background-color: #1e3a8a !important;
+    color: #ffffff !important;
+}
+
+/* Calendar Work Schedule Circle Pickers */
+.circle-day-picker {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(255,255,255,0.4);
+    padding: 12px;
+    border-radius: 30px;
+}
+
+.day-circle-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.05);
+    background-color: #ffffff;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.day-circle-btn.active {
+    background-color: #831843 !important;
+    color: #ffffff !important;
+    border-color: #831843 !important;
+}
+
+.custom-slider {
+    height: 6px;
+    background: #cbd5e1;
+    border-radius: 5px;
+}
+.custom-slider::-webkit-slider-thumb {
+    background: #15803d;
+}
+
+.apply-shifts-btn {
+    background-color: #1f2937;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+.apply-shifts-btn:hover {
+    background-color: #111827;
+    color: #ffffff;
+}
+
+.reset-defaults-btn {
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+/* Custom Appealing Toast Notification Container */
+.custom-toast {
+    position: fixed;
+    top: 24px;
+    right: -400px; /* Hidden off-screen by default */
+    background: #ffffff;
+    color: #1f2937;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border-left: 5px solid #10b981; /* Success Green Accent */
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 9999;
+    transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-toast.show {
+    right: 24px; /* Slide into view */
+}
+
+.toast-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #dcfce7;
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.toast-body h5 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.toast-body p {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+:root {
+    /* Theme Setup Colors from your Design Screenshots */
+    --card-yellow: #fef9c3;
+    --card-green: #dcfce7;
+    --card-pink: #fce7f3;
+    --card-blue: #e0f2fe;
+    --btn-green: #15803d;
+    --btn-green-hover: #166534;
+}
+
+/* --- GRID SYSTEM CONFIG CARDS --- */
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.setup-card {
+    border: none;
+    border-radius: 18px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 200px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.setup-card h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    color: #0f172a;
+}
+
+.card-yellow { background-color: var(--card-yellow); }
+.card-green { background-color: var(--card-green); }
+.card-pink { background-color: var(--card-pink); }
+.card-blue { background-color: var(--card-blue); }
+
+/* --- CUSTOM INPUT FIELDS & FORM CONTROLS --- */
+.input-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+.custom-input-group {
+    background: #ffffff;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.custom-input-group input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.custom-input-group i {
+    color: #64748b;
+}
+
+/* Range Slider Styling */
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.slider-badge {
+    background-color: #166534;
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.custom-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 5px;
+    background: #cbd5e1;
+    outline: none;
+}
+
+.custom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #15803d;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.custom-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Custom Segmented Pill / Button Styling */
+.pill-toggle-group {
+    display: flex;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.05);
+    gap: 4px;
+}
+
+.pill-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #475569;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.pill-btn.active-green {
+    background-color: #166534;
+    color: #ffffff;
+}
+
+.pill-btn.active-blue {
+    background-color: #1d4ed8;
+    color: #ffffff;
+}
+
+/* Circle Day Picker Styling */
+.circle-day-picker {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 6px;
+    border-radius: 30px;
+}
+
+.day-circle-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.day-circle-btn.active {
+    background-color: #831843;
+    color: #ffffff;
+}
+
+.card-footer-note {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Bottom Action Bar Buttons */
+.btn-apply-shifts {
+    background-color: var(--btn-green);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.btn-apply-shifts:hover {
+    background-color: var(--btn-green-hover);
+    color: white;
+}
+
+.btn-reset-defaults {
+    background: white;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-reset-defaults:hover {
+    background: #f1f5f9;
+}
+/* ==========================================================================
+   FIXED CUSTOM TOAST ALERTS
+   ========================================================================== */
+
+#custom-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 999999 !important; /* Forces it to sit on top of all dashboard panels */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    pointer-events: none;
+}
+
+.custom-toast-alert {
+    pointer-events: auto;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    
+    /* Structural Fixes to stop vertical collapse */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px;
+    
+    min-width: 340px;
+    max-width: 450px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    
+    /* Ensure clean hardware accelerated fade animations */
+    opacity: 1;
+    transform: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Explicit text layer formatting */
+.custom-toast-alert span {
+    color: #1e293b !important; /* Force deep slate dark color text visibility */
+    display: inline-block !important;
+    line-height: 1.4 !important;
+    font-size: 14px !important;
+}
+
+/* Icon visibility fix */
+.custom-toast-alert i {
+    font-size: 18px !important;
+    display: inline-block !important;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   ANIMATION KEYFRAMES
+   ========================================================================== */
+.dynamic-fade-in {
+    animation: toastSlideIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+#liveTimerDisplay {
+    font-family: 'Courier New', Courier, monospace, sans-serif;
+}
+
+/* Input field state when validation fails */
+.input-error-state {
+    border-color: #f87171 !important; /* Soft crimson border */
+    background-color: #fef2f2 !important; /* Very light pink background tint */
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Custom crisp validation message container */
+.custom-error-banner {
+    color: #dc2626;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    animation: slideDownIn 0.2s ease-out;
+}
+
+@keyframes slideDownIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
