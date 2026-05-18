@@ -56,7 +56,7 @@
     </context-param>
     <context-param>
         <param-name>pgsql.password</param-name>
-        <param-value>your_password</param-value>
+        <param-value>110705</param-value>
     </context-param>
 
     <!-- Reporting Engine Branding Strings -->
@@ -96,6 +96,14 @@
         <servlet-name>LogoutServlet</servlet-name>
         <servlet-class>controller.LogoutServlet</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>ReportServlet</servlet-name>
+        <servlet-class>controller.ReportServlet</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>AuditServlet</servlet-name>
+        <servlet-class>controller.AuditServlet</servlet-class>
+    </servlet>
 
 
     <!-- Servlet Mappings -->
@@ -114,6 +122,14 @@
     <servlet-mapping>
         <servlet-name>LogoutServlet</servlet-name>
         <url-pattern>/LogoutServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>ReportServlet</servlet-name>
+        <url-pattern>/ReportServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AuditServlet</servlet-name>
+        <url-pattern>/AuditServlet</url-pattern>
     </servlet-mapping>
 
 

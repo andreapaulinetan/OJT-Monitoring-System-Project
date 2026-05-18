@@ -330,20 +330,131 @@
                 </div>
 
                 <div id="report-center-view" class="view-section" style="display: none;">
-                    <div class="card p-5 text-center shadow-sm bg-white border-0" style="margin-top: 40px; border-radius: 16px;">
-                        <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
-                        <h4>iText PDF Document Compilation Hub</h4>
-                        <p class="text-muted">Generate full verification audit sheets and export historical system parameters seamlessly to DBMS 3.</p>
-                        <button class="btn btn-brand-pink mt-2 mx-auto px-4 btn-sm">Compile Performance Audit PDF</button>
-                    </div>
+                    <section class="table-section p-0 overflow-hidden">
+                        <div class="section-header p-4 pb-2">
+                            <h3>PDF Report Compilation Hub</h3>
+                            <p class="text-muted small">Generate and download PDF reports directly to your browser. All reports use landscape orientation with automatic pagination.</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="row g-3">
+                                <!-- Report Card 1: User List -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
+                                        <div class="card-body text-center p-4">
+                                            <i class="fas fa-users fa-2x mb-3" style="color: #d63384;"></i>
+                                            <h6 class="fw-bold mb-2">User List Report</h6>
+                                            <p class="text-muted small mb-3">All registered users with roles. No passwords included. Marks current admin with *.</p>
+                                            <button class="btn btn-sm btn-dark w-100" onclick="downloadReport('USERLIST')">
+                                                <i class="fas fa-download me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Report Card 2: Admin Record -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
+                                        <div class="card-body text-center p-4">
+                                            <i class="fas fa-user-shield fa-2x mb-3" style="color: #d63384;"></i>
+                                            <h6 class="fw-bold mb-2">Admin Record</h6>
+                                            <p class="text-muted small mb-3">Your personal audit activity log — logins, logouts, and reports you generated.</p>
+                                            <button class="btn btn-sm btn-dark w-100" onclick="downloadReport('ADMINRECORD')">
+                                                <i class="fas fa-download me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Report Card 3: OJT Logs (with Date Range) -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
+                                        <div class="card-body text-center p-4">
+                                            <i class="fas fa-file-alt fa-2x mb-3" style="color: #d63384;"></i>
+                                            <h6 class="fw-bold mb-2">OJT Logs Report</h6>
+                                            <p class="text-muted small mb-2">Activity submissions from MySQL. Use date filters or leave blank for all records.</p>
+                                            <div class="mb-2">
+                                                <input type="date" id="ojtFromDate" class="form-control form-control-sm mb-1" placeholder="From">
+                                                <input type="date" id="ojtToDate" class="form-control form-control-sm" placeholder="To">
+                                            </div>
+                                            <button class="btn btn-sm btn-dark w-100" onclick="downloadOjtReport()">
+                                                <i class="fas fa-download me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Report Card 4: Audit Log -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
+                                        <div class="card-body text-center p-4">
+                                            <i class="fas fa-shield-alt fa-2x mb-3" style="color: #d63384;"></i>
+                                            <h6 class="fw-bold mb-2">Audit Log Report</h6>
+                                            <p class="text-muted small mb-3">Full system audit trail from PostgreSQL (DBMS 3). All login/logout/report events.</p>
+                                            <button class="btn btn-sm btn-dark w-100" onclick="downloadReport('AUDITLOG')">
+                                                <i class="fas fa-download me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <div id="audit-trail-view" class="view-section" style="display: none;">
-                    <div class="card p-5 text-center shadow-sm bg-white border-0" style="margin-top: 40px; border-radius: 16px;">
-                        <i class="fas fa-shield-alt fa-4x text-dark mb-3"></i>
-                        <h4>System Security Logs (DBMS 3 - PostgreSQL)</h4>
-                        <p class="text-muted">Review real-time authentication cycles, database sync connections, and tracking access parameters.</p>
-                    </div>
+                    <section class="table-section p-0 overflow-hidden">
+                        <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h3>System Security Audit Trail (DBMS 3 — PostgreSQL)</h3>
+                                <p class="text-muted small">Real-time authentication cycles, report generation events, and session tracking from the auditdb database.</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-dark" onclick="loadAuditTrail()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="table-responsive px-4">
+                            <table class="data-table" id="auditTable">
+                                <thead>
+                                    <tr>
+                                        <th style="cursor:pointer;" onclick="sortAuditTable(0)">Timestamp <i class="fas fa-sort"></i></th>
+                                        <th style="cursor:pointer;" onclick="sortAuditTable(1)">User ID <i class="fas fa-sort"></i></th>
+                                        <th style="cursor:pointer;" onclick="sortAuditTable(2)">Username <i class="fas fa-sort"></i></th>
+                                        <th style="cursor:pointer;" onclick="sortAuditTable(3)">Action <i class="fas fa-sort"></i></th>
+                                        <th>Details</th>
+                                        <th>IP Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditTableBody">
+                                    <tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading audit data from PostgreSQL...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="pagination-container d-flex justify-content-between align-items-center px-4 py-3 border-top bg-light">
+                            <div class="pagination-info text-muted small">
+                                Showing <span id="auditPageStart" class="fw-semibold">0</span> to <span id="auditPageEnd" class="fw-semibold">0</span> of <span id="auditTotalEntries" class="fw-semibold">0</span> entries
+                            </div>
+                            <nav aria-label="Audit Trail Navigation">
+                                <ul class="pagination pagination-sm mb-0 gap-1" id="auditPaginationButtons">
+                                </ul>
+                            </nav>
+                            <div class="page-size-selector d-flex align-items-center gap-2 small text-muted">
+                                <span>Show</span>
+                                <div class="filter-dropdown" style="width: auto; min-width: 80px;">
+                                    <div class="filter-trigger" id="auditSizeLabel" style="border-radius: 8px; height: 34px; background: white; border: 1px solid #dee2e6; padding: 0 12px;">
+                                        <span>10</span> <i class="fas fa-chevron-down solid dynamic-arrow ms-2" style="font-size: 10px; color: #6c757d;"></i>
+                                    </div>
+                                    <div class="filter-content" style="min-width: 90px; text-align: center;">
+                                        <div class="filter-option" onclick="customChangePageSize(10, 'audit')">10</div>
+                                        <div class="filter-option" onclick="customChangePageSize(15, 'audit')">15</div>
+                                        <div class="filter-option" onclick="customChangePageSize(20, 'audit')">20</div>
+                                        <div class="filter-option" onclick="customChangePageSize(50, 'audit')">50</div>
+                                    </div>
+                                </div>
+                                <span>entries</span>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </main>
         </div>
@@ -598,6 +709,11 @@
 
             let internCurrentPage = 1, internPageSize = 10;
             let logCurrentPage = 1, logPageSize = 10;
+            let auditCurrentPage = 1, auditPageSize = 10;
+
+            let auditData = [];
+            let auditSortColumn = 0, auditSortAsc = false;
+            let auditLoaded = false;
 
             let addInternModalObj = null, summaryInternModalObj = null, detailsModalObj = null;
 
@@ -879,6 +995,11 @@
                 if (type === 'intern') {
                     internPageSize = parseInt(value);
                     internCurrentPage = 1;
+                } else if (type === 'audit') {
+                    auditPageSize = parseInt(value);
+                    auditCurrentPage = 1;
+                    renderAuditTable();
+                    return;
                 } else {
                     logPageSize = parseInt(value);
                     logCurrentPage = 1;
@@ -922,6 +1043,15 @@
                     document.getElementById('nav-logs').classList.add('active');
                     document.getElementById('mainPageTitle').innerText = "Log Review Center";
                     filterTable();
+                } else if (viewId === 'report-center') {
+                    document.getElementById('report-center-view').style.display = 'block';
+                    document.getElementById('nav-reports').classList.add('active');
+                    document.getElementById('mainPageTitle').innerText = "PDF Report Center";
+                } else if (viewId === 'audit-trail') {
+                    document.getElementById('audit-trail-view').style.display = 'block';
+                    document.getElementById('nav-audit').classList.add('active');
+                    document.getElementById('mainPageTitle').innerText = "System Audit Trail";
+                    if (!auditLoaded) loadAuditTrail();
                 } else {
                     document.getElementById(viewId + '-view').style.display = 'block';
                     document.getElementById('nav-' + viewId.split('-')[0]).classList.add('active');
@@ -1237,9 +1367,150 @@
             }
 
             function customChangePageSize(value, type) {
-                const labelId = type === 'intern' ? "internSizeLabel" : "logSizeLabel";
+                let labelId;
+                if (type === 'intern') labelId = 'internSizeLabel';
+                else if (type === 'audit') labelId = 'auditSizeLabel';
+                else labelId = 'logSizeLabel';
                 document.querySelector("#" + labelId + " span").innerText = value;
                 changePageSize(value, type);
+            }
+
+            // ══════════════════════════════════════════════════════════
+            // REPORT DOWNLOAD FUNCTIONS
+            // ══════════════════════════════════════════════════════════
+
+            function downloadReport(type) {
+                window.location.href = 'ReportServlet?type=' + type;
+            }
+
+            function downloadOjtReport() {
+                const from = document.getElementById('ojtFromDate').value;
+                const to = document.getElementById('ojtToDate').value;
+                let url = 'ReportServlet?type=OJTLOGS';
+                if (from && to) {
+                    if (from > to) {
+                        alert('"From" date must be before or equal to the "To" date.');
+                        return;
+                    }
+                    url += '&from=' + from + '&to=' + to;
+                }
+                window.location.href = url;
+            }
+
+            // ══════════════════════════════════════════════════════════
+            // AUDIT TRAIL TABLE (AJAX from PostgreSQL via AuditServlet)
+            // ══════════════════════════════════════════════════════════
+
+            function loadAuditTrail() {
+                const tbody = document.getElementById('auditTableBody');
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading audit data from PostgreSQL...</td></tr>';
+
+                fetch('AuditServlet')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Server returned ' + response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        auditData = data;
+                        auditLoaded = true;
+                        auditCurrentPage = 1;
+                        renderAuditTable();
+                    })
+                    .catch(err => {
+                        console.error('Audit trail fetch error:', err);
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load audit data. Check PostgreSQL connection.</td></tr>';
+                    });
+            }
+
+            function renderAuditTable() {
+                const tbody = document.getElementById('auditTableBody');
+                tbody.innerHTML = '';
+
+                if (auditData.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No audit log entries found.</td></tr>';
+                    document.getElementById('auditPageStart').innerText = '0';
+                    document.getElementById('auditPageEnd').innerText = '0';
+                    document.getElementById('auditTotalEntries').innerText = '0';
+                    return;
+                }
+
+                const totalEntries = auditData.length;
+                const totalPages = Math.ceil(totalEntries / auditPageSize) || 1;
+                if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+
+                const startIdx = (auditCurrentPage - 1) * auditPageSize;
+                const endIdx = Math.min(startIdx + auditPageSize, totalEntries);
+
+                for (let i = startIdx; i < endIdx; i++) {
+                    const log = auditData[i];
+                    const tr = document.createElement('tr');
+                    tr.className = 'audit-row';
+
+                    // Action badge color
+                    let actionBadge = '';
+                    if (log.action === 'LOGIN') actionBadge = '<span class="badge bg-success">' + log.action + '</span>';
+                    else if (log.action === 'LOGOUT') actionBadge = '<span class="badge bg-secondary">' + log.action + '</span>';
+                    else actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
+
+                    tr.innerHTML = '<td>' + log.created_at + '</td>' +
+                        '<td><span style="font-family: monospace; font-size: 12px;">' + log.user_id + '</span></td>' +
+                        '<td>' + log.username + '</td>' +
+                        '<td>' + actionBadge + '</td>' +
+                        '<td><small class="text-muted">' + log.details + '</small></td>' +
+                        '<td><small>' + log.ip_address + '</small></td>';
+                    tbody.appendChild(tr);
+                }
+
+                document.getElementById('auditPageStart').innerText = totalEntries === 0 ? 0 : startIdx + 1;
+                document.getElementById('auditPageEnd').innerText = endIdx;
+                document.getElementById('auditTotalEntries').innerText = totalEntries;
+                renderAuditPagination(totalPages);
+            }
+
+            function renderAuditPagination(totalPages) {
+                const container = document.getElementById('auditPaginationButtons');
+                container.innerHTML = '';
+                if (totalPages <= 1) return;
+
+                const prevLi = document.createElement('li');
+                prevLi.className = 'page-item ' + (auditCurrentPage === 1 ? 'disabled' : '');
+                prevLi.innerHTML = '<a class="page-link" href="#" onclick="goToAuditPage(' + (auditCurrentPage - 1) + '); return false;"><i class="fas fa-chevron-left"></i></a>';
+                container.appendChild(prevLi);
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageLi = document.createElement('li');
+                    pageLi.className = 'page-item ' + (auditCurrentPage === i ? 'active' : '');
+                    pageLi.innerHTML = '<a class="page-link" href="#" onclick="goToAuditPage(' + i + '); return false;">' + i + '</a>';
+                    container.appendChild(pageLi);
+                }
+
+                const nextLi = document.createElement('li');
+                nextLi.className = 'page-item ' + (auditCurrentPage === totalPages ? 'disabled' : '');
+                nextLi.innerHTML = '<a class="page-link" href="#" onclick="goToAuditPage(' + (auditCurrentPage + 1) + '); return false;"><i class="fas fa-chevron-right"></i></a>';
+                container.appendChild(nextLi);
+            }
+
+            function goToAuditPage(pageNumber) {
+                auditCurrentPage = pageNumber;
+                renderAuditTable();
+            }
+
+            function sortAuditTable(columnIndex) {
+                if (auditSortColumn === columnIndex) auditSortAsc = !auditSortAsc;
+                else auditSortAsc = true;
+                auditSortColumn = columnIndex;
+
+                const keys = ['created_at', 'user_id', 'username', 'action'];
+                const key = keys[columnIndex];
+
+                auditData.sort((a, b) => {
+                    let vA = (a[key] || '').toString().toUpperCase();
+                    let vB = (b[key] || '').toString().toUpperCase();
+                    return auditSortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+                });
+
+                auditCurrentPage = 1;
+                renderAuditTable();
             }
         </script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -6,6 +6,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.*;
 import model.User;
 import model.UserDAO;
+import model.PostgreSQLDAO;
 
 public class LoginServlet extends HttpServlet {
 
@@ -62,6 +63,16 @@ public class LoginServlet extends HttpServlet {
             newSession.setAttribute("user", user);
             newSession.setAttribute("role", user.getRole());
             newSession.setMaxInactiveInterval(5 * 60);
+
+            // AUTO-LOG: Record LOGIN event to PostgreSQL (DBMS 3)
+            PostgreSQLDAO.insertAuditLog(
+                getServletContext(),
+                user.getId(),
+                user.getFullName(),
+                "LOGIN",
+                "User logged in successfully",
+                request.getRemoteAddr()
+            );
 
             // AUTOMATIC ROUTING based on DB role
             String role = user.getRole();
