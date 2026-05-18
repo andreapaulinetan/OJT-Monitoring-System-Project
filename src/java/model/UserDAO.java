@@ -14,30 +14,35 @@ public class UserDAO {
     /**
      * VALIDATE USER: Checks both Admin and Intern tables (DBMS 1 - Apache Derby).
      */
-    public static User validateUser(String email, String hashedPassword, ServletContext context) {
+    public static User validateUser(String email, String plainPassword, ServletContext context) {
+        String hashedPassword = util.CryptoUtil.hashPassword(plainPassword);
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return null;
 
             // 1. Check ADMIN Table
-            String adminSql = "SELECT * FROM ADMIN WHERE EMAIL = ? AND PASSWORD = ?";
+            String adminSql = "SELECT * FROM ADMIN WHERE LOWER(EMAIL) = ?";
             try (PreparedStatement ps = conn.prepareStatement(adminSql)) {
                 ps.setString(1, email);
-                ps.setString(2, hashedPassword);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapResultSetToUser(rs, "Admin", context);
+                        String dbPass = rs.getString("PASSWORD");
+                        if (dbPass != null && (dbPass.equals(hashedPassword) || dbPass.equals(plainPassword))) {
+                            return mapResultSetToUser(rs, "Admin", context);
+                        }
                     }
                 }
             }
 
             // 2. Check INTERN Table
-            String internSql = "SELECT * FROM INTERN WHERE EMAIL = ? AND PASSWORD = ?";
+            String internSql = "SELECT * FROM INTERN WHERE LOWER(EMAIL) = ?";
             try (PreparedStatement ps = conn.prepareStatement(internSql)) {
                 ps.setString(1, email);
-                ps.setString(2, hashedPassword);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapResultSetToUser(rs, rs.getString("ROLE"), context);
+                        String dbPass = rs.getString("PASSWORD");
+                        if (dbPass != null && (dbPass.equals(hashedPassword) || dbPass.equals(plainPassword))) {
+                            return mapResultSetToUser(rs, rs.getString("ROLE"), context);
+                        }
                     }
                 }
             }

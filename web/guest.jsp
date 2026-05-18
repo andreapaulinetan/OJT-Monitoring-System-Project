@@ -1,39 +1,38 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="model.User"%>
-<%
-    if (session == null || session.getAttribute("user") == null) {
-        response.sendRedirect("login.jsp");
-        return;
-    }
+<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 
-    String statusParam = request.getParameter("status");
-    String alertMessage = "";
-    String alertClass = "";
+<c:if test="${empty sessionScope.user}">
+    <c:redirect url="login.jsp"/>
+</c:if>
 
-    // Safely parse the approved database hours passed from the controller servlet
-    String dbHoursParam = request.getParameter("approvedHours");
-    double parsedDbHours = 0.0;
-    if (dbHoursParam != null && !dbHoursParam.isEmpty()) {
-        try {
-            parsedDbHours = Double.parseDouble(dbHoursParam);
-        } catch (Exception e) {
-        }
-    }
+<c:set var="alertMessage" value=""/>
+<c:set var="alertClass" value=""/>
+<c:set var="parsedDbHours" value="0.0"/>
 
-    if ("success".equals(statusParam)) {
-        alertMessage = "Success! Your tracking log details have been saved to MySQL.";
-        if (parsedDbHours > 0) {
-            alertMessage += " (" + parsedDbHours + " hours successfully synchronized into active record matrix.)";
-        }
-        alertClass = "alert alert-success mt-3 mb-3";
-    } else if ("db_error".equals(statusParam)) {
-        alertMessage = "Database Error: Could not save attendance record.";
-        alertClass = "alert alert-danger mt-3 mb-3";
-    } else if ("no_clock_in".equals(statusParam)) {
-        alertMessage = "Error: No matching clock-in event timestamp tracked in session state.";
-        alertClass = "alert alert-warning mt-3 mb-3";
-    }
-%>
+<c:if test="${not empty param.approvedHours}">
+    <c:catch var="parseError">
+        <c:set var="parsedDbHours" value="${param.approvedHours + 0.0}"/>
+    </c:catch>
+</c:if>
+
+<c:choose>
+    <c:when test="${param.status == 'success'}">
+        <c:set var="alertMessage" value="Success! Your tracking log details have been saved to MySQL."/>
+        <c:if test="${parsedDbHours > 0}">
+            <c:set var="alertMessage" value="${alertMessage} (${parsedDbHours} hours successfully synchronized into active record matrix.)"/>
+        </c:if>
+        <c:set var="alertClass" value="alert alert-success mt-3 mb-3"/>
+    </c:when>
+    <c:when test="${param.status == 'db_error'}">
+        <c:set var="alertMessage" value="Database Error: Could not save attendance record."/>
+        <c:set var="alertClass" value="alert alert-danger mt-3 mb-3"/>
+    </c:when>
+    <c:when test="${param.status == 'no_clock_in'}">
+        <c:set var="alertMessage" value="Error: No matching clock-in event timestamp tracked in session state."/>
+        <c:set var="alertClass" value="alert alert-warning mt-3 mb-3"/>
+    </c:when>
+</c:choose>
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -47,15 +46,6 @@
     </head>
 
     <body>
-        <div id="successToast" class="custom-toast">
-            <div class="toast-icon-wrap">
-                <i class="fa-solid fa-circle-check"></i>
-            </div>
-            <div class="toast-body">
-                <h5>Success!</h5>
-                <p id="toastMessageText">Simulated hours logged successfully.</p>
-            </div>
-        </div>
 
         <div class="app-container">
 
@@ -82,23 +72,29 @@
 
             <main class="main-content">
 
-                <% if (!alertMessage.isEmpty()) {%>
-                <div class="<%= alertClass%>" role="alert">
-                    <i class="fa-solid fa-circle-info me-2"></i> <%= alertMessage%>
+                <c:if test="${not empty alertMessage}">
+                <div class="${alertClass}" role="alert">
+                    <i class="fa-solid fa-circle-info me-2"></i> ${alertMessage}
                 </div>
-                <% }%>
+                </c:if>
 
-                <input type="hidden" id="dbInjectedHoursField" value="<%= parsedDbHours%>">
-                <input type="hidden" id="dbSubmissionStatusField" value="<%= statusParam != null ? statusParam : ""%>">
+                <input type="hidden" id="dbInjectedHoursField" value="${parsedDbHours}">
+                <input type="hidden" id="dbSubmissionStatusField" value="${empty param.status ? '' : param.status}">
 
                 <div id="dashboard-view" class="view-panel active-view">
-                    <header class="content-header">
+                    <header class="content-header d-flex justify-content-between align-items-start mb-4">
                         <div class="header-title-group">
                             <div class="title-with-icon">
                                 <i class="fa-solid fa-graduation-cap header-icon"></i>
                                 <h1>Intern's Dashboard</h1>
                             </div>
                             <p class="welcome-text">Live Analytics & Performance Tracker</p>
+                        </div>
+                        <div class="user-profile d-flex align-items-center bg-white px-3 py-2 border shadow-sm" style="border-radius: 50px;">
+                            <div class="profile-chip d-flex align-items-center gap-2">
+                                <span class="fw-bold small text-secondary">${sessionScope.user.fullName}</span>
+                                <img src="https://ui-avatars.com/api/?name=${sessionScope.user.fullName}&background=d63384&color=fff" alt="Intern" class="rounded-circle" style="width: 32px; height: 32px;">
+                            </div>
                         </div>
                     </header>
 
@@ -117,11 +113,11 @@
                             <span class="card-metric-title">TOTAL RENDERED HOURS</span>
                             <div class="value" id="renderedHoursDisplay">148.5h</div>
 
-                            <% if ("success".equals(statusParam) && parsedDbHours > 0) {%>
+                            <c:if test="${param.status == 'success' and parsedDbHours > 0}">
                             <span class="position-absolute bottom-0 end-0 bg-success text-white px-2 py-1 small rounded-start fw-bold" style="font-size: 10px; opacity: 0.95; z-index: 5;">
-                                <i class="fa-solid fa-cloud-arrow-up me-1"></i> Sync Live: +<%= parsedDbHours%>h
+                                <i class="fa-solid fa-cloud-arrow-up me-1"></i> Sync Live: +${parsedDbHours}h
                             </span>
-                            <% }%>
+                            </c:if>
                         </div>
                         <div class="stat-card card-pink">
                             <span class="card-metric-title">REMAINING HOURS</span>
@@ -152,13 +148,13 @@
                             <h3 class="pane-title">Daily Attendance Simulator</h3>
                             <div class="attendance-box text-center py-3">
                                 <div class="mb-3">
-                                    <div class="attendance-status-badge">
-                                        <span class="status-dot red" id="statusIndicatorDot"></span>
+                                    <div class="status-marker">
+                                        <span class="indicator-dot status-offline" id="statusIndicatorDot"></span>
                                         <span id="statusIndicatorText">Not Clocked In</span>
                                     </div>
                                 </div>
-                                <div id="liveTimerDisplay" class="live-timer-display my-3 font-monospace h1 fw-bold" style="font-size: 42px; letter-spacing: -1px;">00:00:00</div>
-                                <button id="btnAttendanceToggle" class="btn btn-success w-100 py-2 fw-bold" onclick="toggleTimerAttendanceSession()">
+                                <div id="liveTimerDisplay" class="live-timer-display my-3 h1 fw-bold" style="font-size: 42px; letter-spacing: -1px;">00:00:00</div>
+                                <button id="btnAttendanceToggle" class="btn-attendance-action clock-in-state" onclick="toggleTimerAttendanceSession()">
                                     <i class="fa-solid fa-play me-2"></i> Time In
                                 </button>
                                 <div class="text-muted mt-2 text-center" style="font-size: 11px;">
@@ -168,26 +164,26 @@
                         </div>
 
                         <div class="dashboard-pane" id="manualTaskLogPane">
-                            <h3 class="pane-title">Simulate Task Entry Log</h3>
+                            <h3 class="pane-title fw-bolder">Simulate Task Entry Log</h3>
                             <form id="sandboxLogForm" onsubmit="handleManualLogSubmission(event)">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold small">Hours Spent on Task</label>
-                                    <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}" required>
+                                    <label class="field-label-small d-block mb-2">HOURS SPENT ON TASK</label>
+                                    <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}" required style="background-color: #f1f5f9; border-color: #cbd5e1; color: #0f172a;">
                                 </div>
 
                                 <div class="form-group attachment-container mb-3">
-                                    <label class="form-label fw-bold small">Proof of Attendance <span class="text-danger">*</span></label>
-                                    <div class="photo-dropzone text-center p-3 border border-dashed rounded" style="cursor: pointer;" onclick="document.getElementById('attendance-photo').click();">
-                                        <i class="fa-solid fa-camera fa-2x mb-2 text-muted"></i>
-                                        <p class="m-0 small">Click to <strong>add attachment (photo)</strong></p>
-                                        <span class="file-hint text-muted" style="font-size: 11px;">Supports PNG, JPG, or JPEG</span>
-                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden>
+                                    <label class="field-label-small d-block mb-2">PROOF OF ATTENDANCE <span class="text-danger">*</span></label>
+                                    <div class="photo-dropzone text-center p-3 border border-dashed rounded" style="cursor: pointer; background-color: #f8fafc; border-color: #cbd5e1;" onclick="document.getElementById('attendance-photo').click();" ondragover="event.preventDefault(); this.style.opacity='0.5';" ondragleave="this.style.opacity='1';" ondrop="event.preventDefault(); this.style.opacity='1'; if(event.dataTransfer.files.length > 0) { document.getElementById('attendance-photo').files = event.dataTransfer.files; handleFileChange(document.getElementById('attendance-photo')); }">
+                                        <i class="fa-solid fa-camera fa-2x mb-2 text-muted" style="color: #94a3b8 !important;"></i>
+                                        <p class="m-0 small" style="color: #475569;">Click or drag to <strong>add attachment (photo)</strong></p>
+                                        <span class="file-hint text-muted" style="font-size: 11px; color: #94a3b8 !important;">Supports PNG, JPG, or JPEG</span>
+                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden onclick="event.stopPropagation();">
                                     </div>
                                     <div id="photo-preview-name" class="photo-preview-text mt-2 text-success small fw-bold"></div>
                                 </div>
 
-                                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" style="background-color: #4f46e5; border: none;">
-                                    <i class="fa-solid fa-paper-plane me-2"></i> Inject Simulation Hours
+                                <button type="submit" class="btn-submit-log">
+                                    <i class="fa-solid fa-paper-plane"></i> Inject Simulation Hours
                                 </button>
                             </form>
                         </div>
@@ -219,87 +215,100 @@
 
                 <div id="coordinator-view" class="view-panel">
                     <header class="content-header d-flex justify-content-between align-items-start mb-4">
-                        <div>
-                            <h1>Internship Setup Configuration</h1>
+                        <div class="header-title-group">
+                            <div class="title-with-icon">
+                                <i class="fa-solid fa-sliders header-icon" style="color: #9E1B4C;"></i>
+                                <h1>Internship Setup Configuration</h1>
+                            </div>
                             <p class="welcome-text m-0">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
                         </div>
-                        <button type="button" class="reset-defaults-btn" onclick="resetConfigurationForm()">
-                            <i class="fa-solid fa-rotate-left me-1"></i> Reset Defaults
-                        </button>
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="reset-btn" onclick="resetConfigurationForm(); return false;">
+                                <i class="fa-solid fa-rotate-left me-1"></i> Reset Defaults
+                            </button>
+                            <div class="user-profile d-flex align-items-center bg-white px-3 py-2 border shadow-sm" style="border-radius: 50px;">
+                                <div class="profile-chip d-flex align-items-center gap-2">
+                                    <span class="fw-bold small text-secondary">${sessionScope.user.fullName}</span>
+                                    <img src="https://ui-avatars.com/api/?name=${sessionScope.user.fullName}&background=d63384&color=fff" alt="Intern" class="rounded-circle" style="width: 32px; height: 32px;">
+                                </div>
+                            </div>
+                        </div>
                     </header>
 
-                    <form id="goalsSetupForm" onsubmit="saveConfigState(event)">
-                        <div class="configuration-grid-wrapper">
+                    <form id="goalsSetupForm" onsubmit="saveConfigState(event); return false;">
+                        <div class="setup-grid">
 
-                            <div class="config-card card-ui-yellow">
-                                <h3 class="card-title-custom">Internship Goals</h3>
-                                <div class="horizontal-inputs">
-                                    <div>
-                                        <label class="custom-label" for="inputTargetHours">Target Hours</label>
-                                        <div class="input-group">
-                                            <input type="number" id="inputTargetHours" class="form-control" value="400" min="1" required oninput="recalculateProgressEngine()">
-                                            <span class="input-group-text"><i class="fa-solid fa-clock text-muted"></i></span>
+                            <div class="card card-yellow">
+                                <h3 class="card-title">Internship Goals</h3>
+                                <div class="input-group-row">
+                                    <div class="input-field">
+                                        <label for="inputTargetHours">TARGET HOURS</label>
+                                        <div class="input-wrapper">
+                                            <input type="number" id="inputTargetHours" value="400" min="1" required oninput="recalculateProgressEngine()">
+                                            <i class="fa-solid fa-clock field-icon"></i>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label class="custom-label" for="inputStartDate">Start Date</label>
-                                        <input type="date" id="inputStartDate" class="form-control" value="2026-05-06" required onchange="recalculateProgressEngine()">
+                                    <div class="input-field">
+                                        <label for="inputStartDate">START DATE</label>
+                                        <div class="input-wrapper">
+                                            <input type="date" id="inputStartDate" value="2026-05-06" required onchange="recalculateProgressEngine()">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="config-card card-ui-green">
-                                <h3 class="card-title-custom">Load & Holiday</h3>
-                                <div class="w-100 mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <label class="custom-label m-0" for="hoursSlider">Hours Per Day</label>
-                                        <span class="badge bg-white text-dark border" id="sliderValDisplay" style="border-radius:6px; font-weight:700;">7h</span>
+                            <div class="card card-green">
+                                <h3 class="card-title">Load & Holiday</h3>
+                                <div class="slider-container">
+                                    <div class="slider-header">
+                                        <label for="hoursSlider">HOURS PER DAY</label>
+                                        <span class="slider-value-badge" id="sliderValDisplay">7h</span>
                                     </div>
-                                    <input type="range" min="1" max="12" value="7" class="form-range custom-slider" id="hoursSlider" oninput="updateSliderLabel(this.value)">
+                                    <input type="range" min="1" max="12" value="7" class="custom-slider" id="hoursSlider" oninput="updateSliderLabel(this.value)">
                                 </div>
-                                <div class="w-100">
-                                    <label class="custom-label d-block mb-2">Exclude PH Holidays (2026)?</label>
-                                    <div class="modern-toggle-group" role="group">
+                                <div class="toggle-container">
+                                    <label class="toggle-label">EXCLUDE PH HOLIDAYS (2026)?</label>
+                                    <div class="toggle-buttons">
                                         <input type="hidden" id="excludeHolidaysHidden" value="true">
-                                        <button type="button" id="holidayBtnYes" class="btn active" onclick="setHolidayExclusion(true)">
-                                            <i class="fa-solid fa-calendar-xmark me-1"></i> Yes
+                                        <button type="button" id="holidayBtnYes" class="toggle-btn active" onclick="setHolidayExclusion(true)">
+                                            <i class="fa-solid fa-calendar-check"></i> Yes
                                         </button>
-                                        <button type="button" id="holidayBtnNo" class="btn" onclick="setHolidayExclusion(false)">
-                                            <i class="fa-solid fa-calendar-check"></i> No
+                                        <button type="button" id="holidayBtnNo" class="toggle-btn" onclick="setHolidayExclusion(false)">
+                                            <i class="fa-solid fa-calendar-xmark"></i> No
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="config-card card-ui-pink">
+                            <div class="card card-pink">
                                 <div>
-                                    <h3 class="card-title-custom mb-1">Work Schedule</h3>
-                                    <label class="custom-label d-block mb-3">Weekly Work Days</label>
-                                    <div class="circle-day-picker">
-                                        <div class="day-circle-btn" data-day="0" onclick="toggleDayCircle(this)">S</div>
-                                        <div class="day-circle-btn active" data-day="1" onclick="toggleDayCircle(this)">M</div>
-                                        <div class="day-circle-btn active" data-day="2" onclick="toggleDayCircle(this)">T</div>
-                                        <div class="day-circle-btn active" data-day="3" onclick="toggleDayCircle(this)">W</div>
-                                        <div class="day-circle-btn active" data-day="4" onclick="toggleDayCircle(this)">T</div>
-                                        <div class="day-circle-btn active" data-day="5" onclick="toggleDayCircle(this)">F</div>
-                                        <div class="day-circle-btn" data-day="6" onclick="toggleDayCircle(this)">S</div>
+                                    <h3 class="card-title mb-1">Work Schedule</h3>
+                                    <label class="field-label-small d-block mb-3">WEEKLY WORK DAYS</label>
+                                    <div class="days-selector">
+                                        <div class="day-circle" data-day="0" onclick="toggleDayCircle(this)" style="pointer-events: auto;">S</div>
+                                        <div class="day-circle active" data-day="1" onclick="toggleDayCircle(this)" style="pointer-events: auto;">M</div>
+                                        <div class="day-circle active" data-day="2" onclick="toggleDayCircle(this)" style="pointer-events: auto;">T</div>
+                                        <div class="day-circle active" data-day="3" onclick="toggleDayCircle(this)" style="pointer-events: auto;">W</div>
+                                        <div class="day-circle active" data-day="4" onclick="toggleDayCircle(this)" style="pointer-events: auto;">T</div>
+                                        <div class="day-circle active" data-day="5" onclick="toggleDayCircle(this)" style="pointer-events: auto;">F</div>
+                                        <div class="day-circle" data-day="6" onclick="toggleDayCircle(this)" style="pointer-events: auto;">S</div>
                                     </div>
                                 </div>
-                                <div class="text-muted mt-3" style="font-size:12px; font-weight: 500;">
-                                    <i class="fa-solid fa-star text-warning me-1"></i> Selected active days count as projectable work terms
+                                <div class="helper-text mt-3">
+                                    <i class="fa-solid fa-star info-symbol"></i> <span id="activeDaysCountText">5</span>&nbsp;Selected active days count as projectable work terms
                                 </div>
                             </div>
 
-                            <div class="config-card card-ui-blue">
-                                <h3 class="card-title-custom">Projection Mode</h3>
+                            <div class="card card-blue">
+                                <h3 class="card-title">Projection Mode</h3>
                                 <div class="w-100">
-                                    <div class="modern-toggle-group" role="group">
+                                    <div class="mode-options">
                                         <input type="hidden" id="projectionModeHidden" value="Auto">
-                                        <button type="button" id="projBtnManual" class="btn" onclick="setProjectionMode('Manual')">
-                                            <i class="fa-solid fa-hand me-1"></i> Manual
+                                        <button type="button" id="projBtnManual" class="mode-btn" onclick="setProjectionMode('Manual')">
+                                            <i class="fa-solid fa-hand-pointer"></i> Manual
                                         </button>
-                                        <button type="button" id="projBtnAuto" class="btn active" onclick="setProjectionMode('Auto')">
-                                            <i class="fa-solid fa-layer-group me-1"></i> Auto
+                                        <button type="button" id="projBtnAuto" class="mode-btn active" onclick="setProjectionMode('Auto')">
+                                            <i class="fa-solid fa-layer-group"></i> Auto
                                         </button>
                                     </div>
                                 </div>
@@ -309,7 +318,7 @@
 
                         <div class="d-flex justify-content-between align-items-center mt-4">
                             <span class="text-muted small">Simulating analytics metrics live inside your <strong>browser session</strong></span>
-                            <button type="submit" class="apply-shifts-btn">
+                            <button type="button" class="btn-submit-log fw-bold w-auto px-4 m-0" style="font-size: 14px;" onclick="saveConfigState(event); return false;">
                                 <i class="fa-solid fa-floppy-disk me-2"></i> Apply Schedule Shifts
                             </button>
                         </div>
@@ -459,8 +468,18 @@
                 recalculateProgressEngine();
             }
 
+            function updateActiveDaysCount() {
+                let count = 0;
+                document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
+                    if (circle.classList.contains('active')) count++;
+                });
+                const txt = document.getElementById('activeDaysCountText');
+                if (txt) txt.textContent = count;
+            }
+
             function toggleDayCircle(element) {
                 element.classList.toggle('active');
+                updateActiveDaysCount();
                 recalculateProgressEngine();
             }
 
@@ -505,10 +524,10 @@
                     localStorage.setItem('sw_active', 'true');
                     localStorage.setItem('sw_startTimeStamp', Date.now() - (accumulatedSeconds * 1000));
 
-                    dot.className = "status-dot green";
-                    dot.style.backgroundColor = "#10b981";
+                    dot.className = "indicator-dot status-online";
+                    dot.style.backgroundColor = "";
                     label.textContent = "Clocked In & Tracking Time";
-                    btn.className = "btn btn-danger w-100 py-2 fw-bold";
+                    btn.className = "btn-attendance-action clock-out-state";
                     btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
 
                     timerCard.style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
@@ -528,10 +547,10 @@
                     localStorage.removeItem('sw_active');
                     localStorage.removeItem('sw_startTimeStamp');
 
-                    dot.className = "status-dot red";
-                    dot.style.backgroundColor = "#ef4444";
+                    dot.className = "indicator-dot status-offline";
+                    dot.style.backgroundColor = "";
                     label.textContent = "Not Clocked In";
-                    btn.className = "btn btn-success w-100 py-2 fw-bold";
+                    btn.className = "btn-attendance-action clock-in-state";
                     btn.innerHTML = '<i class="fa-solid fa-play me-2"></i> Time In';
                     document.getElementById('liveTimerDisplay').textContent = "00:00:00";
 
@@ -545,16 +564,20 @@
             }
 
             function incrementStopwatchRuntime() {
-                const cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
-                if (cachedStamp) {
+                let cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
+                if (cachedStamp && !isNaN(cachedStamp)) {
                     accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
                 } else {
                     accumulatedSeconds++;
                 }
-                const hrs = String(Math.floor(accumulatedSeconds / 3600)).padStart(2, '0');
-                const mins = String(Math.floor((accumulatedSeconds % 3600) / 60)).padStart(2, '0');
-                const secs = String(accumulatedSeconds % 60).padStart(2, '0');
-                document.getElementById('liveTimerDisplay').textContent = `${hrs}:${mins}:${secs}`;
+                if (isNaN(accumulatedSeconds) || accumulatedSeconds < 0) accumulatedSeconds = 0;
+                let h = Math.floor(accumulatedSeconds / 3600);
+                let m = Math.floor((accumulatedSeconds % 3600) / 60);
+                let s = accumulatedSeconds % 60;
+                let hrs = h < 10 ? '0' + h : h;
+                let mins = m < 10 ? '0' + m : m;
+                let secs = s < 10 ? '0' + s : s;
+                document.getElementById('liveTimerDisplay').textContent = hrs + ':' + mins + ':' + secs;
                     }
 
                     function restoreTimerSessionOnLoad() {
@@ -564,12 +587,12 @@
                             accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
 
                             const dot = document.getElementById('statusIndicatorDot');
-                            dot.className = "status-dot green";
-                            dot.style.backgroundColor = "#10b981";
+                            dot.className = "indicator-dot status-online";
+                            dot.style.backgroundColor = "";
                             document.getElementById('statusIndicatorText').textContent = "Clocked In & Tracking Time";
 
                             const btn = document.getElementById('btnAttendanceToggle');
-                            btn.className = "btn btn-danger w-100 py-2 fw-bold";
+                            btn.className = "btn-attendance-action clock-out-state";
                             btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
 
                             document.getElementById('attendanceSimulatorCard').style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
@@ -591,6 +614,12 @@
 
                         if (hoursInput <= 0) {
                             showCustomToast("Please specify a valid count of entry hours.", "error");
+                            return;
+                        }
+
+                        const fileInput = document.getElementById('attendance-photo');
+                        if (!fileInput.files || fileInput.files.length === 0) {
+                            showCustomToast("Proof of Attendance is required.", "error");
                             return;
                         }
 
@@ -628,7 +657,7 @@
                         let projectionMode = document.getElementById('projectionModeHidden').value;
 
                         let activeWeekdays = [];
-                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                        document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
                             if (circle.classList.contains('active')) {
                                 activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
                             }
@@ -693,7 +722,7 @@
                         const totalDaysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
 
                         let activeWeekdays = [];
-                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                        document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
                             if (circle.classList.contains('active')) {
                                 activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
                             }
@@ -740,7 +769,7 @@
                         localStorage.setItem('config_projMode', document.getElementById('projectionModeHidden').value);
 
                         let selectedDays = [];
-                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                        document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
                             if (circle.classList.contains('active')) {
                                 selectedDays.push(circle.getAttribute('data-day'));
                             }
@@ -771,7 +800,7 @@
                             document.getElementById('projBtnManual').classList.toggle('active', mode === 'Manual');
 
                             let activeDays = JSON.parse(localStorage.getItem('config_activeDays') || "[]");
-                            document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                            document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
                                 let val = parseInt(circle.getAttribute('data-day'));
                                 if (activeDays.includes(String(val)) || activeDays.includes(val)) {
                                     circle.classList.add('active');
@@ -779,6 +808,7 @@
                                     circle.classList.remove('active');
                                 }
                             });
+                            updateActiveDaysCount();
                         }
                     }
 
@@ -803,7 +833,7 @@
                         document.getElementById('projBtnAuto').classList.add('active');
                         document.getElementById('projBtnManual').classList.remove('active');
 
-                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                        document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
                             let d = parseInt(circle.getAttribute('data-day'));
                             if (d >= 1 && d <= 5) {
                                 circle.classList.add('active');
@@ -811,6 +841,7 @@
                                 circle.classList.remove('active');
                             }
                         });
+                        updateActiveDaysCount();
 
                         showCustomToast("Configuration attributes reset to factory defaults.", "success");
                         recalculateProgressEngine();

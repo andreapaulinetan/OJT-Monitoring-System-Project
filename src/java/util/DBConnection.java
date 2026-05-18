@@ -29,10 +29,8 @@ public static Connection getMySQLMonitoringConnection(ServletContext context) {
         
         String baseUrl = context.getInitParameter("mysql.url");
         
-        String secureUrl = baseUrl + "?zeroDateTimeBehavior=CONVERT_TO_NULL&useSSL=false&allowPublicKeyRetrieval=true";
-        
         return DriverManager.getConnection(
-                secureUrl,
+                baseUrl,
                 context.getInitParameter("mysql.username"),
                 context.getInitParameter("mysql.password")
         );

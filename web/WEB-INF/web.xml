@@ -12,7 +12,7 @@
     </context-param>
     <context-param>
         <param-name>derby.url</param-name>
-        <param-value>jdbc:derby://localhost:1527/ojt_AuthenticationDB</param-value>
+        <param-value>jdbc:derby://localhost:1527/c:/Users/Sean/OneDrive/Documents/NetBeansProjects/OJT-Monitoring-System-Project/database/authdb</param-value>
     </context-param>
     <context-param>
         <param-name>derby.username</param-name>
@@ -26,19 +26,19 @@
     <!-- MySQL (Operational Monitoring Data) Context Parameters -->
     <context-param>
         <param-name>mysql.driver</param-name>
-        <param-value>com.mysql.cj.jdbc.Driver</param-value>
+        <param-value>org.apache.derby.jdbc.ClientDriver</param-value>
     </context-param>
     <context-param>
         <param-name>mysql.url</param-name>
-        <param-value>jdbc:mysql://localhost:3306/ojt_monitoringdb</param-value>
+        <param-value>jdbc:derby://localhost:1527/c:/Users/Sean/OneDrive/Documents/NetBeansProjects/OJT-Monitoring-System-Project/database/ojtdb</param-value>
     </context-param>
     <context-param>
         <param-name>mysql.username</param-name>
-        <param-value>root</param-value>
+        <param-value>app</param-value>
     </context-param>
     <context-param>
         <param-name>mysql.password</param-name>
-        <param-value></param-value> 
+        <param-value>app</param-value> 
     </context-param>
 
     <!-- PostgreSQL (Security Audit Log) Context Parameters -->

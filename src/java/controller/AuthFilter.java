@@ -22,7 +22,7 @@ public class AuthFilter implements Filter {
         String lowerURI = uri.toLowerCase();
 
         // 1. Identify Static Resources (CRITICAL FIX)
-        // We use .contains or .endsWith to ensure CSS/Images are always allowed
+        // We use an allow-list approach instead of insecure .contains()
         boolean isStaticResource = lowerURI.endsWith(".css") || 
                                    lowerURI.endsWith(".js") || 
                                    lowerURI.endsWith(".png") || 
@@ -30,9 +30,9 @@ public class AuthFilter implements Filter {
                                    lowerURI.endsWith(".jpeg") || 
                                    lowerURI.endsWith(".gif") || 
                                    lowerURI.endsWith(".ico") ||
-                                   lowerURI.contains("/css/") || // Folders
-                                   lowerURI.contains("/images/") ||
-                                   lowerURI.contains("fontawesome");
+                                   lowerURI.startsWith(contextPath.toLowerCase() + "/css/") ||
+                                   lowerURI.startsWith(contextPath.toLowerCase() + "/images/") ||
+                                   lowerURI.startsWith(contextPath.toLowerCase() + "/fontawesome/");
 
         // 2. Identify Public Pages
         boolean loggedIn = (session != null && session.getAttribute("user") != null);

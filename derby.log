@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Mon May 18 18:28:51 PST 2026:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.10.2.0 - (1582446): instance a816c00e-019e-3aa1-9f74-00001f1f9b20 
+on database directory C:\Users\Sean\OneDrive\Documents\NetBeansProjects\OJT-Monitoring-System-Project\database\authdb with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@70dea4e 
+Loaded from file:/C:/Users/Sean/OneDrive/Documents/NetBeansProjects/OJT-Monitoring-System-Project/build/web/WEB-INF/classes/javadb/lib/derby.jar
+java.vendor=Oracle Corporation
+java.runtime.version=22.0.2+9-70
+user.dir=C:\Users\Sean\OneDrive\Documents\NetBeansProjects\OJT-Monitoring-System-Project
+os.name=Windows 11
+os.arch=amd64
+os.version=10.0
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
