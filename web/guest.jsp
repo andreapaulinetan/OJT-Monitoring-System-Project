@@ -1,4 +1,39 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page import="model.User"%>
+<%
+    if (session == null || session.getAttribute("user") == null) {
+        response.sendRedirect("login.jsp");
+        return;
+    }
+
+    String statusParam = request.getParameter("status");
+    String alertMessage = "";
+    String alertClass = "";
+
+    // Safely parse the approved database hours passed from the controller servlet
+    String dbHoursParam = request.getParameter("approvedHours");
+    double parsedDbHours = 0.0;
+    if (dbHoursParam != null && !dbHoursParam.isEmpty()) {
+        try {
+            parsedDbHours = Double.parseDouble(dbHoursParam);
+        } catch (Exception e) {
+        }
+    }
+
+    if ("success".equals(statusParam)) {
+        alertMessage = "Success! Your tracking log details have been saved to MySQL.";
+        if (parsedDbHours > 0) {
+            alertMessage += " (" + parsedDbHours + " hours successfully synchronized into active record matrix.)";
+        }
+        alertClass = "alert alert-success mt-3 mb-3";
+    } else if ("db_error".equals(statusParam)) {
+        alertMessage = "Database Error: Could not save attendance record.";
+        alertClass = "alert alert-danger mt-3 mb-3";
+    } else if ("no_clock_in".equals(statusParam)) {
+        alertMessage = "Error: No matching clock-in event timestamp tracked in session state.";
+        alertClass = "alert alert-warning mt-3 mb-3";
+    }
+%>
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -10,7 +45,17 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" type="text/css" href="${pageContext.request.contextPath}/css/guest.css">
     </head>
+
     <body>
+        <div id="successToast" class="custom-toast">
+            <div class="toast-icon-wrap">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="toast-body">
+                <h5>Success!</h5>
+                <p id="toastMessageText">Simulated hours logged successfully.</p>
+            </div>
+        </div>
 
         <div class="app-container">
 
@@ -37,6 +82,15 @@
 
             <main class="main-content">
 
+                <% if (!alertMessage.isEmpty()) {%>
+                <div class="<%= alertClass%>" role="alert">
+                    <i class="fa-solid fa-circle-info me-2"></i> <%= alertMessage%>
+                </div>
+                <% }%>
+
+                <input type="hidden" id="dbInjectedHoursField" value="<%= parsedDbHours%>">
+                <input type="hidden" id="dbSubmissionStatusField" value="<%= statusParam != null ? statusParam : ""%>">
+
                 <div id="dashboard-view" class="view-panel active-view">
                     <header class="content-header">
                         <div class="header-title-group">
@@ -59,9 +113,15 @@
                     </div>
 
                     <section class="stats-row">
-                        <div class="stat-card card-yellow">
+                        <div class="stat-card card-yellow position-relative overflow-hidden">
                             <span class="card-metric-title">TOTAL RENDERED HOURS</span>
                             <div class="value" id="renderedHoursDisplay">148.5h</div>
+
+                            <% if ("success".equals(statusParam) && parsedDbHours > 0) {%>
+                            <span class="position-absolute bottom-0 end-0 bg-success text-white px-2 py-1 small rounded-start fw-bold" style="font-size: 10px; opacity: 0.95; z-index: 5;">
+                                <i class="fa-solid fa-cloud-arrow-up me-1"></i> Sync Live: +<%= parsedDbHours%>h
+                            </span>
+                            <% }%>
                         </div>
                         <div class="stat-card card-pink">
                             <span class="card-metric-title">REMAINING HOURS</span>
@@ -107,49 +167,50 @@
                             </div>
                         </div>
 
-                        <div class="card simulate-task-card">
-                            <h3>Simulate Task Entry Log</h3>
-
-                            <div class="form-group">
-                                <label>Hours Spent on Task</label>
-                                <input type="text" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}">
-                            </div>
-
-                            <div class="form-group attachment-container">
-                                <label>Proof of Attendance <span class="required-asterisk">*</span></label>
-                                <div class="photo-dropzone" onclick="document.getElementById('attendance-photo').click();">
-                                    <i class="fa-solid fa-camera"></i>
-                                    <p>Click or drag to <strong>add attachment (photo)</strong></p>
-                                    <span class="file-hint">Supports PNG, JPG, or JPEG</span>
-                                    <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" hidden>
+                        <div class="dashboard-pane" id="manualTaskLogPane">
+                            <h3 class="pane-title">Simulate Task Entry Log</h3>
+                            <form id="sandboxLogForm" onsubmit="handleManualLogSubmission(event)">
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold small">Hours Spent on Task</label>
+                                    <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}" required>
                                 </div>
-                                <div id="photo-preview-name" class="photo-preview-text"></div>
-                            </div>
 
-                            <button type="submit" class="btn-inject-hours">
-                                <i class="fa-solid fa-paper-plane"></i> Inject Simulation Hours
-                            </button>
+                                <div class="form-group attachment-container mb-3">
+                                    <label class="form-label fw-bold small">Proof of Attendance <span class="text-danger">*</span></label>
+                                    <div class="photo-dropzone text-center p-3 border border-dashed rounded" style="cursor: pointer;" onclick="document.getElementById('attendance-photo').click();">
+                                        <i class="fa-solid fa-camera fa-2x mb-2 text-muted"></i>
+                                        <p class="m-0 small">Click to <strong>add attachment (photo)</strong></p>
+                                        <span class="file-hint text-muted" style="font-size: 11px;">Supports PNG, JPG, or JPEG</span>
+                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden>
+                                    </div>
+                                    <div id="photo-preview-name" class="photo-preview-text mt-2 text-success small fw-bold"></div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" style="background-color: #4f46e5; border: none;">
+                                    <i class="fa-solid fa-paper-plane me-2"></i> Inject Simulation Hours
+                                </button>
+                            </form>
                         </div>
 
                         <div class="dashboard-pane layout-calendar-pane">
                             <div class="calendar-nav-header d-flex justify-content-between align-items-center mb-3">
-                                <h3 class="calendar-month-title m-0 h5 font-bold" id="calendarMonthTitle">May 2026</h3>
+                                <h3 class="calendar-month-title m-0 h6 fw-bold" id="calendarMonthTitle">May 2026</h3>
                                 <div class="calendar-action-arrows">
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="adjustCalendarMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="adjustCalendarMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
                                 </div>
                             </div>
 
-                            <div class="calendar-grid-days-header d-grid text-center font-bold text-muted mb-2" style="grid-template-columns: repeat(7, 1fr); font-size: 11px;">
+                            <div class="calendar-grid-days-header d-grid text-center fw-bold text-muted mb-2" style="grid-template-columns: repeat(7, 1fr); font-size: 11px;">
                                 <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
                             </div>
 
-                            <div class="calendar-days-surface" id="calendarDaysSurface"></div>
+                            <div class="calendar-days-surface d-grid text-center gap-1" id="calendarDaysSurface" style="grid-template-columns: repeat(7, 1fr); font-size: 12px;"></div>
 
                             <div class="calendar-legends-footer d-flex gap-2 flex-wrap text-muted justify-content-between mt-3" style="font-size: 11px;">
                                 <div class="legend-item"><span class="badge bg-danger p-1 me-1">&nbsp;</span>Holiday</div>
                                 <div class="legend-item"><span class="badge bg-secondary p-1 me-1">&nbsp;</span>Off</div>
-                                <div class="legend-item"><span class="badge p-1 me-1" style="background-color: rgba(59, 130, 246, 0.15)">&nbsp;</span>Scheduled</div>
+                                <div class="legend-item"><span class="badge p-1 me-1" style="background-color: rgba(59, 130, 246, 0.15); color:#2563eb;">&nbsp;</span>Scheduled</div>
                                 <div class="legend-item"><span class="badge bg-success p-1 me-1">&nbsp;</span>Target End</div>
                             </div>
                         </div>
@@ -157,99 +218,99 @@
                 </div>
 
                 <div id="coordinator-view" class="view-panel">
-                    <header class="content-header">
-                        <div class="header-title-group">
-                            <div class="title-with-icon">
-                                <i class="fa-solid fa-sliders header-icon"></i>
-                                <h1>Internship Setup Configuration</h1>
-                            </div>
-                            <p class="welcome-text">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
+                    <header class="content-header d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <h1>Internship Setup Configuration</h1>
+                            <p class="welcome-text m-0">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
                         </div>
-                        <button type="button" class="reset-btn" onclick="resetConfigurationForm()"><i class="fa-solid fa-rotate-left"></i> Reset Defaults</button>
+                        <button type="button" class="reset-defaults-btn" onclick="resetConfigurationForm()">
+                            <i class="fa-solid fa-rotate-left me-1"></i> Reset Defaults
+                        </button>
                     </header>
 
                     <form id="goalsSetupForm" onsubmit="saveConfigState(event)">
-                        <div class="setup-grid">
-                            <div class="card card-yellow">
-                                <h3 class="card-title">Internship Goals</h3>
-                                <div class="input-group-row">
-                                    <div class="input-field">
-                                        <label for="inputTargetHours">TARGET HOURS</label>
-                                        <div class="input-wrapper">
-                                            <input type="number" id="inputTargetHours" value="400" min="1" required oninput="recalculateProgressEngine()">
-                                            <i class="fa-solid fa-clock field-icon"></i>
+                        <div class="configuration-grid-wrapper">
+
+                            <div class="config-card card-ui-yellow">
+                                <h3 class="card-title-custom">Internship Goals</h3>
+                                <div class="horizontal-inputs">
+                                    <div>
+                                        <label class="custom-label" for="inputTargetHours">Target Hours</label>
+                                        <div class="input-group">
+                                            <input type="number" id="inputTargetHours" class="form-control" value="400" min="1" required oninput="recalculateProgressEngine()">
+                                            <span class="input-group-text"><i class="fa-solid fa-clock text-muted"></i></span>
                                         </div>
                                     </div>
-                                    <div class="input-field">
-                                        <label for="inputStartDate">START DATE</label>
-                                        <div class="input-wrapper">
-                                            <input type="date" id="inputStartDate" value="2026-05-06" required onchange="recalculateProgressEngine()">
-                                        </div>
+                                    <div>
+                                        <label class="custom-label" for="inputStartDate">Start Date</label>
+                                        <input type="date" id="inputStartDate" class="form-control" value="2026-05-06" required onchange="recalculateProgressEngine()">
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="card card-green">
-                                <h3 class="card-title">Load & Holiday</h3>
-                                <div class="slider-container">
-                                    <div class="slider-header">
-                                        <label for="hoursSlider">HOURS PER DAY</label>
-                                        <span class="slider-value-badge" id="sliderValDisplay">7h</span>
+                            <div class="config-card card-ui-green">
+                                <h3 class="card-title-custom">Load & Holiday</h3>
+                                <div class="w-100 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="custom-label m-0" for="hoursSlider">Hours Per Day</label>
+                                        <span class="badge bg-white text-dark border" id="sliderValDisplay" style="border-radius:6px; font-weight:700;">7h</span>
                                     </div>
-                                    <input type="range" min="1" max="12" value="7" class="custom-slider" id="hoursSlider" oninput="updateSliderLabel(this.value)">
+                                    <input type="range" min="1" max="12" value="7" class="form-range custom-slider" id="hoursSlider" oninput="updateSliderLabel(this.value)">
                                 </div>
-                                <div class="toggle-container">
-                                    <label class="toggle-label">EXCLUDE PH HOLIDAYS (2026)?</label>
-                                    <div class="toggle-buttons">
+                                <div class="w-100">
+                                    <label class="custom-label d-block mb-2">Exclude PH Holidays (2026)?</label>
+                                    <div class="modern-toggle-group" role="group">
                                         <input type="hidden" id="excludeHolidaysHidden" value="true">
-                                        <button type="button" id="holidayBtnYes" class="toggle-btn active" onclick="setHolidayExclusion(true)">
-                                            <i class="fa-solid fa-calendar-xmark"></i> Yes
+                                        <button type="button" id="holidayBtnYes" class="btn active" onclick="setHolidayExclusion(true)">
+                                            <i class="fa-solid fa-calendar-xmark me-1"></i> Yes
                                         </button>
-                                        <button type="button" id="holidayBtnNo" class="toggle-btn" onclick="setHolidayExclusion(false)">
+                                        <button type="button" id="holidayBtnNo" class="btn" onclick="setHolidayExclusion(false)">
                                             <i class="fa-solid fa-calendar-check"></i> No
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="card card-pink">
-                                <h3 class="card-title">Work Schedule</h3>
-                                <label class="field-label-small">WEEKLY WORK DAYS</label>
-                                <div class="days-selector">
-                                    <div class="day-circle disabled" data-day="0" onclick="toggleDayCircle(this)">S</div>
-                                    <div class="day-circle active" data-day="1" onclick="toggleDayCircle(this)">M</div>
-                                    <div class="day-circle active" data-day="2" onclick="toggleDayCircle(this)">T</div>
-                                    <div class="day-circle active" data-day="3" onclick="toggleDayCircle(this)">W</div>
-                                    <div class="day-circle active" data-day="4" onclick="toggleDayCircle(this)">T</div>
-                                    <div class="day-circle active" data-day="5" onclick="toggleDayCircle(this)">F</div>
-                                    <div class="day-circle disabled" data-day="6" onclick="toggleDayCircle(this)">S</div>
+                            <div class="config-card card-ui-pink">
+                                <div>
+                                    <h3 class="card-title-custom mb-1">Work Schedule</h3>
+                                    <label class="custom-label d-block mb-3">Weekly Work Days</label>
+                                    <div class="circle-day-picker">
+                                        <div class="day-circle-btn" data-day="0" onclick="toggleDayCircle(this)">S</div>
+                                        <div class="day-circle-btn active" data-day="1" onclick="toggleDayCircle(this)">M</div>
+                                        <div class="day-circle-btn active" data-day="2" onclick="toggleDayCircle(this)">T</div>
+                                        <div class="day-circle-btn active" data-day="3" onclick="toggleDayCircle(this)">W</div>
+                                        <div class="day-circle-btn active" data-day="4" onclick="toggleDayCircle(this)">T</div>
+                                        <div class="day-circle-btn active" data-day="5" onclick="toggleDayCircle(this)">F</div>
+                                        <div class="day-circle-btn" data-day="6" onclick="toggleDayCircle(this)">S</div>
+                                    </div>
                                 </div>
-                                <div class="helper-text">
-                                    <i class="fa-solid fa-star info-symbol"></i> Selected active days count as projectable work terms
+                                <div class="text-muted mt-3" style="font-size:12px; font-weight: 500;">
+                                    <i class="fa-solid fa-star text-warning me-1"></i> Selected active days count as projectable work terms
                                 </div>
                             </div>
 
-                            <div class="card card-blue">
-                                <h3 class="card-title">Projection Mode</h3>
-                                <div class="mode-options">
-                                    <input type="hidden" id="projectionModeHidden" value="Auto">
-                                    <button type="button" id="projBtnManual" class="mode-btn" onclick="setProjectionMode('Manual')">
-                                        <i class="fa-solid fa-hand"></i><span>Manual</span>
-                                    </button>
-                                    <button type="button" id="projBtnAuto" class="mode-btn active" onclick="setProjectionMode('Auto')">
-                                        <i class="fa-solid fa-layer-group"></i><span>Auto</span>
-                                    </button>
+                            <div class="config-card card-ui-blue">
+                                <h3 class="card-title-custom">Projection Mode</h3>
+                                <div class="w-100">
+                                    <div class="modern-toggle-group" role="group">
+                                        <input type="hidden" id="projectionModeHidden" value="Auto">
+                                        <button type="button" id="projBtnManual" class="btn" onclick="setProjectionMode('Manual')">
+                                            <i class="fa-solid fa-hand me-1"></i> Manual
+                                        </button>
+                                        <button type="button" id="projBtnAuto" class="btn active" onclick="setProjectionMode('Auto')">
+                                            <i class="fa-solid fa-layer-group me-1"></i> Auto
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
 
-                        <div class="form-actions-row">
-                            <div class="info-footer-status">
-                                <p>Simulating analytics metrics live inside your <span class="session-badge">browser session</span></p>
-                            </div>
-
-                            <button type="submit" class="btn-apply-shifts">
-                                <i class="fa-solid fa-floppy-disk"></i> Apply Schedule Shifts
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <span class="text-muted small">Simulating analytics metrics live inside your <strong>browser session</strong></span>
+                            <button type="submit" class="apply-shifts-btn">
+                                <i class="fa-solid fa-floppy-disk me-2"></i> Apply Schedule Shifts
                             </button>
                         </div>
                     </form>
@@ -257,19 +318,18 @@
 
             </main>
         </div>
-
         <script>
-            // State Storage
+            // --- Global State Variables ---
             let renderedHoursBase = parseFloat(localStorage.getItem('guest_renderedHours')) || 148.5;
             let calendarYear = 2026;
-            let calendarMonth = 4; // May (Zero-indexed representation)
+            let calendarMonth = 4; // May (0-indexed)
 
             let stopwatchInterval = null;
             let activeTimerRunning = false;
             let accumulatedSeconds = 0;
             let projectedEndDateISO = "";
 
-            // Philippine Official Holiday Exclusions Dataset 2026
+            // Philippine Holidays 2026 Presets
             const phHolidays2026 = [
                 "2026-01-01", "2026-02-17", "2026-04-02", "2026-04-03",
                 "2026-04-09", "2026-05-01", "2026-06-12", "2026-08-31",
@@ -277,19 +337,116 @@
             ];
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+            // --- Lifecycle Events ---
             window.onload = function () {
                 loadConfigState();
                 restoreTimerSessionOnLoad();
                 recalculateProgressEngine();
             };
 
+            // --- Custom Coherent Toast Notification System ---
+            function showCustomToast(message, type = "success") {
+                // 1. Create or grab the floating stack layer attached directly to the body root
+                let container = document.getElementById('custom-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'custom-toast-container';
+                    Object.assign(container.style, {
+                        position: 'fixed',
+                        top: '24px',
+                        right: '24px',
+                        zIndex: '9999999', // Makes sure it floats on top of all panels
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        pointerEvents: 'none'
+                    });
+                    document.body.appendChild(container);
+                }
+
+                // 2. Cohesive dashboard matching colors
+                const bgColor = type === "success" ? "#e6f4ea" : "#fce8e6";
+                const textColor = type === "success" ? "#137333" : "#c5221f";
+                const borderColor = type === "success" ? "#10b981" : "#ef4444";
+
+                // 3. Create the notification pill wrapper
+                const toast = document.createElement('div');
+                toast.className = "custom-toast-alert dynamic-fade-in";
+
+                Object.assign(toast.style, {
+                    backgroundColor: bgColor,
+                    borderLeft: `6px solid ${borderColor}`,
+                    padding: '16px 20px',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    gap: '14px',
+                    width: '380px',
+                    minWidth: '380px',
+                    boxSizing: 'border-box',
+                    pointerEvents: 'auto'
+                });
+
+                // 4. Create the icon using a bold tag (which works)
+                const checkIcon = document.createElement('b');
+                checkIcon.textContent = "✓";
+                Object.assign(checkIcon.style, {
+                    color: textColor,
+                    fontSize: '20px',
+                    fontWeight: '900',
+                    lineHeight: '1',
+                    display: 'inline-block',
+                    flexShrink: '0'
+                });
+                toast.appendChild(checkIcon);
+
+                // 5. THE CRITICAL TEXT FIX: Using a generic div with forced overrides
+                const textMessage = document.createElement('div');
+                textMessage.textContent = message;
+
+                // Applying CSS text styles directly as a string to allow !important overrides
+                textMessage.style.setProperty('color', '#1e293b', 'important'); // Dark slate text color
+                textMessage.style.setProperty('font-size', '14px', 'important'); // Visible font size
+                textMessage.style.setProperty('font-weight', '600', 'important'); // Semi-bold layout weight
+                textMessage.style.setProperty('display', 'block', 'important');
+                textMessage.style.setProperty('visibility', 'visible', 'important');
+                textMessage.style.setProperty('opacity', '1', 'important');
+
+                // Standard layout formatting
+                Object.assign(textMessage.style, {
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    lineHeight: '1.4',
+                    margin: '0',
+                    padding: '0',
+                    textAlign: 'left',
+                    wordBreak: 'break-word',
+                    flexGrow: '1'
+                });
+
+                toast.appendChild(textMessage);
+                container.appendChild(toast);
+
+                // 6. Smooth automatic dismissal transition sequence
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-15px)';
+                    toast.style.transition = 'all 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 4500);
+            }
+
+            // --- View & Tab Handling ---
             function switchTab(tabId, navId) {
                 document.querySelectorAll('.view-panel').forEach(view => view.classList.remove('active-view'));
                 document.querySelectorAll('.nav-menu .nav-item').forEach(btn => btn.classList.remove('active'));
+
                 document.getElementById(tabId).classList.add('active-view');
                 document.getElementById(navId).classList.add('active');
             }
 
+            // --- UI Form Event Handlers ---
             function updateSliderLabel(val) {
                 document.getElementById('sliderValDisplay').textContent = val + 'h';
                 recalculateProgressEngine();
@@ -304,7 +461,6 @@
 
             function toggleDayCircle(element) {
                 element.classList.toggle('active');
-                element.classList.toggle('disabled');
                 recalculateProgressEngine();
             }
 
@@ -327,7 +483,16 @@
                 renderCalendarComponent();
             }
 
-            /* Optional Attendance Timer Logic Section */
+            function handleFileChange(input) {
+                const display = document.getElementById('photo-preview-name');
+                if (input.files && input.files[0]) {
+                    display.textContent = "Selected: " + input.files[0].name;
+                } else {
+                    display.textContent = "";
+                }
+            }
+
+            // --- Realtime Attendance Tracker (Stopwatch) Engine ---
             function toggleTimerAttendanceSession() {
                 const dot = document.getElementById('statusIndicatorDot');
                 const label = document.getElementById('statusIndicatorText');
@@ -336,39 +501,46 @@
                 const timerCard = document.getElementById('attendanceSimulatorCard');
 
                 if (!activeTimerRunning) {
-                // Turn stopwatch sequence operational
-                activeTimerRunning = true;
-                        localStorage.setItem('sw_active', 'true');
-                        localStorage.setItem('sw_startTimeStamp', Date.now() - (accumulatedSeconds * 1000));
-                        dot.className = "status-dot green";
-                        label.textContent = "Clocked In & Tracking Time";
-                        btn.className = "btn btn-danger w-100 py-2 fw-bold";
-                        btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
-                        // Style adjustments & input blocking
-                        timerCard.classList.add('timer-active-card');
-                        manualPane.classList.add('manual-disabled-overlay');
-                        stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
+                    activeTimerRunning = true;
+                    localStorage.setItem('sw_active', 'true');
+                    localStorage.setItem('sw_startTimeStamp', Date.now() - (accumulatedSeconds * 1000));
+
+                    dot.className = "status-dot green";
+                    dot.style.backgroundColor = "#10b981";
+                    label.textContent = "Clocked In & Tracking Time";
+                    btn.className = "btn btn-danger w-100 py-2 fw-bold";
+                    btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
+
+                    timerCard.style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
+                    manualPane.style.opacity = "0.5";
+                    manualPane.style.pointerEvents = "none";
+
+                    stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
                 } else {
-                // Turn stopwatch sequence off
-                activeTimerRunning = false;
-                        clearInterval(stopwatchInterval);
-                        // Convert duration run into hours logic fraction
-                        const computedHoursEarned = accumulatedSeconds / 3600;
-                        renderedHoursBase += computedHoursEarned;
-                        localStorage.setItem('guest_renderedHours', renderedHoursBase);
-                        // Wipe storage indices clear
-                        accumulatedSeconds = 0;
-                        localStorage.removeItem('sw_active');
-                        localStorage.removeItem('sw_startTimeStamp');
-                        dot.className = "status-dot red";
-                        label.textContent = "Not Clocked In";
-                        btn.className = "btn btn-success w-100 py-2 fw-bold";
-                        btn.innerHTML = '<i class="fa-solid fa-play me-2"></i> Time In';
-                        document.getElementById('liveTimerDisplay').textContent = "00:00:00";
-                        timerCard.classList.remove('timer-active-card');
-                        manualPane.classList.remove('manual-disabled-overlay');
-                        alert(Time frame captured successfully! Added: ${computedHoursEarned.toFixed(3)} hours to total logs.);
-                recalculateProgressEngine();
+                    activeTimerRunning = false;
+                    clearInterval(stopwatchInterval);
+
+                    const computedHoursEarned = accumulatedSeconds / 3600;
+                    renderedHoursBase += computedHoursEarned;
+                    localStorage.setItem('guest_renderedHours', renderedHoursBase);
+
+                    accumulatedSeconds = 0;
+                    localStorage.removeItem('sw_active');
+                    localStorage.removeItem('sw_startTimeStamp');
+
+                    dot.className = "status-dot red";
+                    dot.style.backgroundColor = "#ef4444";
+                    label.textContent = "Not Clocked In";
+                    btn.className = "btn btn-success w-100 py-2 fw-bold";
+                    btn.innerHTML = '<i class="fa-solid fa-play me-2"></i> Time In';
+                    document.getElementById('liveTimerDisplay').textContent = "00:00:00";
+
+                    timerCard.style.boxShadow = "none";
+                    manualPane.style.opacity = "1";
+                    manualPane.style.pointerEvents = "auto";
+
+                    showCustomToast(`Attendance session stored! Added +${computedHoursEarned.toFixed(2)} hours.`, "success");
+                    recalculateProgressEngine();
                 }
             }
 
@@ -382,243 +554,267 @@
                 const hrs = String(Math.floor(accumulatedSeconds / 3600)).padStart(2, '0');
                 const mins = String(Math.floor((accumulatedSeconds % 3600) / 60)).padStart(2, '0');
                 const secs = String(accumulatedSeconds % 60).padStart(2, '0');
-                document.getElementById('liveTimerDisplay').textContent = ${hrs}:${mins}:${secs};
-            }
-
-            function restoreTimerSessionOnLoad() {
-                if (localStorage.getItem('sw_active') === 'true') {
-                    activeTimerRunning = true;
-                    const cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
-                    accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
-
-                    document.getElementById('statusIndicatorDot').className = "status-dot green";
-                    document.getElementById('statusIndicatorText').textContent = "Clocked In & Tracking Time";
-
-                    const btn = document.getElementById('btnAttendanceToggle');
-                    btn.className = "btn btn-danger w-100 py-2 fw-bold";
-                    btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
-
-                    document.getElementById('attendanceSimulatorCard').classList.add('timer-active-card');
-                    document.getElementById('manualTaskLogPane').classList.add('manual-disabled-overlay');
-
-                    // Fire immediately to prevent layout shifts before the interval starts
-                    incrementStopwatchRuntime();
-                    stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
-                }
-            }
-
-            function handleManualLogSubmission(event) {
-                event.preventDefault();
-                if (activeTimerRunning)
-                    return; // Prevent submission if tracking with timer
-
-                const hoursInput = parseFloat(document.getElementById('sandboxLogHours').value) || 0;
-                renderedHoursBase += hoursInput;
-                localStorage.setItem('guest_renderedHours', renderedHoursBase);
-
-                document.getElementById('sandboxLogForm').reset();
-                recalculateProgressEngine();
-                alert("Simulated working log units processed!");
-            }
-
-            /* Timeline Analyzer Processing Architecture */
-            function recalculateProgressEngine() {
-                let targetHours = parseFloat(document.getElementById('inputTargetHours').value) || 400;
-                let remainingHours = targetHours - renderedHoursBase;
-                if (remainingHours < 0)
-                    remainingHours = 0;
-
-                let percent = (renderedHoursBase / targetHours) * 100;
-                if (percent > 100)
-                    percent = 100;
-
-                document.getElementById('targetGoalDisplay').textContent = targetHours + 'h';
-                document.getElementById('renderedHoursDisplay').textContent = renderedHoursBase.toFixed(1) + 'h';
-                document.getElementById('remainingHoursDisplay').textContent = remainingHours.toFixed(1) + 'h';
-                document.getElementById('completionRateDisplay').textContent = percent.toFixed(1) + '%';
-                document.getElementById('progressBarText').textContent = percent.toFixed(1) + '%';
-                document.getElementById('progressBarFill').style.width = percent + '%';
-
-                let hoursPerDay = parseFloat(document.getElementById('hoursSlider').value) || 8;
-                let excludeHolidays = document.getElementById('excludeHolidaysHidden').value === "true";
-                let startDateVal = document.getElementById('inputStartDate').value;
-                let projectionMode = document.getElementById('projectionModeHidden').value;
-
-                let activeWeekdays = [];
-                document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
-                    if (circle.classList.contains('active')) {
-                        activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
-                    }
-                });
-
-                if (remainingHours === 0) {
-                    projectedEndDateISO = "Completed";
-                    document.getElementById('projectedEndDateDisplay').textContent = "Target Goal Fully Achieved!";
-                } else if (projectionMode === "Manual" || activeWeekdays.length === 0) {
-                    projectedEndDateISO = "N/A";
-                    document.getElementById('projectedEndDateDisplay').textContent = "Set 'Auto' projection mode & check workdays to run projection simulation.";
-                } else {
-                    let currentSimDate = new Date(startDateVal + "T00:00:00");
-                    let today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    // If start date is in the past, simulate forward from the current calendar date
-                    if (currentSimDate < today) {
-                        currentSimDate = new Date(today);
+                document.getElementById('liveTimerDisplay').textContent = `${hrs}:${mins}:${secs}`;
                     }
 
-                    let simulatedAccumulatedHours = 0;
-                    let safetyCounter = 0;
+                    function restoreTimerSessionOnLoad() {
+                        if (localStorage.getItem('sw_active') === 'true') {
+                            activeTimerRunning = true;
+                            const cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
+                            accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
 
-                    while (simulatedAccumulatedHours < remainingHours && safetyCounter < 2000) {
-                        safetyCounter++;
-                        let simISOStr = currentSimDate.getFullYear() + '-' +
-                                String(currentSimDate.getMonth() + 1).padStart(2, '0') + '-' +
-                                String(currentSimDate.getDate()).padStart(2, '0');
+                            const dot = document.getElementById('statusIndicatorDot');
+                            dot.className = "status-dot green";
+                            dot.style.backgroundColor = "#10b981";
+                            document.getElementById('statusIndicatorText').textContent = "Clocked In & Tracking Time";
 
-                        let isHoliday = excludeHolidays && phHolidays2026.includes(simISOStr);
-                        let isWorkingDay = activeWeekdays.includes(currentSimDate.getDay());
+                            const btn = document.getElementById('btnAttendanceToggle');
+                            btn.className = "btn btn-danger w-100 py-2 fw-bold";
+                            btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
 
-                        if (isWorkingDay && !isHoliday) {
-                            simulatedAccumulatedHours += hoursPerDay;
-                        }
+                            document.getElementById('attendanceSimulatorCard').style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
+                            const manualPane = document.getElementById('manualTaskLogPane');
+                            manualPane.style.opacity = "0.5";
+                            manualPane.style.pointerEvents = "none";
 
-                        if (simulatedAccumulatedHours < remainingHours) {
-                            currentSimDate.setDate(currentSimDate.getDate() + 1);
+                            incrementStopwatchRuntime();
+                            stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
                         }
                     }
 
-                    projectedEndDateISO = currentSimDate.getFullYear() + '-' +
-                            String(currentSimDate.getMonth() + 1).padStart(2, '0') + '-' +
-                            String(currentSimDate.getDate()).padStart(2, '0');
+                    function handleManualLogSubmission(event) {
+                        event.preventDefault();
+                        if (activeTimerRunning)
+                            return;
 
-                    const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
-                    document.getElementById('projectedEndDateDisplay').textContent = currentSimDate.toLocaleDateString('en-US', options);
-                }
+                        const hoursInput = parseFloat(document.getElementById('sandboxLogHours').value) || 0;
 
-                renderCalendarComponent();
-            }
+                        if (hoursInput <= 0) {
+                            showCustomToast("Please specify a valid count of entry hours.", "error");
+                            return;
+                        }
 
-            function renderCalendarComponent() {
-                const surface = document.getElementById('calendarDaysSurface');
-                if (!surface)
-                    return;
-                surface.innerHTML = '';
+                        renderedHoursBase += hoursInput;
+                        localStorage.setItem('guest_renderedHours', renderedHoursBase);
 
-                document.getElementById('calendarMonthTitle').textContent = monthNames[calendarMonth] + " " + calendarYear;
+                        document.getElementById('sandboxLogForm').reset();
+                        document.getElementById('photo-preview-name').textContent = "";
+                        recalculateProgressEngine();
 
-                const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
-                const totalDaysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-
-                let activeWeekdays = [];
-                document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
-                    if (circle.classList.contains('active')) {
-                        activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
+                        showCustomToast("Attendance was submitted to your coordinator.", "success");
                     }
-                });
 
-                const excludeHolidays = document.getElementById('excludeHolidaysHidden').value === "true";
-                let hoursPerDay = document.getElementById('hoursSlider').value;
+                    // --- Calculation Engine & Prediction Simulator ---
+                    function recalculateProgressEngine() {
+                        let targetHours = parseFloat(document.getElementById('inputTargetHours').value) || 400;
+                        let remainingHours = targetHours - renderedHoursBase;
+                        if (remainingHours < 0)
+                            remainingHours = 0;
 
-                let todayDate = new Date();
-                let todayISO = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
+                        let percent = (renderedHoursBase / targetHours) * 100;
+                        if (percent > 100)
+                            percent = 100;
 
-                for (let i = 0; i < firstDayIndex; i++) {
-                    let emptyCell = document.createElement('div');
-                    emptyCell.className = 'calendar-day-cell empty';
-                    surface.appendChild(emptyCell);
-                }
+                        document.getElementById('targetGoalDisplay').textContent = targetHours + 'h';
+                        document.getElementById('renderedHoursDisplay').textContent = renderedHoursBase.toFixed(1) + 'h';
+                        document.getElementById('remainingHoursDisplay').textContent = remainingHours.toFixed(1) + 'h';
+                        document.getElementById('completionRateDisplay').textContent = percent.toFixed(1) + '%';
+                        document.getElementById('progressBarText').textContent = percent.toFixed(1) + '%';
+                        document.getElementById('progressBarFill').style.width = percent + '%';
 
-                for (let day = 1; day <= totalDaysInMonth; day++) {
-                    let cell = document.createElement('div');
-                    cell.className = 'calendar-day-cell';
+                        let hoursPerDay = parseFloat(document.getElementById('hoursSlider').value) || 8;
+                        let excludeHolidays = document.getElementById('excludeHolidaysHidden').value === "true";
+                        let startDateVal = document.getElementById('inputStartDate').value;
+                        let projectionMode = document.getElementById('projectionModeHidden').value;
 
-                    let dayNumSpan = document.createElement('span');
-                    dayNumSpan.textContent = day;
-                    cell.appendChild(dayNumSpan);
+                        let activeWeekdays = [];
+                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                            if (circle.classList.contains('active')) {
+                                activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
+                            }
+                        });
 
-                    let currentLoopDateObj = new Date(calendarYear, calendarMonth, day);
-                    let formattedISODate = currentLoopDateObj.getFullYear() + '-' +
-                            String(currentLoopDateObj.getMonth() + 1).padStart(2, '0') + '-' +
-                            String(currentLoopDateObj.getDate()).padStart(2, '0');
-
-                    let currentDayOfWeekIndex = currentLoopDateObj.getDay();
-                    let isHoliday = excludeHolidays && phHolidays2026.includes(formattedISODate);
-                    let isWorkingDay = activeWeekdays.includes(currentDayOfWeekIndex);
-
-                    // Apply layout status descriptors
-                    if (formattedISODate === todayISO) {
-                        cell.classList.add('today');
-                    }
-                    if (formattedISODate === projectedEndDateISO) {
-                        cell.classList.add('completion-day');
-                    } else if (isHoliday) {
-                        cell.classList.add('holiday');
-                    } else if (!isWorkingDay) {
-                        cell.classList.add('day-off');
-                    } else {
-                        cell.classList.add('scheduled');
-                        let hoursSub = document.createElement('div');
-                        hoursSub.className = 'hours-sub';
-                        hoursSub.textContent = hoursPerDay + 'h';
-                        cell.appendChild(hoursSub);
-                    }
-                    surface.appendChild(cell);
-                }
-            }
-
-            // LocalStorage State Handlers for Persistent Layout Mocking
-            function saveConfigState(e) {
-                e.preventDefault();
-                localStorage.setItem('config_targetHours', document.getElementById('inputTargetHours').value);
-                localStorage.setItem('config_startDate', document.getElementById('inputStartDate').value);
-                localStorage.setItem('config_hoursSlider', document.getElementById('hoursSlider').value);
-                localStorage.setItem('config_excludeHolidays', document.getElementById('excludeHolidaysHidden').value);
-                localStorage.setItem('config_projectionMode', document.getElementById('projectionModeHidden').value);
-
-                let selectedDays = [];
-                document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
-                    if (circle.classList.contains('active')) {
-                        selectedDays.push(circle.getAttribute('data-day'));
-                    }
-                });
-                localStorage.setItem('config_activeDays', JSON.stringify(selectedDays));
-                alert("Configuration states locked into LocalStorage matrix container!");
-                recalculateProgressEngine();
-            }
-
-            function loadConfigState() {
-                if (localStorage.getItem('config_targetHours')) {
-                    document.getElementById('inputTargetHours').value = localStorage.getItem('config_targetHours');
-                    document.getElementById('inputStartDate').value = localStorage.getItem('config_startDate');
-
-                    let sliderVal = localStorage.getItem('config_hoursSlider');
-                    document.getElementById('hoursSlider').value = sliderVal;
-                    document.getElementById('sliderValDisplay').textContent = sliderVal + 'h';
-
-                    let holidayFlag = localStorage.getItem('config_excludeHolidays') === "true";
-                    setHolidayExclusion(holidayFlag);
-
-                    let projMode = localStorage.getItem('config_projectionMode') || "Auto";
-                    setProjectionMode(projMode);
-
-                    let activeDays = JSON.parse(localStorage.getItem('config_activeDays') || "[]");
-                    document.querySelectorAll('.days-selector .day-circle').forEach(circle => {
-                        let dayVal = circle.getAttribute('data-day');
-                        if (activeDays.includes(dayVal)) {
-                            circle.className = "day-circle active";
+                        if (remainingHours === 0) {
+                            projectedEndDateISO = "Completed";
+                            document.getElementById('projectedEndDateDisplay').textContent = "Target Goal Fully Achieved!";
+                        } else if (projectionMode === "Manual" || activeWeekdays.length === 0) {
+                            projectedEndDateISO = "N/A";
+                            document.getElementById('projectedEndDateDisplay').textContent = "Set 'Auto' projection mode & check workdays.";
                         } else {
-                            circle.className = "day-circle disabled";
-                        }
-                    });
-                }
-            }
+                            let currentSimDate = new Date(startDateVal + "T00:00:00");
+                            let today = new Date();
+                            today.setHours(0, 0, 0, 0);
 
-            function resetConfigurationForm() {
-                localStorage.clear();
-                renderedHoursBase = 148.5;
-                location.reload();
-            }
+                            if (currentSimDate < today) {
+                                currentSimDate = new Date(today);
+                            }
+
+                            let simulatedAccumulatedHours = 0;
+                            let safetyCounter = 0;
+
+                            while (simulatedAccumulatedHours < remainingHours && safetyCounter < 2000) {
+                                safetyCounter++;
+                                let simISOStr = currentSimDate.getFullYear() + '-' +
+                                        String(currentSimDate.getMonth() + 1).padStart(2, '0') + '-' +
+                                        String(currentSimDate.getDate()).padStart(2, '0');
+
+                                let isHoliday = excludeHolidays && phHolidays2026.includes(simISOStr);
+                                let isWorkingDay = activeWeekdays.includes(currentSimDate.getDay());
+
+                                if (isWorkingDay && !isHoliday) {
+                                    simulatedAccumulatedHours += hoursPerDay;
+                                }
+
+                                if (simulatedAccumulatedHours < remainingHours) {
+                                    currentSimDate.setDate(currentSimDate.getDate() + 1);
+                                }
+                            }
+
+                            projectedEndDateISO = currentSimDate.getFullYear() + '-' +
+                                    String(currentSimDate.getMonth() + 1).padStart(2, '0') + '-' +
+                                    String(currentSimDate.getDate()).padStart(2, '0');
+
+                            const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
+                            document.getElementById('projectedEndDateDisplay').textContent = currentSimDate.toLocaleDateString('en-US', options);
+                        }
+
+                        renderCalendarComponent();
+                    }
+
+                    function renderCalendarComponent() {
+                        const surface = document.getElementById('calendarDaysSurface');
+                        if (!surface)
+                            return;
+                        surface.innerHTML = '';
+
+                        document.getElementById('calendarMonthTitle').textContent = monthNames[calendarMonth] + " " + calendarYear;
+
+                        const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+                        const totalDaysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+                        let activeWeekdays = [];
+                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                            if (circle.classList.contains('active')) {
+                                activeWeekdays.push(parseInt(circle.getAttribute('data-day')));
+                            }
+                        });
+
+                        let excludeHolidays = document.getElementById('excludeHolidaysHidden').value === "true";
+
+                        for (let i = 0; i < firstDayIndex; i++) {
+                            const filler = document.createElement('div');
+                            filler.className = "calendar-day filler text-muted p-1";
+                            filler.innerHTML = "&nbsp;";
+                            surface.appendChild(filler);
+                        }
+
+                        for (let day = 1; day <= totalDaysInMonth; day++) {
+                            const dayCell = document.createElement('div');
+                            dayCell.className = "calendar-day p-1 rounded border";
+                            dayCell.textContent = day;
+
+                            let evaluationDate = new Date(calendarYear, calendarMonth, day);
+                            let evalISOStr = calendarYear + '-' + String(calendarMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+
+                            if (excludeHolidays && phHolidays2026.includes(evalISOStr)) {
+                                dayCell.classList.add('bg-danger', 'text-white');
+                            } else if (evalISOStr === projectedEndDateISO) {
+                                dayCell.classList.add('bg-success', 'text-white', 'fw-bold');
+                            } else if (activeWeekdays.includes(evaluationDate.getDay())) {
+                                dayCell.style.backgroundColor = "rgba(59, 130, 246, 0.15)";
+                                dayCell.style.color = "#2563eb";
+                            } else {
+                                dayCell.classList.add('bg-light', 'text-muted');
+                            }
+
+                            surface.appendChild(dayCell);
+                        }
+                    }
+
+                    function saveConfigState(event) {
+                        event.preventDefault();
+                        localStorage.setItem('config_targetHours', document.getElementById('inputTargetHours').value);
+                        localStorage.setItem('config_startDate', document.getElementById('inputStartDate').value);
+                        localStorage.setItem('config_hoursPerDay', document.getElementById('hoursSlider').value);
+                        localStorage.setItem('config_excludeHolidays', document.getElementById('excludeHolidaysHidden').value);
+                        localStorage.setItem('config_projMode', document.getElementById('projectionModeHidden').value);
+
+                        let selectedDays = [];
+                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                            if (circle.classList.contains('active')) {
+                                selectedDays.push(circle.getAttribute('data-day'));
+                            }
+                        });
+                        localStorage.setItem('config_activeDays', JSON.stringify(selectedDays));
+
+                        showCustomToast("Configuration matrix saved successfully.", "success");
+                        recalculateProgressEngine();
+                    }
+
+                    function loadConfigState() {
+                        if (localStorage.getItem('config_targetHours')) {
+                            document.getElementById('inputTargetHours').value = localStorage.getItem('config_targetHours');
+                            document.getElementById('inputStartDate').value = localStorage.getItem('config_startDate');
+
+                            let sliderVal = localStorage.getItem('config_hoursPerDay');
+                            document.getElementById('hoursSlider').value = sliderVal;
+                            document.getElementById('sliderValDisplay').textContent = sliderVal + 'h';
+
+                            let exHol = localStorage.getItem('config_excludeHolidays') === "true";
+                            document.getElementById('excludeHolidaysHidden').value = exHol;
+                            document.getElementById('holidayBtnYes').classList.toggle('active', exHol);
+                            document.getElementById('holidayBtnNo').classList.toggle('active', !exHol);
+
+                            let mode = localStorage.getItem('config_projMode') || "Auto";
+                            document.getElementById('projectionModeHidden').value = mode;
+                            document.getElementById('projBtnAuto').classList.toggle('active', mode === 'Auto');
+                            document.getElementById('projBtnManual').classList.toggle('active', mode === 'Manual');
+
+                            let activeDays = JSON.parse(localStorage.getItem('config_activeDays') || "[]");
+                            document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                                let val = parseInt(circle.getAttribute('data-day'));
+                                if (activeDays.includes(String(val)) || activeDays.includes(val)) {
+                                    circle.classList.add('active');
+                                } else {
+                                    circle.classList.remove('active');
+                                }
+                            });
+                        }
+                    }
+
+                    function resetConfigurationForm() {
+                        localStorage.removeItem('config_targetHours');
+                        localStorage.removeItem('config_startDate');
+                        localStorage.removeItem('config_hoursPerDay');
+                        localStorage.removeItem('config_excludeHolidays');
+                        localStorage.removeItem('config_projMode');
+                        localStorage.removeItem('config_activeDays');
+
+                        document.getElementById('inputTargetHours').value = "400";
+                        document.getElementById('inputStartDate').value = "2026-05-06";
+                        document.getElementById('hoursSlider').value = "7";
+                        document.getElementById('sliderValDisplay').textContent = "7h";
+
+                        document.getElementById('excludeHolidaysHidden').value = "true";
+                        document.getElementById('holidayBtnYes').classList.add('active');
+                        document.getElementById('holidayBtnNo').classList.remove('active');
+
+                        document.getElementById('projectionModeHidden').value = "Auto";
+                        document.getElementById('projBtnAuto').classList.add('active');
+                        document.getElementById('projBtnManual').classList.remove('active');
+
+                        document.querySelectorAll('.circle-day-picker .day-circle-btn').forEach(circle => {
+                            let d = parseInt(circle.getAttribute('data-day'));
+                            if (d >= 1 && d <= 5) {
+                                circle.classList.add('active');
+                            } else {
+                                circle.classList.remove('active');
+                            }
+                        });
+
+                        showCustomToast("Configuration attributes reset to factory defaults.", "success");
+                        recalculateProgressEngine();
+                    }
         </script>
     </body>
 </html>
