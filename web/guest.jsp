@@ -820,6 +820,9 @@
                         localStorage.removeItem('config_projMode');
                         localStorage.removeItem('config_activeDays');
 
+                        localStorage.setItem('guest_renderedHours', 0);
+                        renderedHoursBase = 0;
+
                         document.getElementById('inputTargetHours').value = "400";
                         document.getElementById('inputStartDate').value = "2026-05-06";
                         document.getElementById('hoursSlider').value = "7";
