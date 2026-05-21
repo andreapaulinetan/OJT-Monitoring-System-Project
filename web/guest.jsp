@@ -206,10 +206,15 @@
 
                         <div class="dashboard-pane" id="manualTaskLogPane">
                             <h3 class="pane-title">Simulate Task Entry Log</h3>
-                            <form id="sandboxLogForm" onsubmit="handleManualLogSubmission(event)">
+                            <form id="sandboxLogForm" action="SubmitTaskServlet" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold small">Hours Spent on Task</label>
                                     <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}" required>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold small">Description of Work / Task</label>
+                                    <textarea id="sandboxLogDescription" name="taskDescription" class="form-control" rows="2" placeholder="e.g. Completed documentation for Backend API" required></textarea>
                                 </div>
 
                                 <div class="form-group attachment-container mb-3">
@@ -218,7 +223,7 @@
                                         <i class="fa-solid fa-camera fa-2x mb-2 text-muted"></i>
                                         <p class="m-0 small">Click to <strong>add attachment (photo)</strong></p>
                                         <span class="file-hint text-muted" style="font-size: 11px;">Supports PNG, JPG, or JPEG</span>
-                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden>
+                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden required>
                                     </div>
                                     <div id="photo-preview-name" class="photo-preview-text mt-2 text-success small fw-bold"></div>
                                 </div>
@@ -581,6 +586,29 @@
                     }
                     localStorage.setItem('guest_renderedHours', String(renderedHoursBase));
 
+                    // Background AJAX POST to save stopwatch session in MySQL
+                    if (computedHoursEarned > 0) {
+                        const formData = new URLSearchParams();
+                        formData.append("simulatedHours", computedHoursEarned.toFixed(4));
+                        formData.append("taskDescription", "Daily attendance simulator: Clocked out session");
+
+                        fetch("SubmitTaskServlet", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded"
+                            },
+                            body: formData.toString()
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                console.log("Stopwatch attendance record synchronised successfully in database queue.");
+                            } else {
+                                console.error("Stopwatch attendance record database sync failed.");
+                            }
+                        })
+                        .catch(err => console.error("Stopwatch attendance network pipeline error: ", err));
+                    }
+
                     accumulatedSeconds = 0;
                     localStorage.removeItem('sw_active');
                     localStorage.removeItem('sw_startTimeStamp');
@@ -674,25 +702,24 @@
             }
 
                     function handleManualLogSubmission(event) {
-                        event.preventDefault();
-                        if (activeTimerRunning)
-                            return;
+                        if (activeTimerRunning) {
+                            event.preventDefault();
+                            return false;
+                        }
 
                         const hoursInput = parseFloat(document.getElementById('sandboxLogHours').value) || 0;
 
                         if (hoursInput <= 0) {
                             showCustomToast("Please specify a valid count of entry hours.", "error");
-                            return;
+                            event.preventDefault();
+                            return false;
                         }
 
+                        // Save to localStorage before submitting so client-side state is preserved on redirect!
                         renderedHoursBase += hoursInput;
                         localStorage.setItem('guest_renderedHours', renderedHoursBase);
 
-                        document.getElementById('sandboxLogForm').reset();
-                        document.getElementById('photo-preview-name').textContent = "";
-                        recalculateProgressEngine();
-
-                        showCustomToast("Attendance was submitted to your coordinator.", "success");
+                        return true;
                     }
 
                     // --- Calculation Engine & Prediction Simulator ---

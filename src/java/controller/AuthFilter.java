@@ -39,13 +39,14 @@ public class AuthFilter implements Filter {
         boolean isLoginPage = lowerURI.endsWith("login.jsp");
         boolean isLoginServlet = lowerURI.endsWith("loginservlet");
         boolean isCaptcha = lowerURI.endsWith("captchaservlet");
+        boolean isLogoutServlet = lowerURI.endsWith("logoutservlet");
         
         // Root path check (e.g., just visiting http://localhost:8080/Project/)
         boolean isRoot = lowerURI.equals(contextPath.toLowerCase() + "/") || 
                          lowerURI.equals(contextPath.toLowerCase());
 
         // 3. THE SECURITY LOGIC
-        if (loggedIn || isStaticResource || isLoginPage || isLoginServlet || isCaptcha || isRoot) {
+        if (loggedIn || isStaticResource || isLoginPage || isLoginServlet || isCaptcha || isLogoutServlet || isRoot) {
             // Add headers to prevent caching issues
             if (isStaticResource) {
                 res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");

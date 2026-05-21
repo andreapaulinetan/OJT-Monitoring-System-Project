@@ -345,4 +345,82 @@ public class UserDAO {
             return false;
         }
     }
+
+    public static String generateSubmissionId(Connection conn, String roleCode) throws SQLException {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String dateStr = today.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = dateStr + "-" + (roleCode != null ? roleCode.toUpperCase() : "INT") + "-";
+        
+        String query = "SELECT SUBMISSION_ID FROM ACTIVITY_SUBMISSIONS WHERE SUBMISSION_ID LIKE ? ORDER BY SUBMISSION_ID DESC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, dateStr + "-%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String lastId = rs.getString("SUBMISSION_ID");
+                    String[] parts = lastId.split("-");
+                    if (parts.length >= 3) {
+                        try {
+                            int seq = Integer.parseInt(parts[parts.length - 1]);
+                            return String.format("%s%04d", prefix, seq + 1);
+                        } catch (NumberFormatException e) {
+                            // ignore and fallback
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Suffix fallback counting all submissions
+        String queryOverall = "SELECT SUBMISSION_ID FROM ACTIVITY_SUBMISSIONS ORDER BY SUBMISSION_ID DESC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(queryOverall);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                String lastId = rs.getString("SUBMISSION_ID");
+                String[] parts = lastId.split("-");
+                if (parts.length >= 3) {
+                    try {
+                        int seq = Integer.parseInt(parts[parts.length - 1]);
+                        return String.format("%s%04d", prefix, seq + 1);
+                    } catch (NumberFormatException e) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        
+        return prefix + "0001";
+    }
+
+    public static boolean addActivitySubmission(ActivitySubmission sub, ServletContext context) {
+        String sql = "INSERT INTO ACTIVITY_SUBMISSIONS (SUBMISSION_ID, USER_ID, DATE_SUBMITTED, DESCRIPTION, SUPPORTING_FILE, ORIGINAL_FILE_NAME, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
+            if (conn == null) {
+                System.err.println("CRITICAL: MySQL connection failed inside addActivitySubmission!");
+                return false;
+            }
+            
+            // If submissionId is empty or null, generate it
+            if (sub.getSubmissionId() == null || sub.getSubmissionId().trim().isEmpty()) {
+                // Find roleCode of the user
+                User user = getInternById(sub.getUserId(), context);
+                String roleCode = (user != null) ? user.getRoleCode() : "INT";
+                sub.setSubmissionId(generateSubmissionId(conn, roleCode));
+            }
+            
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, sub.getSubmissionId());
+                ps.setString(2, sub.getUserId());
+                ps.setDate(3, sub.getDateSubmitted());
+                ps.setString(4, sub.getDescription());
+                ps.setString(5, sub.getSupportingFile());
+                ps.setString(6, sub.getOriginalFileName());
+                ps.setString(7, sub.getStatus());
+                return ps.executeUpdate() > 0;
+            }
+        } catch (Exception e) {
+            System.err.println("Error adding activity submission: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
