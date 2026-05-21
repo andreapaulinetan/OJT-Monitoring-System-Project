@@ -160,5 +160,5 @@
         <error-code>500</error-code>
         <location>/error_500.jsp</location>
     </error-page>
-    <!-- Force webapp reload after whitelisting error pages in AuthFilter: 2026-05-22T06:16:00 -->
+    <!-- Force webapp reload after whitelisting error pages in AuthFilter: 2026-05-22T06:19:00 -->
 </web-app>

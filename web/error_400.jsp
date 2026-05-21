@@ -51,9 +51,9 @@
                         <path d="M230,72 L241,72 C245,72 248,74 248,78 L246,104 L230,104 Z" fill="#e2a07f" opacity="0.3" />
                         
                         <!-- Thumb (Extended outwards on the left) -->
-                        <path d="M213,92 C201,92 195,84 198,76 C201,69 209,74 213,82 C214,84 214,88 213,92 Z" fill="#f7b797" />
+                        <path d="M214,94 C206,94 202,88 204,82 C206,77 211,80 214,85 Z" fill="#f7b797" />
                         <!-- Thumb shadow/detail -->
-                        <path d="M208,82 C205,79 202,77 199,77" stroke="#be7e5f" stroke-width="1.2" stroke-linecap="round" fill="none" />
+                        <path d="M211,87 C209,85 207,84 205,85" stroke="#be7e5f" stroke-width="1.2" stroke-linecap="round" fill="none" />
                         
                         <!-- Index finger (extended straight up) -->
                         <rect x="213" y="42" width="7" height="35" rx="3.5" fill="#f7b797" />
