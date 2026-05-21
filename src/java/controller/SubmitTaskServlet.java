@@ -30,12 +30,15 @@ public class SubmitTaskServlet extends HttpServlet {
         
         // 1. Session verification check
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user") == null) {
+        String tabId = util.TabSessionHelper.getTabId(request);
+        User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        
+        if (user == null) {
+            util.ErrorLogger.logError("UNAUTHORIZED ACCESS", "Attempted task submission without a valid authenticated user session (Tab ID: " + tabId + ")", null, session, getServletContext());
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Active session credentials required.");
             return;
         }
 
-        User user = (User) session.getAttribute("user");
         String userId = user.getId();
 
         String hoursStr = "";
@@ -55,7 +58,23 @@ public class SubmitTaskServlet extends HttpServlet {
                 if (filePart != null && filePart.getSize() > 0) {
                     originalFileName = getSubmittedFileName(filePart);
                     if (originalFileName != null && !originalFileName.isEmpty()) {
+                        String contentType = filePart.getContentType();
+                        String lowerName = originalFileName.toLowerCase();
+                        boolean isSupportedExtension = lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+                        boolean isSupportedMime = contentType != null && (contentType.equalsIgnoreCase("image/png") || contentType.equalsIgnoreCase("image/jpeg") || contentType.equalsIgnoreCase("image/jpg"));
+                        
+                        if (!isSupportedExtension || !isSupportedMime) {
+                            util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
+                                "Invalid file type uploaded. Expected PNG or JPEG image. Filename: '" + originalFileName + "', Content-Type: '" + contentType + "' for user ID: " + userId, 
+                                null, session, getServletContext());
+                            response.sendRedirect("guest.jsp?status=invalid_file");
+                            return;
+                        }
+
                         String uploadPath = getServletContext().getRealPath("/uploads");
+                        if (uploadPath == null) {
+                            uploadPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Uploads";
+                        }
                         File uploadDir = new File(uploadPath);
                         if (!uploadDir.exists()) {
                             uploadDir.mkdirs();
@@ -67,6 +86,7 @@ public class SubmitTaskServlet extends HttpServlet {
                     }
                 }
             } catch (Exception e) {
+                util.ErrorLogger.logError("SERVLET UPLOAD ERROR", "Error occurred while handling multipart task submission", e, session, getServletContext());
                 e.printStackTrace();
                 response.sendRedirect("guest.jsp?status=db_error");
                 return;
@@ -86,7 +106,7 @@ public class SubmitTaskServlet extends HttpServlet {
                 hours = Double.parseDouble(hoursStr);
             }
         } catch (NumberFormatException e) {
-            // ignore
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed parsing simulatedHours. Invalid format: '" + hoursStr + "'", e, session, getServletContext());
         }
 
         // Refine description with hours metadata
@@ -110,6 +130,7 @@ public class SubmitTaskServlet extends HttpServlet {
             if (success) {
                 response.sendRedirect("guest.jsp?status=success&approvedHours=" + hours);
             } else {
+                util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Task submission database write failed for user: " + userId + ". File: " + originalFileName, null, session, getServletContext());
                 response.sendRedirect("guest.jsp?status=db_error");
             }
         } else {
@@ -118,6 +139,7 @@ public class SubmitTaskServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().write("Sync Live Complete.");
             } else {
+                util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Stopwatch session sync database write failed for user: " + userId, null, session, getServletContext());
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Database record insertion failure.");
             }
         }

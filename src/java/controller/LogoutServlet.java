@@ -14,32 +14,41 @@ public class LogoutServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
-        // 1. Get the current session
-        HttpSession session = request.getSession(false);
-        
-        if (session != null) {
-            // 2. Capture user info BEFORE invalidation for audit logging
-            User user = (User) session.getAttribute("user");
-            
-            if (user != null) {
-                // AUTO-LOG: Record LOGOUT event to PostgreSQL (DBMS 3)
-                PostgreSQLDAO.insertAuditLog(
-                    getServletContext(),
-                    user.getId(),
-                    user.getFullName(),
-                    "LOGOUT",
-                    "User session ended",
-                    request.getRemoteAddr()
-                );
+        try {
+            // 1. Get the current session
+             HttpSession session = request.getSession(false);
+             String tabId = util.TabSessionHelper.getTabId(request);
+             
+             if (session != null && tabId != null) {
+                 // 2. Capture user info BEFORE invalidation for audit logging
+                 User user = util.TabSessionHelper.getUser(session, tabId);
+                 
+                 if (user != null) {
+                     // AUTO-LOG: Record LOGOUT event to PostgreSQL (DBMS 3)
+                     PostgreSQLDAO.insertAuditLog(
+                         getServletContext(),
+                         user.getId(),
+                         user.getFullName(),
+                         "LOGOUT",
+                         "User session ended (Tab ID: " + tabId + ")",
+                         request.getRemoteAddr()
+                     );
+                 }
+                 
+                 // 3. Clear only this tab's session data
+                 util.TabSessionHelper.invalidateTab(session, tabId);
+             }
+             
+             // 4. Redirect to login page with a "logged out" message
+             response.sendRedirect("login.jsp?msg=loggedout");
+        } catch (Exception e) {
+            util.ErrorLogger.logError("SERVLET ERROR", "Failed logout processing", e, request.getSession(false), getServletContext());
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            } else {
+                throw new ServletException(e);
             }
-            
-            // 3. Clear all data and destroy the session
-            session.invalidate();
         }
-        
-        // 4. Redirect to login page with a "logged out" message
-        response.sendRedirect("login.jsp?msg=loggedout");
     }
 
     @Override

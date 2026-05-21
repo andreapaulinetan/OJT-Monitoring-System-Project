@@ -135,9 +135,7 @@ public class User implements Serializable {
     // ==========================================
 
     /**
-     * Helper method to get full name for display purposes. 
-     * Handles cases where middle name might be null or empty.
-     * Use this in JSP like: <%= user.getFullName() %>
+     * Use this in JSP like: user.getFullName()
      */
     public String getFullName() {
         StringBuilder fullName = new StringBuilder();

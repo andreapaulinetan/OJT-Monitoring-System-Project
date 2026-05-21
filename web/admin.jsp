@@ -3,12 +3,14 @@
 <%@page import="model.UserDAO"%>
 <%@page import="model.ActivitySubmission"%>
 <%@page import="java.util.List"%>
+<%@page import="util.TabSessionHelper"%>
 <%
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
     response.setDateHeader("Expires", 0);
 
-    User user = (User) session.getAttribute("user");
+    String tabId = TabSessionHelper.getTabId(request);
+    User user = TabSessionHelper.getUser(session, tabId);
     if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
         response.sendRedirect("login.jsp");
         return;
@@ -25,6 +27,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="${pageContext.request.contextPath}/js/tabSession.js"></script>
         <title>Coordinator's Dashboard | Active Learning</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -769,7 +772,7 @@
                 fetch("UpdateLogStatusServlet", {
                     method: "POST",
                     headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus)
+                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name)
                 })
                         .then(response => {
                             if (response.ok) {
@@ -1411,7 +1414,7 @@
                 const tbody = document.getElementById('auditTableBody');
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading audit data from PostgreSQL...</td></tr>';
 
-                fetch('AuditServlet')
+                fetch('AuditServlet?tabId=' + encodeURIComponent(window.name))
                     .then(response => {
                         if (!response.ok) throw new Error('Server returned ' + response.status);
                         return response.json();

@@ -37,6 +37,7 @@ public class PostgreSQLDAO {
                 return ps.executeUpdate() > 0;
             }
         } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert PostgreSQL security audit log for user " + username, e, null, ctx);
             System.err.println("Error inserting audit log: " + e.getMessage());
             e.printStackTrace();
             return false;
@@ -73,6 +74,7 @@ public class PostgreSQLDAO {
                 }
             }
         } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to query all PostgreSQL security audit logs", e, null, ctx);
             System.err.println("Error fetching all audit logs: " + e.getMessage());
             e.printStackTrace();
         }
@@ -110,6 +112,7 @@ public class PostgreSQLDAO {
                 }
             }
         } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to query PostgreSQL security audit logs for user ID: " + userId, e, null, ctx);
             System.err.println("Error fetching audit logs for user " + userId + ": " + e.getMessage());
             e.printStackTrace();
         }
@@ -133,6 +136,7 @@ public class PostgreSQLDAO {
                 }
             }
         } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to count PostgreSQL security audit logs", e, null, ctx);
             System.err.println("Error counting audit logs: " + e.getMessage());
             e.printStackTrace();
         }

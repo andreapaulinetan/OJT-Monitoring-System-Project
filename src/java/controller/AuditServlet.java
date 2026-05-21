@@ -31,13 +31,17 @@ public class AuditServlet extends HttpServlet {
 
         // 1. Session Security Check
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user") == null) {
+        String tabId = util.TabSessionHelper.getTabId(request);
+        User currentUser = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+
+        if (currentUser == null) {
+            util.ErrorLogger.logError("UNAUTHORIZED ACCESS", "Attempted access to AuditServlet without valid session (Tab ID: " + tabId + ")", null, session, getServletContext());
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired.");
             return;
         }
 
-        User currentUser = (User) session.getAttribute("user");
         if (!"admin".equalsIgnoreCase(currentUser.getRole())) {
+            util.ErrorLogger.logError("SECURITY VIOLATION", "Unauthorized non-admin access to AuditServlet. User: " + currentUser.getEmail() + " (Tab ID: " + tabId + ")", null, session, getServletContext());
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin access required.");
             return;
         }

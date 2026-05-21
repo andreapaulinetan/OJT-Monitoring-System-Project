@@ -16,7 +16,8 @@ public class DBConnection {
                 context.getInitParameter("derby.username"),
                 context.getInitParameter("derby.password")
             );
-        } catch (ClassNotFoundException | SQLException e) {
+        } catch (Exception e) {
+            ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to Apache Derby database", e, null, context);
             e.printStackTrace();
             return null;
         }
@@ -37,6 +38,7 @@ public static Connection getMySQLMonitoringConnection(ServletContext context) {
                 context.getInitParameter("mysql.password")
         );
     } catch (Exception e) {
+        ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to MySQL Monitoring database", e, null, context);
         e.printStackTrace();
         return null;
     }
@@ -50,7 +52,8 @@ public static Connection getMySQLMonitoringConnection(ServletContext context) {
                 context.getInitParameter("pgsql.username"),
                 context.getInitParameter("pgsql.password")
             );
-        } catch (ClassNotFoundException | SQLException e) {
+        } catch (Exception e) {
+            ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to PostgreSQL Audit database", e, null, context);
             e.printStackTrace();
             return null;
         }

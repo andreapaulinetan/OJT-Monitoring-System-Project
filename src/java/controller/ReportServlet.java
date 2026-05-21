@@ -37,12 +37,14 @@ public class ReportServlet extends HttpServlet {
 
         // 1. Session Security Check
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user") == null) {
+        String tabId = util.TabSessionHelper.getTabId(request);
+        User currentUser = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+
+        if (currentUser == null) {
+            util.ErrorLogger.logError("UNAUTHORIZED ACCESS", "Attempted access to ReportServlet without valid session (Tab ID: " + tabId + ")", null, session, getServletContext());
             response.sendRedirect("login.jsp?err=unauthorized");
             return;
         }
-
-        User currentUser = (User) session.getAttribute("user");
 
         // 2. Parse Report Type
         String reportType = request.getParameter("type");

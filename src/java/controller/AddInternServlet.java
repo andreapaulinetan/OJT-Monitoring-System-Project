@@ -6,6 +6,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 // Import your dynamic project user data models and query hooks securely
 import model.User;
@@ -19,6 +20,17 @@ public class AddInternServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
         
+        // Security & session verification check
+        HttpSession session = request.getSession(false);
+        String tabId = util.TabSessionHelper.getTabId(request);
+        User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        
+        if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
+            util.ErrorLogger.logError("SECURITY VIOLATION", "Unauthorized attempt to register new intern. Active user: " + (user != null ? user.getEmail() : "anonymous") + " (Tab ID: " + tabId + ")", null, session, getServletContext());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin privileges required.");
+            return;
+        }
+
         try {
             // 1. Extract dynamic configuration parameters submitted via the form parameters fields
             String firstName = request.getParameter("firstName");
@@ -88,10 +100,12 @@ public class AddInternServlet extends HttpServlet {
                         + "&newUni=" + URLEncoder.encode(newIntern.getUniversity(), "UTF-8")
                         + "&newBirthAge=" + URLEncoder.encode(birthMonth + " " + birthDate + ", " + birthYear + " (Age: " + age + ")", "UTF-8"));
             } else {
+                util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to save new intern profile to database for: " + email, null, request.getSession(false), getServletContext());
                 response.sendRedirect("admin.jsp?status=failed");
             }
             
         } catch (Exception e) {
+            util.ErrorLogger.logError("SERVLET REGISTER ERROR", "Failed to register new intern due to input or processing exception. Form Email: " + request.getParameter("email"), e, request.getSession(false), getServletContext());
             e.printStackTrace();
             response.sendRedirect("admin.jsp?status=error");
         }

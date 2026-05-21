@@ -156,6 +156,5 @@
         <error-code>500</error-code>
         <location>/error_500.jsp</location>
     </error-page>
-    
-    <!-- Force webapp reload after copying missing JDBC libraries to WEB-INF/lib -->
+    <!-- Force webapp reload after implementing session-based ErrorLogger utility -->
 </web-app>

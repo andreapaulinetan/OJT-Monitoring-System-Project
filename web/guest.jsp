@@ -1,12 +1,14 @@
 <%@page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="model.User"%>
+<%@page import="util.TabSessionHelper"%>
 <%
     // Prevent browser caching of protected page
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
     response.setDateHeader("Expires", 0);
 
-    User loggedInUser = (User) session.getAttribute("user");
+    String tabId = TabSessionHelper.getTabId(request);
+    User loggedInUser = TabSessionHelper.getUser(session, tabId);
     if (loggedInUser == null || "admin".equalsIgnoreCase(loggedInUser.getRole())) {
         response.sendRedirect("login.jsp");
         return;
@@ -48,6 +50,9 @@
     } else if ("db_error".equals(statusParam)) {
         alertMessage = "Database Error: Could not save attendance record.";
         alertClass = "alert alert-danger mt-3 mb-3";
+    } else if ("invalid_file".equals(statusParam)) {
+        alertMessage = "Error: Invalid file type uploaded. Please upload a valid PNG, JPG, or JPEG image as proof of work.";
+        alertClass = "alert alert-danger mt-3 mb-3";
     } else if ("no_clock_in".equals(statusParam)) {
         alertMessage = "Error: No matching clock-in event timestamp tracked in session state.";
         alertClass = "alert alert-warning mt-3 mb-3";
@@ -58,6 +63,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="${pageContext.request.contextPath}/js/tabSession.js"></script>
         <title>Guest Intern's Dashboard | Active Learning</title>
 
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -597,6 +603,7 @@
                         const formData = new URLSearchParams();
                         formData.append("simulatedHours", computedHoursEarned.toFixed(4));
                         formData.append("taskDescription", "Daily attendance simulator: Clocked out session");
+                        formData.append("tabId", window.name);
 
                         fetch("SubmitTaskServlet", {
                             method: "POST",
