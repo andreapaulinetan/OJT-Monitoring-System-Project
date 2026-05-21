@@ -31,7 +31,7 @@ CREATE TABLE `activity_submissions` (
   `ORIGINAL_FILE_NAME` varchar(255) DEFAULT NULL,
   `STATUS` varchar(20) DEFAULT 'Pending',
   PRIMARY KEY (`SUBMISSION_ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -60,7 +60,7 @@ CREATE TABLE `internship_logs` (
   `RENDERED_HOURS` decimal(5,2) DEFAULT NULL,
   `COMPLETED_HOURS` decimal(5,2) DEFAULT NULL,
   PRIMARY KEY (`LOG_ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
