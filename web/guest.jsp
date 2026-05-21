@@ -273,7 +273,7 @@
 
                             <div class="config-card card-ui-yellow">
                                 <h3 class="card-title-custom">Internship Goals</h3>
-                                <div class="horizontal-inputs">
+                                <div class="horizontal-inputs mb-3">
                                     <div>
                                         <label class="custom-label" for="inputTargetHours">Target Hours</label>
                                         <div class="input-group">
@@ -285,6 +285,12 @@
                                         <label class="custom-label" for="inputStartDate">Start Date</label>
                                         <input type="date" id="inputStartDate" class="form-control" value="2026-05-06" required onchange="recalculateProgressEngine()">
                                     </div>
+                                </div>
+                                <div class="pt-2 border-top">
+                                    <label class="custom-label d-block mb-2">Simulated Hours Control</label>
+                                    <button type="button" class="btn btn-outline-danger btn-sm w-100 fw-bold py-2" onclick="resetRenderedHoursToZero()">
+                                        <i class="fa-solid fa-trash-can me-1"></i> Reset Rendered Hours to 0
+                                    </button>
                                 </div>
                             </div>
 
@@ -843,16 +849,16 @@
 
                             if (excludeHolidays && phHolidays2026.includes(evalISOStr)) {
                                 dayCell.classList.add('holiday');
-                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
+                                dayCell.innerHTML = "<span class=\"day-num\">" + day + "</span>";
                             } else if (evalISOStr === projectedEndDateISO) {
                                 dayCell.classList.add('completion-day');
-                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
+                                dayCell.innerHTML = "<span class=\"day-num\">" + day + "</span>";
                             } else if (activeWeekdays.includes(evaluationDate.getDay())) {
                                 dayCell.classList.add('scheduled');
-                                dayCell.innerHTML = `<span class="day-num">${day}</span><span class="hours-sub">${hoursPerDay}h</span>`;
+                                dayCell.innerHTML = "<span class=\"day-num\">" + day + "</span><span class=\"hours-sub\">" + hoursPerDay + "h</span>";
                             } else {
                                 dayCell.classList.add('day-off');
-                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
+                                dayCell.innerHTML = "<span class=\"day-num\">" + day + "</span>";
                             }
 
                             if (isToday) {
@@ -860,6 +866,15 @@
                             }
 
                             surface.appendChild(dayCell);
+                        }
+                    }
+
+                    function resetRenderedHoursToZero() {
+                        if (confirm("Are you sure you want to reset your rendered hours to 0h? This will update your local simulation matrix.")) {
+                            renderedHoursBase = 0;
+                            localStorage.setItem('guest_renderedHours', '0');
+                            showCustomToast("Simulated rendered hours reset to 0h successfully.", "success");
+                            recalculateProgressEngine();
                         }
                     }
 
