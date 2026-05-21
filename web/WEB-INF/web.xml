@@ -145,6 +145,10 @@
 
     <!-- HTTP Error Status Route Target Mappings -->
     <error-page>
+        <error-code>400</error-code>
+        <location>/error_400.jsp</location>
+    </error-page>
+    <error-page>
         <error-code>403</error-code>
         <location>/error_403.jsp</location>
     </error-page>
@@ -156,5 +160,5 @@
         <error-code>500</error-code>
         <location>/error_500.jsp</location>
     </error-page>
-    <!-- Force webapp reload after implementing session-based ErrorLogger utility -->
+    <!-- Force webapp reload after whitelisting error pages in AuthFilter: 2026-05-22T06:16:00 -->
 </web-app>
