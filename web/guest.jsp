@@ -168,10 +168,10 @@
                     </div>
 
                     <div class="dashboard-triple-grid">
-                        <div class="dashboard-column" style="display: flex; flex-direction: column; gap: 20px;">
-                            <div class="dashboard-pane" id="attendanceSimulatorCard" style="min-height: auto;">
+                        <div class="dashboard-column" style="display: flex; flex-direction: column; gap: 20px; height: 100%;">
+                            <div class="dashboard-pane" id="attendanceSimulatorCard" style="min-height: auto; flex: 1; display: flex; flex-direction: column;">
                                 <h3 class="pane-title">Daily Attendance Simulator</h3>
-                                <div class="attendance-box text-center py-3">
+                                <div class="attendance-box text-center py-3" style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px;">
                                     <div class="mb-3">
                                         <div class="attendance-status-badge">
                                             <span class="status-dot red" id="statusIndicatorDot"></span>

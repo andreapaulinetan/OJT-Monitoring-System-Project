@@ -624,7 +624,7 @@ body {
     grid-template-columns: 1fr 1fr 1.3fr; /* Core structure: Left/Center equal, Right wide for Calendar */
     gap: 25px;
     max-width: 1300px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .dashboard-pane {
@@ -634,6 +634,8 @@ body {
     padding: 24px;
     min-height: 430px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Download My Record Card (Small) */
@@ -996,13 +998,23 @@ body {
     color: #B38600;
 }
 
-/* Informational Legend Panel Component Footer */
 .calendar-legends-footer {
     display: flex;
     justify-content: space-between;
-    margin-top: 24px;
+    margin-top: auto !important; /* Push legends to the bottom of the stretched card */
     padding-top: 14px;
     border-top: 1px solid #F1F3F5;
+}
+
+/* Simulate Task Entry Log Form Alignment */
+#sandboxLogForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+#sandboxLogForm button[type="submit"] {
+    margin-top: auto !important; /* Push simulation button to the bottom of the card */
 }
 
 .legend-item {
