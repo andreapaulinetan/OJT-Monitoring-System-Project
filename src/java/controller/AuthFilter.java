@@ -44,12 +44,33 @@ public class AuthFilter implements Filter {
             boolean isCaptcha = lowerURI.endsWith("captchaservlet");
             boolean isLogoutServlet = lowerURI.endsWith("logoutservlet");
             
+            // Allow all custom premium error pages to be accessed publicly
+            boolean isErrorPage = lowerURI.contains("error_") || lowerURI.contains("eror_");
+            
             // Root path check (e.g., just visiting http://localhost:8080/Project/)
             boolean isRoot = lowerURI.equals(contextPath.toLowerCase() + "/") || 
                              lowerURI.equals(contextPath.toLowerCase());
 
+            // Verify if the requested resource actually exists in the deployment context.
+            // If it doesn't, we bypass redirect security checks so that the container naturally
+            // registers a 404 Page Not Found error and dispatches the customized error page.
+            String servletPath = req.getServletPath();
+            boolean fileExists = false;
+            if (servletPath != null) {
+                try {
+                    java.net.URL resUrl = req.getServletContext().getResource(servletPath);
+                    if (resUrl != null) {
+                        fileExists = true;
+                    }
+                } catch (Exception e) {
+                    // Fail-safe default
+                }
+            }
+            boolean isServletMapping = lowerURI.contains("servlet");
+            boolean resourceExists = fileExists || isServletMapping || isRoot || isStaticResource;
+
             // 3. THE SECURITY LOGIC
-            if (loggedIn || isStaticResource || isLoginPage || isLoginServlet || isCaptcha || isLogoutServlet || isRoot) {
+            if (loggedIn || isStaticResource || isLoginPage || isLoginServlet || isCaptcha || isLogoutServlet || isRoot || isErrorPage || !resourceExists) {
                 // Role-Based Access Control (RBAC) Checks
                 if (loggedIn && !isStaticResource) {
                     model.User loggedInUser = util.TabSessionHelper.getUser(session, tabId);

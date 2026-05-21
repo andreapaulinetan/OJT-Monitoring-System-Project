@@ -1,17 +1,97 @@
-<%-- 
-    Document   : error_403
-    Created on : 05 9, 26, 6:02:32 PM
-    Author     : patrickbryantorres
---%>
-
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <title>JSP Page</title>
-    </head>
-    <body>
-        <h1>Hello World!</h1>
-    </body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 Access Denied | Active Learning</title>
+    <link rel="stylesheet" type="text/css" href="${pageContext.request.contextPath}/css/error.css?v=<%= System.currentTimeMillis() %>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="error-header">
+        <div class="header-container">
+            <a href="${pageContext.request.contextPath}/login.jsp" class="brand">
+                <i class="fa-solid fa-layer-group" style="color: var(--color-pink); font-size: 1.8rem;"></i>
+                <span class="brand-text">Active Learning</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="error-container">
+        <div class="error-card">
+            <div class="error-code">403</div>
+            <h1 class="error-title">Access Denied</h1>
+            <p class="error-desc">You do not have the required permissions to view this secure resource.</p>
+            
+            <!-- Custom CSS-Animated SVG Illustration (Glowing Neon Padlock / Laser Grid) -->
+            <div class="illustration-surface">
+                <svg width="400" height="200" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%;">
+                    
+                    <!-- Background Security Grid (Pulsing) -->
+                    <g class="pulsing-grid">
+                        <line x1="20" y1="100" x2="380" y2="100" stroke="#d63384" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.3" />
+                        <line x1="200" y1="10" x2="200" y2="190" stroke="#d63384" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.3" />
+                        <!-- Laser Beams crossing -->
+                        <line x1="50" y1="30" x2="350" y2="170" stroke="#d63384" stroke-width="1.5" opacity="0.4" />
+                        <line x1="350" y1="30" x2="50" y2="170" stroke="#d63384" stroke-width="1.5" opacity="0.4" />
+                        
+                        <!-- Small security warning crosses -->
+                        <path d="M40,50 L50,50 M45,45 L45,55" stroke="#ffc107" stroke-width="1" />
+                        <path d="M350,50 L360,50 M355,45 L355,55" stroke="#ffc107" stroke-width="1" />
+                        <path d="M40,150 L50,150 M45,145 L45,155" stroke="#ffc107" stroke-width="1" />
+                        <path d="M350,150 L360,150 M355,145 L355,155" stroke="#ffc107" stroke-width="1" />
+                    </g>
+                    
+                    <!-- Ground Shield / Platform -->
+                    <ellipse cx="200" cy="170" rx="70" ry="15" fill="#0c0d11" />
+                    <ellipse cx="200" cy="170" rx="60" ry="10" fill="#1b1c23" stroke="#d63384" stroke-width="1" opacity="0.5" />
+                    
+                    <!-- Glowing Padlock Shield Group -->
+                    <g transform="translate(160, 45)">
+                        <!-- Shield Glow background -->
+                        <path d="M40,5 C40,5 72,15 72,30 C72,65 40,85 40,85 C40,85 8,65 8,30 C8,15 40,5 40,5 Z" fill="#d63384" opacity="0.15" />
+                        <!-- Main Shield border -->
+                        <path d="M40,5 C40,5 72,15 72,30 C72,65 40,85 40,85 C40,85 8,65 8,30 C8,15 40,5 40,5 Z" fill="#1e2029" stroke="#d63384" stroke-width="3.5" />
+                        
+                        <!-- Lock Shackle/Bar -->
+                        <path d="M28,45 L28,33 C28,26 33,21 40,21 C47,21 52,26 52,33 L52,45" stroke="#ffc107" stroke-width="4.5" stroke-linecap="round" fill="none" />
+                        
+                        <!-- Lock Body -->
+                        <rect x="22" y="42" width="36" height="26" rx="6" fill="#ffc107" />
+                        <!-- Lock Body Details (Inner Keyhole & Line) -->
+                        <ellipse cx="40" cy="51" rx="3.5" ry="3.5" fill="#1e2029" />
+                        <polygon points="38,52 42,52 43,62 37,62" fill="#1e2029" />
+                    </g>
+                    
+                </svg>
+            </div>
+            
+            <!-- Navigation Action -->
+            <a href="${pageContext.request.contextPath}/login.jsp" class="btn-safety" id="safetyLink">
+                <i class="fa-solid fa-house"></i> Return to Safety
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="error-footer">
+        <p class="footer-text">
+            Active Learning, Inc. — Internship Learning Tracker | Confidential | Generated by ICS2609 System
+        </p>
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const safetyLink = document.getElementById("safetyLink");
+            const tabId = window.name || sessionStorage.getItem("tabId") || "";
+            if (tabId) {
+                safetyLink.href = "${pageContext.request.contextPath}/login.jsp?tabId=" + encodeURIComponent(tabId);
+            }
+        });
+    </script>
+</body>
 </html>

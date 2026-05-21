@@ -10,7 +10,7 @@
     String tabId = TabSessionHelper.getTabId(request);
     User loggedInUser = TabSessionHelper.getUser(session, tabId);
     if (loggedInUser == null || "admin".equalsIgnoreCase(loggedInUser.getRole())) {
-        response.sendRedirect("login.jsp");
+        response.sendRedirect("login.jsp?err=unauthorized");
         return;
     }
     

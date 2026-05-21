@@ -12,7 +12,7 @@
     String tabId = TabSessionHelper.getTabId(request);
     User user = TabSessionHelper.getUser(session, tabId);
     if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
-        response.sendRedirect("login.jsp");
+        response.sendRedirect("login.jsp?err=unauthorized");
         return;
     }
 
@@ -238,9 +238,14 @@
 
                 <div id="log-review-view" class="view-section" style="display: none;">
                     <section class="table-section p-0 overflow-hidden">
-                        <div class="section-header p-4 pb-2">
-                            <h3>OJT Activity Submissions Queue (DBMS 2)</h3>
-                            <p class="text-muted small">Verify submitted proof files and update processing workflow operational status flags inside MySQL parameters storage.</p>
+                        <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h3>OJT Activity Submissions Queue (DBMS 2)</h3>
+                                <p class="text-muted small">Verify submitted proof files and update processing workflow operational status flags inside MySQL parameters storage.</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-dark" onclick="refreshLogReview()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
                         </div>
                         <div class="table-responsive px-4">
                             <table class="data-table" id="logReviewTable">
@@ -748,7 +753,98 @@
                     summaryInternModalObj = new bootstrap.Modal(document.getElementById('summaryInternModal'));
                     summaryInternModalObj.show();
                 }
+
+                // Error toast notifications from server-side validation redirects
+                const err = urlParams.get('err');
+                if (err === 'invalid_date_range') {
+                    showAdminToast("Date Range Error: 'From' date must be before or equal to 'To' date.", "danger");
+                } else if (err === 'malformed_dates') {
+                    showAdminToast("Malformed Dates: The dates provided are invalid or empty.", "danger");
+                }
+
+                // Restore active view tab from URL parameter (e.g. log-review)
+                const targetView = urlParams.get('view');
+                if (targetView) {
+                    switchView(targetView);
+                }
             });
+
+            function showAdminToast(message, type = "success") {
+                // Ensure a toast container exists
+                let container = document.getElementById('admin-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'admin-toast-container';
+                    Object.assign(container.style, {
+                        position: 'fixed',
+                        top: '85px',
+                        right: '24px',
+                        zIndex: '9999',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        pointerEvents: 'none'
+                    });
+                    document.body.appendChild(container);
+                }
+
+                // Create individual toast element
+                const toast = document.createElement('div');
+                toast.className = "admin-toast-alert animate-fade-in";
+                
+                // Color configuration
+                let bgColor = "#198754"; // Success green
+                let icon = "fa-circle-check";
+                if (type === "danger" || type === "error") {
+                    bgColor = "#dc3545"; // Danger red
+                    icon = "fa-circle-exclamation";
+                } else if (type === "warning") {
+                    bgColor = "#ffc107"; // Warning yellow
+                    icon = "fa-triangle-exclamation";
+                }
+
+                Object.assign(toast.style, {
+                    background: '#1b1c23',
+                    borderLeft: '4px solid ' + bgColor,
+                    color: '#ffffff',
+                    padding: '16px 20px',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    minWidth: '320px',
+                    maxWidth: '450px',
+                    pointerEvents: 'auto',
+                    opacity: '1',
+                    transform: 'translateY(0)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                });
+
+                // Icon Wrap
+                const iconWrap = document.createElement('i');
+                iconWrap.className = "fa-solid " + icon;
+                iconWrap.style.color = bgColor;
+                iconWrap.style.fontSize = "1.2rem";
+
+                // Text wrap
+                const textWrap = document.createElement('span');
+                textWrap.innerText = message;
+                textWrap.style.fontFamily = "'Inter', sans-serif";
+                textWrap.style.fontSize = "0.92rem";
+                textWrap.style.fontWeight = "500";
+
+                toast.appendChild(iconWrap);
+                toast.appendChild(textWrap);
+                container.appendChild(toast);
+
+                // Auto dismiss after 4.5 seconds
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-15px)';
+                    setTimeout(() => toast.remove(), 350);
+                }, 4500);
+            }
 
             function openLogDetailsModal(subId, internId, identity, dateSub, desc, origFile, suppFile) {
                 document.getElementById("modalSubId").innerText = "#" + subId;
@@ -1389,13 +1485,13 @@
             // ══════════════════════════════════════════════════════════
 
             function downloadReport(type) {
-                window.location.href = 'ReportServlet?type=' + type;
+                window.location.href = 'ReportServlet?type=' + type + '&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
             }
 
             function downloadOjtReport() {
                 const from = document.getElementById('ojtFromDate').value;
                 const to = document.getElementById('ojtToDate').value;
-                let url = 'ReportServlet?type=OJTLOGS';
+                let url = 'ReportServlet?type=OJTLOGS&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
                 if (from && to) {
                     if (from > to) {
                         alert('"From" date must be before or equal to the "To" date.');
@@ -1404,6 +1500,10 @@
                     url += '&from=' + from + '&to=' + to;
                 }
                 window.location.href = url;
+            }
+
+            function refreshLogReview() {
+                window.location.href = 'admin.jsp?tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "") + '&view=log-review';
             }
 
             // ══════════════════════════════════════════════════════════

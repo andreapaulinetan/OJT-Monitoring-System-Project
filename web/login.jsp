@@ -159,5 +159,37 @@
                 }, 1000);
             }
         </script>
+
+        <% if ("unauthorized".equals(err)) { %>
+        <!-- Security Alert Modal -->
+        <div class="modal-overlay active" id="securityModal">
+            <div class="modal-content">
+                <div class="modal-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="modal-title">Security Alert</div>
+                <div class="modal-body-text">
+                    An unauthorized access attempt was detected. For security reasons, direct access to protected resources or browser navigation after logout is strictly blocked.
+                </div>
+                <button type="button" class="btn-modal-close" onclick="closeSecurityModal()">
+                    Acknowledge & Continue
+                </button>
+            </div>
+        </div>
+        <script>
+            function closeSecurityModal() {
+                const modal = document.getElementById('securityModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    setTimeout(() => {
+                        modal.remove();
+                    }, 350);
+                }
+                // Strip the ?err=unauthorized parameter from the address bar to avoid showing the modal again on refresh
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+            }
+        </script>
+        <% } %>
     </body>
 </html>

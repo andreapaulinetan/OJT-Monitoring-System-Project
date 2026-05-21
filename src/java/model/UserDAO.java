@@ -101,7 +101,8 @@ public class UserDAO {
                 sub.setStatus(rs.getString("STATUS"));
 
                 // Map cross-database reference data dynamically
-                User profile = internMap.get(userId);
+                String mappedId = mapToDerbyInternId(userId);
+                User profile = internMap.get(mappedId);
                 if (profile != null) {
                     sub.setInternName(profile.getFullName());
                     sub.setAssignedOffice(profile.getOffice());
@@ -130,9 +131,24 @@ public class UserDAO {
                 return "Pending"; 
             }
             
-            String sql = "SELECT STATUS FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? ORDER BY DATE_SUBMITTED DESC LIMIT 1";
+            String sql = "SELECT STATUS FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? OR USER_ID LIKE ? ORDER BY DATE_SUBMITTED DESC LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
+                
+                String likePattern = "";
+                try {
+                    int seq = Integer.parseInt(userId);
+                    likePattern = "%-%" + String.format("%04d", seq);
+                } catch (NumberFormatException e) {
+                    String mappedId = mapToDerbyInternId(userId);
+                    try {
+                        int seq = Integer.parseInt(mappedId);
+                        likePattern = "%-%" + String.format("%04d", seq);
+                    } catch (NumberFormatException ex) {
+                        likePattern = userId;
+                    }
+                }
+                ps.setString(2, likePattern);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         status = rs.getString("STATUS");
@@ -179,11 +195,12 @@ public class UserDAO {
      * GET INTERN BY ID: Fetches a single intern by their ID (DBMS 1 - Apache Derby).
      */
     public static User getInternById(String internId, ServletContext context) {
+        String mappedId = mapToDerbyInternId(internId);
         String sql = "SELECT * FROM INTERN WHERE INTERN_ID = ?";
         try (Connection conn = DBConnection.getDerbyConnection(context);
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
-            ps.setString(1, internId);
+            ps.setString(1, mappedId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToUser(rs, rs.getString("ROLE"), context);
@@ -205,11 +222,26 @@ public class UserDAO {
         // Get the specific intern profile from Derby to map references
         User profile = getInternById(userId, context);
 
-        String sql = "SELECT * FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? ORDER BY DATE_SUBMITTED DESC";
+        String sql = "SELECT * FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? OR USER_ID LIKE ? ORDER BY DATE_SUBMITTED DESC";
         try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, userId);
+            
+            String likePattern = "";
+            try {
+                int seq = Integer.parseInt(userId);
+                likePattern = "%-%" + String.format("%04d", seq);
+            } catch (NumberFormatException e) {
+                String mappedId = mapToDerbyInternId(userId);
+                try {
+                    int seq = Integer.parseInt(mappedId);
+                    likePattern = "%-%" + String.format("%04d", seq);
+                } catch (NumberFormatException ex) {
+                    likePattern = userId;
+                }
+            }
+            ps.setString(2, likePattern);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ActivitySubmission sub = new ActivitySubmission();
@@ -267,6 +299,22 @@ public class UserDAO {
             // Ignored for Admins
         }
         return u;
+    }
+
+    public static String mapToDerbyInternId(String userId) {
+        if (userId == null) return null;
+        if (userId.contains("-")) {
+            String[] parts = userId.split("-");
+            String seqPart = parts[parts.length - 1]; // e.g. "10001" or "50003"
+            try {
+                int n = Integer.parseInt(seqPart);
+                int seq = n % 10000;
+                return String.valueOf(seq);
+            } catch (NumberFormatException e) {
+                return seqPart;
+            }
+        }
+        return userId;
     }
 
     private static String generateCustomId(Connection conn, String prefix, String tableName, String idColumnName) throws SQLException {

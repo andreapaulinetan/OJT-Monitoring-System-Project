@@ -69,9 +69,16 @@ public class ErrorLogger {
             ServletContext ctx = (context != null) ? context : threadServletContext.get();
 
             // 3. Resolve log directory path
-            // To ensure logs are always accessible, persistent, and bypass server permissions blockages,
-            // we write them directly to a dedicated folder in the User's Home directory.
-            String logDirPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Logs";
+            // To satisfy the NFR that tracing logs must be stored within the application folder,
+            // we write them directly to a 'logs' directory inside the deployed application context.
+            String logDirPath = null;
+            if (ctx != null) {
+                logDirPath = ctx.getRealPath("/logs");
+            }
+            if (logDirPath == null) {
+                // Fallback to a dedicated directory in user home if context is unavailable
+                logDirPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Logs";
+            }
 
             File logDir = new File(logDirPath);
             if (!logDir.exists()) {

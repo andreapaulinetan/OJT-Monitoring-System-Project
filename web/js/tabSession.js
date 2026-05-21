@@ -104,4 +104,13 @@
             }
         });
     });
+
+    // 4. Back-button cache-busting revalidation
+    window.addEventListener("pageshow", function(event) {
+        // If the page is loaded from cache (bfcache) or back-forward navigation
+        if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+            // Force a reload from the server to revalidate session on server-side
+            window.location.reload(true);
+        }
+    });
 })();

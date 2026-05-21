@@ -173,6 +173,18 @@ body {
 .col-status { width: 15%; text-align: center; }
 .col-actions { width: 12%; text-align: center; }
 
+/* LOG REVIEW TABLE SPECIFIC COLUMN WIDTHS */
+#logReviewTable { table-layout: auto; }
+#logReviewTable th,
+#logReviewTable td { white-space: nowrap; }
+#logReviewTable th:nth-child(1) { width: 120px; }   /* Submitted On */
+#logReviewTable th:nth-child(2) { width: 180px; }   /* Submission ID */
+#logReviewTable th:nth-child(3) { width: 140px; }   /* Intern ID */
+#logReviewTable th:nth-child(4) { width: auto; }    /* Intern Name */
+#logReviewTable th:nth-child(5) { width: 170px; }   /* Attached Files */
+#logReviewTable th:nth-child(6) { width: 180px; }   /* Assigned Office */
+#logReviewTable th:nth-child(7) { width: 140px; }   /* Status */
+
 .data-table thead { position: relative; z-index: 100; }
 .data-table thead th { padding: 12px 10px; color: var(--text-muted); font-size: 0.85rem; vertical-align: middle; }
 .data-table td { padding: 15px 10px; vertical-align: middle; }

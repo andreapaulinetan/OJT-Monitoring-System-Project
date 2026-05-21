@@ -85,6 +85,28 @@ public class ReportServlet extends HttpServlet {
                 case "OJTLOGS":
                     String fromDate = request.getParameter("from");
                     String toDate = request.getParameter("to");
+                    
+                    // Server-side Date Validation (NFR-ERR-002: Date validation for time-bound reports)
+                    if (fromDate != null && !fromDate.trim().isEmpty() && toDate != null && !toDate.trim().isEmpty()) {
+                        try {
+                            Date fromVal = Date.valueOf(fromDate.trim());
+                            Date toVal = Date.valueOf(toDate.trim());
+                            if (fromVal.after(toVal)) {
+                                util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
+                                    "Date range validation failed: 'From' date (" + fromDate + ") is after 'To' date (" + toDate + ")", 
+                                    null, session, ctx);
+                                response.sendRedirect("admin.jsp?tabId=" + tabId + "&err=invalid_date_range");
+                                return;
+                            }
+                        } catch (IllegalArgumentException e) {
+                            util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
+                                "Date range validation failed: Malformed date format. From: '" + fromDate + "', To: '" + toDate + "'", 
+                                e, session, ctx);
+                            response.sendRedirect("admin.jsp?tabId=" + tabId + "&err=malformed_dates");
+                            return;
+                        }
+                    }
+                    
                     pdfBytes = generateOjtLogsReport(ctx, currentUser, fromDate, toDate, headerText, footerText);
                     filename = PdfReportHelper.generateFilename("OJTLOGS");
                     break;
