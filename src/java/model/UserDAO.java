@@ -170,6 +170,67 @@ public class UserDAO {
         return count;
     }
 
+    /**
+     * GET INTERN BY ID: Fetches a single intern by their ID (DBMS 1 - Apache Derby).
+     */
+    public static User getInternById(String internId, ServletContext context) {
+        String sql = "SELECT * FROM INTERN WHERE INTERN_ID = ?";
+        try (Connection conn = DBConnection.getDerbyConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, internId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToUser(rs, rs.getString("ROLE"), context);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * GET SUBMISSIONS BY USER ID: Fetches activity logs for a specific intern (DBMS 2 - MySQL).
+     */
+    public static List<ActivitySubmission> getSubmissionsByUserId(String userId, ServletContext context) {
+        List<ActivitySubmission> list = new ArrayList<>();
+        
+        // Get the specific intern profile from Derby to map references
+        User profile = getInternById(userId, context);
+
+        String sql = "SELECT * FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? ORDER BY DATE_SUBMITTED DESC";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ActivitySubmission sub = new ActivitySubmission();
+                    sub.setSubmissionId(rs.getString("SUBMISSION_ID"));
+                    sub.setUserId(userId);
+                    sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
+                    sub.setDescription(rs.getString("DESCRIPTION"));
+                    sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
+                    sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
+                    sub.setStatus(rs.getString("STATUS"));
+
+                    if (profile != null) {
+                        sub.setInternName(profile.getFullName());
+                        sub.setAssignedOffice(profile.getOffice());
+                    } else {
+                        sub.setInternName("Intern Profile");
+                        sub.setAssignedOffice("Main Administration Office");
+                    }
+                    list.add(sub);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     private static User mapResultSetToUser(ResultSet rs, String role, ServletContext context) throws SQLException {
         User u = new User();
         String id;

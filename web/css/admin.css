@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 :root {
     --bg-cream: #f8f7f2;
     --sidebar-bg: #121212;
@@ -167,8 +169,9 @@ body {
 .col-uni    { width: 17%; }
 .col-city   { width: 15%; }
 .col-role   { width: 15%; }
-.col-office { width: 20%; }
+.col-office { width: 15%; }
 .col-status { width: 15%; text-align: center; }
+.col-actions { width: 12%; text-align: center; }
 
 .data-table thead { position: relative; z-index: 100; }
 .data-table thead th { padding: 12px 10px; color: var(--text-muted); font-size: 0.85rem; vertical-align: middle; }

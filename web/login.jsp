@@ -1,4 +1,23 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@page import="model.User"%>
+<%
+    // Prevent browser caching of login page
+    response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.setHeader("Pragma", "no-cache");
+    response.setDateHeader("Expires", 0);
+
+    // Auto-redirect if already logged in
+    User loggedInUser = (User) session.getAttribute("user");
+    if (loggedInUser != null) {
+        if ("admin".equalsIgnoreCase(loggedInUser.getRole())) {
+            response.sendRedirect("admin.jsp");
+            return;
+        } else {
+            response.sendRedirect("guest.jsp");
+            return;
+        }
+    }
+%>
 <!DOCTYPE html>
 <html>
     <head>

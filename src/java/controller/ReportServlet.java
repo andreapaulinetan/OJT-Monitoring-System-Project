@@ -35,7 +35,7 @@ public class ReportServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // 1. Session Security Check — Admin Only
+        // 1. Session Security Check
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
             response.sendRedirect("login.jsp?err=unauthorized");
@@ -43,10 +43,6 @@ public class ReportServlet extends HttpServlet {
         }
 
         User currentUser = (User) session.getAttribute("user");
-        if (!"admin".equalsIgnoreCase(currentUser.getRole())) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin access required for report generation.");
-            return;
-        }
 
         // 2. Parse Report Type
         String reportType = request.getParameter("type");
@@ -56,6 +52,13 @@ public class ReportServlet extends HttpServlet {
         }
         reportType = reportType.trim().toUpperCase();
 
+        // Security check: Only admins can generate global reports; interns can only generate INTERN_RECORD.
+        boolean isAdmin = "admin".equalsIgnoreCase(currentUser.getRole());
+        if (!isAdmin && !"INTERN_RECORD".equals(reportType)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin access required for report generation.");
+            return;
+        }
+
         // 3. Get branding strings from web.xml context parameters
         ServletContext ctx = getServletContext();
         String headerText = ctx.getInitParameter("report.header");
@@ -64,6 +67,7 @@ public class ReportServlet extends HttpServlet {
         try {
             byte[] pdfBytes;
             String filename;
+            String internId = null;
 
             switch (reportType) {
                 case "USERLIST":
@@ -88,18 +92,44 @@ public class ReportServlet extends HttpServlet {
                     filename = PdfReportHelper.generateFilename("AUDITLOG");
                     break;
 
+                case "INTERN_RECORD":
+                    if (isAdmin) {
+                        internId = request.getParameter("internId");
+                        if (internId == null || internId.trim().isEmpty()) {
+                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Intern ID parameter is required for administrators.");
+                            return;
+                        }
+                    } else {
+                        // Interns can only download their own record
+                        internId = currentUser.getId();
+                    }
+                    internId = internId.trim();
+                    User intern = UserDAO.getInternById(internId, ctx);
+                    if (intern == null) {
+                        response.sendError(HttpServletResponse.SC_NOT_FOUND, "Intern not found with ID: " + internId);
+                        return;
+                    }
+                    List<ActivitySubmission> submissions = UserDAO.getSubmissionsByUserId(internId, ctx);
+                    pdfBytes = PdfReportHelper.buildInternRecordReport(intern, submissions, currentUser.getFullName(), headerText, footerText);
+                    filename = PdfReportHelper.generateFilename("INTERN_RECORD_" + internId);
+                    break;
+
                 default:
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid report type: " + reportType);
                     return;
             }
 
             // 4. Log REPORT_GENERATED event to PostgreSQL (DBMS 3)
+            String details = "Generated " + reportType + " report";
+            if ("INTERN_RECORD".equals(reportType) && internId != null) {
+                details += " for Intern ID: " + internId;
+            }
             PostgreSQLDAO.insertAuditLog(
                 ctx,
                 currentUser.getId(),
                 currentUser.getFullName(),
                 "REPORT_GENERATED",
-                "Generated " + reportType + " report",
+                details,
                 request.getRemoteAddr()
             );
 

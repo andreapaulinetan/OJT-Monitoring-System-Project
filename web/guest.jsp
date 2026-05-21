@@ -1,10 +1,29 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="model.User"%>
 <%
-    if (session == null || session.getAttribute("user") == null) {
+    // Prevent browser caching of protected page
+    response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.setHeader("Pragma", "no-cache");
+    response.setDateHeader("Expires", 0);
+
+    User loggedInUser = (User) session.getAttribute("user");
+    if (loggedInUser == null || "admin".equalsIgnoreCase(loggedInUser.getRole())) {
         response.sendRedirect("login.jsp");
         return;
     }
+    
+    String fullName = loggedInUser.getFirstName() + " " + loggedInUser.getLastName();
+
+    // Build initials from name (e.g. "Juan Cruz" -> "JC")
+    String initials = "";
+    if (loggedInUser != null) {
+        String fn = loggedInUser.getFirstName();
+        String ln = loggedInUser.getLastName();
+        if (fn != null && !fn.isEmpty()) initials += fn.charAt(0);
+        if (ln != null && !ln.isEmpty()) initials += ln.charAt(0);
+        initials = initials.toUpperCase();
+    }
+    if (initials.isEmpty()) initials = "GI";
 
     String statusParam = request.getParameter("status");
     String alertMessage = "";
@@ -73,14 +92,24 @@
                     </button>
                 </nav>
 
-                <div class="sidebar-footer">
-                    <a href="login.jsp" class="logout-btn">
+                <div class="sidebar-footer" style="padding-top: 10px;">
+                    <a href="LogoutServlet" class="logout-btn">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i> Log Out
                     </a>
                 </div>
             </aside>
 
             <main class="main-content">
+
+                <header class="top-bar">
+                    <h2 class="page-title" id="mainPageTitle">Intern's Dashboard</h2>
+                    <div class="user-profile">
+                        <div class="profile-chip">
+                            <span><%= fullName %></span>
+                            <img src="https://ui-avatars.com/api/?name=<%= fullName %>&background=d63384&color=fff" alt="Intern">
+                        </div>
+                    </div>
+                </header>
 
                 <% if (!alertMessage.isEmpty()) {%>
                 <div class="<%= alertClass%>" role="alert">
@@ -92,15 +121,6 @@
                 <input type="hidden" id="dbSubmissionStatusField" value="<%= statusParam != null ? statusParam : ""%>">
 
                 <div id="dashboard-view" class="view-panel active-view">
-                    <header class="content-header">
-                        <div class="header-title-group">
-                            <div class="title-with-icon">
-                                <i class="fa-solid fa-graduation-cap header-icon"></i>
-                                <h1>Intern's Dashboard</h1>
-                            </div>
-                            <p class="welcome-text">Live Analytics & Performance Tracker</p>
-                        </div>
-                    </header>
 
                     <div class="projection-alert-box">
                         <div class="projection-icon-wrap">
@@ -114,7 +134,7 @@
 
                     <section class="stats-row">
                         <div class="stat-card card-yellow position-relative overflow-hidden">
-                            <span class="card-metric-title">TOTAL RENDERED HOURS</span>
+                            <span class="label">Total Rendered Hours</span>
                             <div class="value" id="renderedHoursDisplay">148.5h</div>
 
                             <% if ("success".equals(statusParam) && parsedDbHours > 0) {%>
@@ -124,15 +144,15 @@
                             <% }%>
                         </div>
                         <div class="stat-card card-pink">
-                            <span class="card-metric-title">REMAINING HOURS</span>
+                            <span class="label">Remaining Hours</span>
                             <div class="value" id="remainingHoursDisplay">251.5h</div>
                         </div>
                         <div class="stat-card card-green">
-                            <span class="card-metric-title">TARGET GOAL</span>
+                            <span class="label">Target Goal</span>
                             <div class="value" id="targetGoalDisplay">400h</div>
                         </div>
                         <div class="stat-card card-blue">
-                            <span class="card-metric-title">COMPLETION RATE</span>
+                            <span class="label">Completion Rate</span>
                             <div class="value" id="completionRateDisplay">37.1%</div>
                         </div>
                     </section>
@@ -148,22 +168,39 @@
                     </div>
 
                     <div class="dashboard-triple-grid">
-                        <div class="dashboard-pane" id="attendanceSimulatorCard">
-                            <h3 class="pane-title">Daily Attendance Simulator</h3>
-                            <div class="attendance-box text-center py-3">
-                                <div class="mb-3">
-                                    <div class="attendance-status-badge">
-                                        <span class="status-dot red" id="statusIndicatorDot"></span>
-                                        <span id="statusIndicatorText">Not Clocked In</span>
+                        <div class="dashboard-column" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div class="dashboard-pane" id="attendanceSimulatorCard" style="min-height: auto;">
+                                <h3 class="pane-title">Daily Attendance Simulator</h3>
+                                <div class="attendance-box text-center py-3">
+                                    <div class="mb-3">
+                                        <div class="attendance-status-badge">
+                                            <span class="status-dot red" id="statusIndicatorDot"></span>
+                                            <span id="statusIndicatorText">Not Clocked In</span>
+                                        </div>
+                                    </div>
+                                    <div id="liveTimerDisplay" class="live-timer-display my-3 font-monospace h1 fw-bold" style="font-size: 42px; letter-spacing: -1px;">00:00:00</div>
+                                    <button id="btnAttendanceToggle" class="btn btn-success w-100 py-2 fw-bold" onclick="toggleTimerAttendanceSession()">
+                                        <i class="fa-solid fa-play me-2"></i> Time In
+                                    </button>
+                                    <div class="text-muted mt-2 text-center" style="font-size: 11px;">
+                                        *Optional: Use this timer if you want to track runtime parameters natively.
                                     </div>
                                 </div>
-                                <div id="liveTimerDisplay" class="live-timer-display my-3 font-monospace h1 fw-bold" style="font-size: 42px; letter-spacing: -1px;">00:00:00</div>
-                                <button id="btnAttendanceToggle" class="btn btn-success w-100 py-2 fw-bold" onclick="toggleTimerAttendanceSession()">
-                                    <i class="fa-solid fa-play me-2"></i> Time In
-                                </button>
-                                <div class="text-muted mt-2 text-center" style="font-size: 11px;">
-                                    *Optional: Use this timer if you want to track runtime parameters natively.
+                            </div>
+
+                            <div class="download-record-card-small">
+                                <div class="download-record-info-small">
+                                    <div class="download-record-icon-small">
+                                        <i class="fa-solid fa-file-arrow-down"></i>
+                                    </div>
+                                    <div style="min-width: 0;">
+                                        <h4 class="download-record-title-small">Download My Record</h4>
+                                        <p class="download-record-desc-small">PDF report, hours & logs.</p>
+                                    </div>
                                 </div>
+                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD" class="download-record-btn-small" title="Download Report">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
                             </div>
                         </div>
 
@@ -215,18 +252,16 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
 
                 <div id="coordinator-view" class="view-panel">
-                    <header class="content-header d-flex justify-content-between align-items-start mb-4">
-                        <div>
-                            <h1>Internship Setup Configuration</h1>
-                            <p class="welcome-text m-0">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
-                        </div>
+                    <div class="section-header d-flex justify-content-between align-items-center mb-4">
+                        <p class="welcome-text m-0" style="margin-left: 0 !important;">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
                         <button type="button" class="reset-defaults-btn" onclick="resetConfigurationForm()">
                             <i class="fa-solid fa-rotate-left me-1"></i> Reset Defaults
                         </button>
-                    </header>
+                    </div>
 
                     <form id="goalsSetupForm" onsubmit="saveConfigState(event)">
                         <div class="configuration-grid-wrapper">
@@ -375,7 +410,7 @@
 
                 Object.assign(toast.style, {
                     backgroundColor: bgColor,
-                    borderLeft: `6px solid ${borderColor}`,
+                    borderLeft: '6px solid ' + borderColor,
                     padding: '16px 20px',
                     borderRadius: '12px',
                     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
@@ -444,6 +479,16 @@
 
                 document.getElementById(tabId).classList.add('active-view');
                 document.getElementById(navId).classList.add('active');
+
+                // Dynamic persistent top bar title sync
+                const mainPageTitle = document.getElementById('mainPageTitle');
+                if (mainPageTitle) {
+                    if (tabId === 'dashboard-view') {
+                        mainPageTitle.textContent = "Intern's Dashboard";
+                    } else if (tabId === 'coordinator-view') {
+                        mainPageTitle.textContent = "Internship Setup Configuration";
+                    }
+                }
             }
 
             // --- UI Form Event Handlers ---
@@ -503,7 +548,11 @@
                 if (!activeTimerRunning) {
                     activeTimerRunning = true;
                     localStorage.setItem('sw_active', 'true');
-                    localStorage.setItem('sw_startTimeStamp', Date.now() - (accumulatedSeconds * 1000));
+                    
+                    if (isNaN(accumulatedSeconds) || accumulatedSeconds < 0) {
+                        accumulatedSeconds = 0;
+                    }
+                    localStorage.setItem('sw_startTimeStamp', String(Date.now() - (accumulatedSeconds * 1000)));
 
                     dot.className = "status-dot green";
                     dot.style.backgroundColor = "#10b981";
@@ -515,14 +564,22 @@
                     manualPane.style.opacity = "0.5";
                     manualPane.style.pointerEvents = "none";
 
+                    incrementStopwatchRuntime();
                     stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
                 } else {
                     activeTimerRunning = false;
                     clearInterval(stopwatchInterval);
 
+                    if (isNaN(accumulatedSeconds) || accumulatedSeconds < 0) {
+                        accumulatedSeconds = 0;
+                    }
                     const computedHoursEarned = accumulatedSeconds / 3600;
                     renderedHoursBase += computedHoursEarned;
-                    localStorage.setItem('guest_renderedHours', renderedHoursBase);
+                    
+                    if (isNaN(renderedHoursBase) || renderedHoursBase < 0) {
+                        renderedHoursBase = 148.5;
+                    }
+                    localStorage.setItem('guest_renderedHours', String(renderedHoursBase));
 
                     accumulatedSeconds = 0;
                     localStorage.removeItem('sw_active');
@@ -539,48 +596,82 @@
                     manualPane.style.opacity = "1";
                     manualPane.style.pointerEvents = "auto";
 
-                    showCustomToast(`Attendance session stored! Added +${computedHoursEarned.toFixed(2)} hours.`, "success");
+                    showCustomToast("Attendance session stored! Added +" + computedHoursEarned.toFixed(2) + " hours.", "success");
                     recalculateProgressEngine();
                 }
             }
 
             function incrementStopwatchRuntime() {
-                const cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
-                if (cachedStamp) {
+                const rawStamp = localStorage.getItem('sw_startTimeStamp');
+                const cachedStamp = rawStamp ? parseInt(rawStamp, 10) : null;
+                
+                if (cachedStamp && !isNaN(cachedStamp)) {
                     accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
                 } else {
                     accumulatedSeconds++;
                 }
+
+                if (isNaN(accumulatedSeconds) || accumulatedSeconds < 0) {
+                    accumulatedSeconds = 0;
+                }
+
                 const hrs = String(Math.floor(accumulatedSeconds / 3600)).padStart(2, '0');
                 const mins = String(Math.floor((accumulatedSeconds % 3600) / 60)).padStart(2, '0');
                 const secs = String(accumulatedSeconds % 60).padStart(2, '0');
-                document.getElementById('liveTimerDisplay').textContent = `${hrs}:${mins}:${secs}`;
+                
+                const timerElem = document.getElementById('liveTimerDisplay');
+                if (timerElem) {
+                    timerElem.textContent = hrs + ":" + mins + ":" + secs;
+                }
+            }
+
+            function restoreTimerSessionOnLoad() {
+                if (localStorage.getItem('sw_active') === 'true') {
+                    activeTimerRunning = true;
+                    const rawStamp = localStorage.getItem('sw_startTimeStamp');
+                    const cachedStamp = rawStamp ? parseInt(rawStamp, 10) : null;
+                    
+                    if (cachedStamp && !isNaN(cachedStamp)) {
+                        accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
+                    } else {
+                        accumulatedSeconds = 0;
+                        localStorage.setItem('sw_startTimeStamp', String(Date.now()));
+                    }
+                    
+                    if (isNaN(accumulatedSeconds) || accumulatedSeconds < 0) {
+                        accumulatedSeconds = 0;
                     }
 
-                    function restoreTimerSessionOnLoad() {
-                        if (localStorage.getItem('sw_active') === 'true') {
-                            activeTimerRunning = true;
-                            const cachedStamp = parseInt(localStorage.getItem('sw_startTimeStamp'));
-                            accumulatedSeconds = Math.floor((Date.now() - cachedStamp) / 1000);
-
-                            const dot = document.getElementById('statusIndicatorDot');
-                            dot.className = "status-dot green";
-                            dot.style.backgroundColor = "#10b981";
-                            document.getElementById('statusIndicatorText').textContent = "Clocked In & Tracking Time";
-
-                            const btn = document.getElementById('btnAttendanceToggle');
-                            btn.className = "btn btn-danger w-100 py-2 fw-bold";
-                            btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
-
-                            document.getElementById('attendanceSimulatorCard').style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
-                            const manualPane = document.getElementById('manualTaskLogPane');
-                            manualPane.style.opacity = "0.5";
-                            manualPane.style.pointerEvents = "none";
-
-                            incrementStopwatchRuntime();
-                            stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
-                        }
+                    const dot = document.getElementById('statusIndicatorDot');
+                    if (dot) {
+                        dot.className = "status-dot green";
+                        dot.style.backgroundColor = "#10b981";
                     }
+                    const label = document.getElementById('statusIndicatorText');
+                    if (label) {
+                        label.textContent = "Clocked In & Tracking Time";
+                    }
+
+                    const btn = document.getElementById('btnAttendanceToggle');
+                    if (btn) {
+                        btn.className = "btn btn-danger w-100 py-2 fw-bold";
+                        btn.innerHTML = '<i class="fa-solid fa-stop me-2"></i> Time Out';
+                    }
+
+                    const timerCard = document.getElementById('attendanceSimulatorCard');
+                    if (timerCard) {
+                        timerCard.style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.2)";
+                    }
+                    const manualPane = document.getElementById('manualTaskLogPane');
+                    if (manualPane) {
+                        manualPane.style.opacity = "0.5";
+                        manualPane.style.pointerEvents = "none";
+                    }
+
+                    incrementStopwatchRuntime();
+                    stopwatchInterval = setInterval(incrementStopwatchRuntime, 1000);
+                }
+            }
 
                     function handleManualLogSubmission(event) {
                         event.preventDefault();

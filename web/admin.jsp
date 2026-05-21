@@ -175,6 +175,7 @@
                                                 <div class="filter-content" id="officeOptions"></div>
                                             </div>
                                         </th>
+                                        <th class="col-actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="internTableBody">
@@ -192,6 +193,11 @@
                                         <td class="col-city"><%= (u.getCity() != null) ? u.getCity() : "N/A"%></td>
                                         <td class="col-role"><%= (u.getRole() != null) ? u.getRole() : "N/A"%></td>
                                         <td class="col-office"><%= u.getOffice()%></td>
+                                        <td class="col-actions">
+                                            <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId() %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;">
+                                                <i class="fas fa-download"></i> Record
+                                            </a>
+                                        </td>
                                     </tr>
                                     <% }
                                         } %>

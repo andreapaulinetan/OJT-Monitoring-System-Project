@@ -333,6 +333,173 @@ public class PdfReportHelper {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // REPORT 5: INDIVIDUAL INTERN RECORD
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Builds the INTERN_RECORD report — specific intern details and submissions.
+     */
+    public static byte[] buildInternRecordReport(User intern, List<ActivitySubmission> submissions,
+                                                  String generatedByName, String headerText, String footerText) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document doc = new Document(PageSize.A4.rotate(), 40, 40, 50, 45);
+        PdfWriter writer = PdfWriter.getInstance(doc, baos);
+        writer.setPageEvent(new PDFEventHelper(headerText, footerText));
+        doc.open();
+
+        addReportTitle(doc, "Intern Performance & Attendance Record", generatedByName);
+
+        // 1. Profile Details Block (4-Column borderless table)
+        PdfPTable profileTable = new PdfPTable(new float[]{15f, 35f, 15f, 35f});
+        profileTable.setWidthPercentage(100);
+        profileTable.setSpacingBefore(15f);
+        profileTable.setSpacingAfter(10f);
+
+        addBorderlessProfileCell(profileTable, "Intern ID:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getId()), TD_FONT);
+        addBorderlessProfileCell(profileTable, "University:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getUniversity()), TD_FONT);
+
+        addBorderlessProfileCell(profileTable, "Full Name:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, intern.getFullName(), TD_FONT);
+        addBorderlessProfileCell(profileTable, "Assigned Office:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getOffice()), TD_FONT);
+
+        addBorderlessProfileCell(profileTable, "Email Address:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getEmail()), TD_FONT);
+        addBorderlessProfileCell(profileTable, "Assigned Role:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getRole()), TD_FONT);
+
+        addBorderlessProfileCell(profileTable, "Home City:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getCity()), TD_FONT);
+        addBorderlessProfileCell(profileTable, "Log Status:", TD_BOLD_FONT);
+        addBorderlessProfileCell(profileTable, safeStr(intern.getLogStatus()), TD_FONT);
+
+        doc.add(profileTable);
+
+        // Divider
+        LineSeparator sep = new LineSeparator();
+        sep.setLineColor(new BaseColor(230, 230, 230));
+        sep.setLineWidth(0.5f);
+        doc.add(new Chunk(sep));
+
+        // 2. Summary KPI calculation
+        int approvedTasks = 0;
+        int pendingTasks = 0;
+        int rejectedTasks = 0;
+        if (submissions != null) {
+            for (ActivitySubmission s : submissions) {
+                if ("Approved".equalsIgnoreCase(s.getStatus())) {
+                    approvedTasks++;
+                } else if ("Pending".equalsIgnoreCase(s.getStatus())) {
+                    pendingTasks++;
+                } else if ("Rejected".equalsIgnoreCase(s.getStatus())) {
+                    rejectedTasks++;
+                }
+            }
+        }
+        double targetHours = 400.0;
+        double renderedHours = approvedTasks * 8.0;
+        double remainingHours = targetHours - renderedHours;
+        if (remainingHours < 0) remainingHours = 0.0;
+        double compRate = (renderedHours / targetHours) * 100.0;
+
+        // Render Summary KPI table
+        PdfPTable kpiTable = new PdfPTable(new float[]{20f, 20f, 20f, 20f, 20f});
+        kpiTable.setWidthPercentage(100);
+        kpiTable.setSpacingBefore(12f);
+        kpiTable.setSpacingAfter(15f);
+
+        addKpiHeaderCell(kpiTable, "Target Goal");
+        addKpiHeaderCell(kpiTable, "Rendered Hours");
+        addKpiHeaderCell(kpiTable, "Remaining Hours");
+        addKpiHeaderCell(kpiTable, "Approved Tasks");
+        addKpiHeaderCell(kpiTable, "Completion Rate");
+
+        addKpiValueCell(kpiTable, String.format("%.1f hrs", targetHours));
+        addKpiValueCell(kpiTable, String.format("%.1f hrs", renderedHours));
+        addKpiValueCell(kpiTable, String.format("%.1f hrs", remainingHours));
+        addKpiValueCell(kpiTable, String.format("%d Tasks", approvedTasks));
+        addKpiValueCell(kpiTable, String.format("%.1f%%", compRate));
+
+        doc.add(kpiTable);
+
+        // Section Title: Task Submissions History
+        Paragraph secTitle = new Paragraph("OJT Task Submission History", TITLE_FONT);
+        secTitle.setFont(new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, HEADER_BG));
+        secTitle.setSpacingBefore(5f);
+        secTitle.setSpacingAfter(8f);
+        doc.add(secTitle);
+
+        // 3. Submissions table
+        if (submissions == null || submissions.isEmpty()) {
+            Paragraph empty = new Paragraph("No activity logs submitted yet by this intern.", EMPTY_FONT);
+            empty.setAlignment(Element.ALIGN_CENTER);
+            empty.setSpacingBefore(20f);
+            doc.add(empty);
+        } else {
+            PdfPTable table = new PdfPTable(new float[]{5f, 15f, 15f, 35f, 18f, 12f});
+            table.setWidthPercentage(100);
+            table.setSpacingBefore(5f);
+
+            addTableHeader(table, new String[]{"#", "Submission Date", "Submission ID", "Task Description", "Attached File", "Status"});
+
+            int rowNum = 1;
+            for (ActivitySubmission s : submissions) {
+                BaseColor rowBg = (rowNum % 2 == 0) ? ROW_ALT : ROW_NORMAL;
+
+                addCell(table, String.valueOf(rowNum), TD_FONT, rowBg, Element.ALIGN_CENTER);
+                addCell(table, s.getDateSubmitted() != null ? s.getDateSubmitted().toString() : "N/A", TD_FONT, rowBg, Element.ALIGN_CENTER);
+                addCell(table, safeStr(s.getSubmissionId()), TD_FONT, rowBg, Element.ALIGN_LEFT);
+                addCell(table, safeStr(s.getDescription()), TD_FONT, rowBg, Element.ALIGN_LEFT);
+                addCell(table, safeStr(s.getOriginalFileName()), TD_FONT, rowBg, Element.ALIGN_LEFT);
+                addCell(table, safeStr(s.getStatus()), TD_BOLD_FONT, rowBg, Element.ALIGN_CENTER);
+                rowNum++;
+            }
+
+            doc.add(table);
+
+            Paragraph totalSubRow = new Paragraph(String.format("Total Submissions: %d  |  Approved: %d  |  Pending: %d  |  Rejected: %d", 
+                    submissions.size(), approvedTasks, pendingTasks, rejectedTasks), TD_BOLD_FONT);
+            totalSubRow.setSpacingBefore(8f);
+            doc.add(totalSubRow);
+        }
+
+        doc.close();
+        return baos.toByteArray();
+    }
+
+    private static void addBorderlessProfileCell(PdfPTable table, String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPadding(4f);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        table.addCell(cell);
+    }
+
+    private static void addKpiHeaderCell(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, TEXT_MUTED)));
+        cell.setBackgroundColor(ROW_ALT);
+        cell.setPadding(6f);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(new BaseColor(220, 220, 220));
+        table.addCell(cell);
+    }
+
+    private static void addKpiValueCell(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, HEADER_BG)));
+        cell.setBackgroundColor(BaseColor.WHITE);
+        cell.setPadding(8f);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setBorder(Rectangle.BOX);
+        cell.setBorderColor(new BaseColor(220, 220, 220));
+        table.addCell(cell);
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // PRIVATE UTILITY METHODS
     // ══════════════════════════════════════════════════════════════
 
