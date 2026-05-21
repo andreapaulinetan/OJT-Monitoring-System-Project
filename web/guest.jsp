@@ -247,7 +247,7 @@
                                 <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
                             </div>
 
-                            <div class="calendar-days-surface d-grid text-center gap-1" id="calendarDaysSurface" style="grid-template-columns: repeat(7, 1fr); font-size: 12px;"></div>
+                            <div class="calendar-days-surface text-center" id="calendarDaysSurface"></div>
 
                             <div class="calendar-legends-footer d-flex gap-2 flex-wrap text-muted justify-content-between mt-3" style="font-size: 11px;">
                                 <div class="legend-item"><span class="badge bg-danger p-1 me-1">&nbsp;</span>Holiday</div>
@@ -818,31 +818,45 @@
                         });
 
                         let excludeHolidays = document.getElementById('excludeHolidaysHidden').value === "true";
+                        let hoursPerDay = parseFloat(document.getElementById('hoursSlider').value) || 8;
 
                         for (let i = 0; i < firstDayIndex; i++) {
                             const filler = document.createElement('div');
-                            filler.className = "calendar-day filler text-muted p-1";
+                            filler.className = "calendar-day-cell empty";
                             filler.innerHTML = "&nbsp;";
                             surface.appendChild(filler);
                         }
 
+                        let today = new Date();
+                        let todayDay = today.getDate();
+                        let todayMonth = today.getMonth();
+                        let todayYear = today.getFullYear();
+
                         for (let day = 1; day <= totalDaysInMonth; day++) {
                             const dayCell = document.createElement('div');
-                            dayCell.className = "calendar-day p-1 rounded border";
-                            dayCell.textContent = day;
+                            dayCell.className = "calendar-day-cell";
 
                             let evaluationDate = new Date(calendarYear, calendarMonth, day);
                             let evalISOStr = calendarYear + '-' + String(calendarMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
 
+                            let isToday = (day === todayDay && calendarMonth === todayMonth && calendarYear === todayYear);
+
                             if (excludeHolidays && phHolidays2026.includes(evalISOStr)) {
-                                dayCell.classList.add('bg-danger', 'text-white');
+                                dayCell.classList.add('holiday');
+                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
                             } else if (evalISOStr === projectedEndDateISO) {
-                                dayCell.classList.add('bg-success', 'text-white', 'fw-bold');
+                                dayCell.classList.add('completion-day');
+                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
                             } else if (activeWeekdays.includes(evaluationDate.getDay())) {
-                                dayCell.style.backgroundColor = "rgba(59, 130, 246, 0.15)";
-                                dayCell.style.color = "#2563eb";
+                                dayCell.classList.add('scheduled');
+                                dayCell.innerHTML = `<span class="day-num">${day}</span><span class="hours-sub">${hoursPerDay}h</span>`;
                             } else {
-                                dayCell.classList.add('bg-light', 'text-muted');
+                                dayCell.classList.add('day-off');
+                                dayCell.innerHTML = `<span class="day-num">${day}</span>`;
+                            }
+
+                            if (isToday) {
+                                dayCell.classList.add('today');
                             }
 
                             surface.appendChild(dayCell);
