@@ -3,6 +3,7 @@ package controller;
 import java.io.IOException;
 import java.io.PrintWriter;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -11,6 +12,7 @@ import javax.servlet.http.HttpSession;
 import model.User;
 import model.UserDAO;
 
+@WebServlet("/UpdateSubmissionServlet")
 public class UpdateSubmissionServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
@@ -33,10 +35,11 @@ public class UpdateSubmissionServlet extends HttpServlet {
             // 1. Extract form parameters
             String submissionId = request.getParameter("submissionId");
             String description = request.getParameter("description");
+            String learningReflection = request.getParameter("learningReflection");
             String dateSubmitted = request.getParameter("dateSubmitted");
 
             // 2. Fire transaction update statement
-            boolean isUpdated = UserDAO.updateSubmission(submissionId, description, dateSubmitted, getServletContext());
+            boolean isUpdated = UserDAO.updateSubmission(submissionId, description, learningReflection, dateSubmitted, getServletContext());
             
             // 3. Respond with JSON result
             if (isUpdated) {

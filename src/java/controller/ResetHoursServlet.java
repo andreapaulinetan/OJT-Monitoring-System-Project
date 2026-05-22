@@ -11,8 +11,8 @@ import javax.servlet.http.HttpSession;
 import model.User;
 import model.UserDAO;
 
-@WebServlet("/DeleteInternServlet")
-public class DeleteInternServlet extends HttpServlet {
+@WebServlet("/ResetHoursServlet")
+public class ResetHoursServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -27,7 +27,7 @@ public class DeleteInternServlet extends HttpServlet {
         if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
             util.ErrorLogger.logError(
                 "SECURITY VIOLATION", 
-                "Unauthorized attempt to delete intern profile. Active user: " + (user != null ? user.getEmail() : "anonymous") + " (Tab ID: " + tabId + ")", 
+                "Unauthorized attempt to reset intern simulated hours. Active user: " + (user != null ? user.getEmail() : "anonymous") + " (Tab ID: " + tabId + ")", 
                 null, 
                 session, 
                 getServletContext()
@@ -37,49 +37,49 @@ public class DeleteInternServlet extends HttpServlet {
         }
 
         try {
-            // 1. Extract intern ID parameter passed from the front-end deletion modal form
+            // 1. Extract intern ID parameter passed from the front-end reset hours modal form
             String internId = request.getParameter("internId");
             
             // Fail-safe check if parameter is null or completely empty
             if (internId == null || internId.trim().isEmpty()) {
                 util.ErrorLogger.logError(
                     "MALFORMED REQUEST", 
-                    "Delete operation aborted. Received an invalid or missing 'internId' parameter.", 
+                    "Hours reset operation aborted. Received an invalid or missing 'internId' parameter.", 
                     null, 
                     request.getSession(false), 
                     getServletContext()
                 );
-                response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed&tabId=" + (tabId != null ? tabId : ""));
+                response.sendRedirect("admin.jsp?view=intern-management&err=hours_reset_failed&tabId=" + (tabId != null ? tabId : ""));
                 return;
             }
 
-            // 2. Fire delete transaction statement via the Data Access Object layer
-            boolean isDeleted = UserDAO.deleteIntern(internId.trim(), getServletContext());
+            // 2. Fire reset hours transaction statement via the Data Access Object layer
+            boolean isReset = UserDAO.setResetHoursFlag(internId.trim(), true, getServletContext());
             
             // 3. Direct server execution response based on database transaction status
-            if (isDeleted) {
-                response.sendRedirect("admin.jsp?view=intern-management&status=deleted&tabId=" + (tabId != null ? tabId : ""));
+            if (isReset) {
+                response.sendRedirect("admin.jsp?view=intern-management&status=hours_reset&tabId=" + (tabId != null ? tabId : ""));
             } else {
                 util.ErrorLogger.logError(
                     "DATABASE TRANSACTION ERROR", 
-                    "Failed to delete intern profile from database for ID: " + internId, 
+                    "Failed to update RESET_HOURS database flag for intern ID: " + internId, 
                     null, 
                     request.getSession(false), 
                     getServletContext()
                 );
-                response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed&tabId=" + (tabId != null ? tabId : ""));
+                response.sendRedirect("admin.jsp?view=intern-management&err=hours_reset_failed&tabId=" + (tabId != null ? tabId : ""));
             }
             
         } catch (Exception e) {
             util.ErrorLogger.logError(
-                "SERVLET DELETE ERROR", 
-                "Failed to delete intern due to input or processing exception. Intern ID: " + request.getParameter("internId"), 
+                "SERVLET RESET ERROR", 
+                "Failed to reset intern hours due to input or processing exception. Intern ID: " + request.getParameter("internId"), 
                 e, 
                 request.getSession(false), 
                 getServletContext()
             );
             e.printStackTrace();
-            response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed&tabId=" + (tabId != null ? tabId : ""));
+            response.sendRedirect("admin.jsp?view=intern-management&err=hours_reset_failed&tabId=" + (tabId != null ? tabId : ""));
         }
     }
 }

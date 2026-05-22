@@ -22,8 +22,16 @@ public class AddInternServlet extends HttpServlet {
         
         // Security & session verification check
         HttpSession session = request.getSession(false);
+        
+        // CSRF Token Validation
+        if (session == null || !util.CsrfUtil.validateToken(request, session)) {
+            util.ErrorLogger.logError("CSRF VIOLATION", "Intern registration attempt blocked due to invalid or missing CSRF token.", null, session, getServletContext());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF token.");
+            return;
+        }
+
         String tabId = util.TabSessionHelper.getTabId(request);
-        User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        User user = util.TabSessionHelper.getUser(session, tabId);
         
         if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
             util.ErrorLogger.logError("SECURITY VIOLATION", "Unauthorized attempt to register new intern. Active user: " + (user != null ? user.getEmail() : "anonymous") + " (Tab ID: " + tabId + ")", null, session, getServletContext());
@@ -37,9 +45,9 @@ public class AddInternServlet extends HttpServlet {
             String middleName = request.getParameter("middleName");
             String lastName = request.getParameter("lastName");
             String birthMonth = request.getParameter("birthMonth");
-            int birthDate = Integer.parseInt(request.getParameter("birthDate"));
-            int birthYear = Integer.parseInt(request.getParameter("birthYear"));
-            int age = Integer.parseInt(request.getParameter("age"));
+            String birthDateStr = request.getParameter("birthDate");
+            String birthYearStr = request.getParameter("birthYear");
+            String ageStr = request.getParameter("age");
             String city = request.getParameter("city");
             String contactNum = request.getParameter("contactNum");
             String university = request.getParameter("university");
@@ -47,7 +55,53 @@ public class AddInternServlet extends HttpServlet {
             String email = request.getParameter("email");
             String plainPassword = request.getParameter("password");
 
-            // 2. Map the technical role choices down to structural codes and office mapping parameters
+            // Trim and fallback defaults
+            firstName = (firstName == null) ? "" : firstName.trim();
+            middleName = (middleName == null) ? "" : middleName.trim();
+            lastName = (lastName == null) ? "" : lastName.trim();
+            birthMonth = (birthMonth == null) ? "" : birthMonth.trim();
+            birthDateStr = (birthDateStr == null) ? "" : birthDateStr.trim();
+            birthYearStr = (birthYearStr == null) ? "" : birthYearStr.trim();
+            ageStr = (ageStr == null) ? "" : ageStr.trim();
+            city = (city == null) ? "" : city.trim();
+            contactNum = (contactNum == null) ? "" : contactNum.trim();
+            university = (university == null) ? "" : university.trim();
+            role = (role == null) ? "" : role.trim();
+            email = (email == null) ? "" : email.trim().toLowerCase();
+            plainPassword = (plainPassword == null) ? "" : plainPassword;
+
+            // Whitelist of valid roles
+            java.util.Set<String> validRoles = new java.util.HashSet<>(java.util.Arrays.asList(
+                "data engineer intern", "ui/ux intern", "front-end developer intern", "backend developer intern", "quality assurance intern"
+            ));
+
+            // 2. Validate all inputs via InputValidator
+            boolean valid = util.InputValidator.isValidName(firstName)
+                && (middleName.isEmpty() || util.InputValidator.isValidName(middleName))
+                && util.InputValidator.isValidName(lastName)
+                && util.InputValidator.isValidEmail(email)
+                && util.InputValidator.isValidDate(birthMonth, birthDateStr, birthYearStr)
+                && util.InputValidator.isValidIntegerInRange(ageStr, 15, 99)
+                && util.InputValidator.isValidLength(city, 2, 100)
+                && util.InputValidator.isValidPhoneNumber(contactNum)
+                && util.InputValidator.isValidUniversity(university)
+                && validRoles.contains(role.toLowerCase())
+                && util.InputValidator.isValidPassword(plainPassword);
+
+            if (!valid) {
+                util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed intern registration validation for email: " + email, null, session, getServletContext());
+                response.sendRedirect("admin.jsp?status=failed&err=invalid_input&tabId=" + tabId);
+                return;
+            }
+
+            // Check if email already exists in Database
+            if (UserDAO.findUserByEmail(email, getServletContext()) != null) {
+                util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Intern registration failed: Duplicate email: " + email, null, session, getServletContext());
+                response.sendRedirect("admin.jsp?status=failed&err=duplicate_email&tabId=" + tabId);
+                return;
+            }
+
+            // 3. Map the technical role choices down to structural codes and office mapping parameters
             String roleCode = "";
             String office = "";
             
@@ -68,10 +122,25 @@ public class AddInternServlet extends HttpServlet {
                 office = "Office 4 - Quality Control";
             }
 
-            // 3. Hash verification credential password strings matching layout architecture
+            // Re-verify email generation logic to prevent client-side parameter tampering
+            String cleanFirstName = firstName.replaceAll("\\s+", "");
+            String cleanLastName = lastName.replaceAll("\\s+", "");
+            String expectedEmail = (cleanFirstName + "." + cleanLastName + "." + roleCode).toLowerCase() + "@gmail.com";
+            if (!expectedEmail.equals(email)) {
+                util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Intern registration failed: Tampered or invalid email address. Received: '" + email + "', Expected: '" + expectedEmail + "'", null, session, getServletContext());
+                response.sendRedirect("admin.jsp?status=failed&err=invalid_input&tabId=" + tabId);
+                return;
+            }
+
+            // Parse safe integers now that validation succeeded
+            int birthDate = Integer.parseInt(birthDateStr);
+            int birthYear = Integer.parseInt(birthYearStr);
+            int age = Integer.parseInt(ageStr);
+
+            // 4. Hash verification credential password strings matching layout architecture
             String encryptedPassword = CryptoUtil.hashPassword(plainPassword); 
 
-            // 4. Construct data values inside the primary object layer instance container
+            // 5. Construct data values inside the primary object layer instance container
             User newIntern = new User();
             newIntern.setFirstName(firstName);
             newIntern.setMiddleName(middleName);
@@ -84,12 +153,12 @@ public class AddInternServlet extends HttpServlet {
             newIntern.setEmail(email);
             newIntern.setPassword(encryptedPassword);
 
-            // 5. Fire transaction update statement inside Derby where custom id string creation executes
+            // 6. Fire transaction update statement inside Derby where custom id string creation executes
             boolean isSaved = UserDAO.addIntern(newIntern, birthMonth, birthDate, birthYear, age, contactNum, getServletContext());
             
-            // 6. Direct server execution response parameters using cross-boundary URL parameter formatting
+            // 7. Direct server execution response parameters using cross-boundary URL parameter formatting
             if (isSaved) {
-                response.sendRedirect("admin.jsp?status=success"
+                response.sendRedirect("admin.jsp?status=success&tabId=" + tabId
                         + "&newId=" + URLEncoder.encode(newIntern.getId(), "UTF-8")
                         + "&newName=" + URLEncoder.encode(newIntern.getFullName(), "UTF-8")
                         + "&newEmail=" + URLEncoder.encode(newIntern.getEmail(), "UTF-8")
@@ -101,13 +170,13 @@ public class AddInternServlet extends HttpServlet {
                         + "&newBirthAge=" + URLEncoder.encode(birthMonth + " " + birthDate + ", " + birthYear + " (Age: " + age + ")", "UTF-8"));
             } else {
                 util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to save new intern profile to database for: " + email, null, request.getSession(false), getServletContext());
-                response.sendRedirect("admin.jsp?status=failed");
+                response.sendRedirect("admin.jsp?status=failed&tabId=" + tabId);
             }
             
         } catch (Exception e) {
             util.ErrorLogger.logError("SERVLET REGISTER ERROR", "Failed to register new intern due to input or processing exception. Form Email: " + request.getParameter("email"), e, request.getSession(false), getServletContext());
             e.printStackTrace();
-            response.sendRedirect("admin.jsp?status=error");
+            response.sendRedirect("admin.jsp?status=error&tabId=" + tabId);
         }
     }
 }

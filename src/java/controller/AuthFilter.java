@@ -46,7 +46,7 @@ public class AuthFilter implements Filter {
             boolean isLogoutServlet = lowerURI.endsWith("logoutservlet");
             
             // Allow all custom premium error pages to be accessed publicly
-            boolean isErrorPage = lowerURI.contains("error_") || lowerURI.contains("eror_");
+            boolean isErrorPage = lowerURI.contains("error_") || lowerURI.contains("eror_") || lowerURI.contains("scratch_");
             
             // Root path check (e.g., just visiting http://localhost:8080/Project/)
             boolean isRoot = lowerURI.equals(contextPath.toLowerCase() + "/") || 

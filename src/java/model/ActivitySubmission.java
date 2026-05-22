@@ -15,8 +15,17 @@ public class ActivitySubmission implements Serializable {
     // Joined Display Fields from Derby
     private String internName;
     private String assignedOffice;
+    private String learningReflection;
 
     public ActivitySubmission() {
+    }
+
+    public String getLearningReflection() {
+        return learningReflection;
+    }
+
+    public void setLearningReflection(String learningReflection) {
+        this.learningReflection = learningReflection;
     }
 
     public String getSubmissionId() {

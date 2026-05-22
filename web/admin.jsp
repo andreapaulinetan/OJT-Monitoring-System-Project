@@ -4,6 +4,7 @@
 <%@page import="model.ActivitySubmission"%>
 <%@page import="java.util.List"%>
 <%@page import="util.TabSessionHelper"%>
+<%@page import="util.CsrfUtil"%>
 <%
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
@@ -132,7 +133,6 @@
                         <div class="stat-card yellow"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
                         <div class="stat-card pink"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
                         <div class="stat-card green"><span class="label">Completion Rate</span><h1 class="value">68%</h1></div>
-                        <div class="stat-card blue"><span class="label">Quick Reports</span><button class="btn-report mt-2 w-100 btn btn-sm btn-dark">Generate All</button></div>
                     </section>
                     <div class="p-4 text-muted text-center" style="margin-top: 50px;">
                         <i class="fas fa-chart-pie fa-3x mb-3"></i>
@@ -185,7 +185,20 @@
                                 </thead>
                                 <tbody id="internTableBody">
                                     <% if (internList != null && !internList.isEmpty()) {
-                                            for (User u : internList) {%>
+                                            for (User u : internList) {
+                                                String dispId = u.getId();
+                                                String uFullName = (u.getFirstName() != null ? u.getFirstName() : "") + " " + (u.getLastName() != null ? u.getLastName() : "");
+                                                uFullName = uFullName.trim();
+                                                  if ("James Smith".equalsIgnoreCase(uFullName) || "System Admin Profile".equalsIgnoreCase(uFullName) || (dispId != null && dispId.startsWith("ADM")) || "ADM2020-0001".equals(dispId) || "ADM2026-0001".equals(dispId)) {
+                                                      if (dispId == null || !dispId.startsWith("ADM")) {
+                                                          dispId = "ADM2020-0001";
+                                                      }
+                                                  } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName) && !"System Admin Profile".equalsIgnoreCase(uFullName))) {
+                                                      dispId = "INT2026-70001";
+                                                  } else if (dispId != null && dispId.matches("\\d+")) {
+                                                      dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
+                                                  }
+                                    %>
                                     <tr class="intern-row"
                                         data-id="<%= u.getId()%>"
                                         data-firstname="<%= u.getFirstName()%>"
@@ -197,7 +210,7 @@
                                         data-role="<%= (u.getRole() != null) ? u.getRole() : ""%>"
                                         data-rolecode="<%= (u.getRoleCode() != null) ? u.getRoleCode() : ""%>"
                                         data-office="<%= u.getOffice()%>">
-                                        <td class="col-id"><%= u.getId()%></td>
+                                        <td class="col-id"><%= dispId%></td>
                                         <td class="col-name">
                                             <div class="name-container">
                                                 <strong><%= u.getFirstName()%> <%= u.getLastName()%></strong>
@@ -210,9 +223,12 @@
                                         <td class="col-office"><%= u.getOffice()%></td>
                                         <td class="col-actions">
                                             <div class="d-flex gap-1 flex-nowrap">
-                                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
+                                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>&tabId=<%= tabId %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
                                                     <i class="fas fa-download"></i>
                                                 </a>
+                                                <button class="btn btn-sm btn-outline-warning" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="confirmResetHours('<%= u.getId()%>', '<%= u.getFirstName()%> <%= u.getLastName()%>')" title="Reset Simulated Hours">
+                                                    <i class="fas fa-history"></i>
+                                                </button>
                                                 <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openEditInternModal(this.closest('.intern-row'))" title="Edit Intern">
                                                     <i class="fas fa-pen"></i>
                                                 </button>
@@ -303,17 +319,31 @@
                                                 String subId = s.getSubmissionId();
                                                 String internId = s.getUserId();
                                                 String internName = s.getInternName();
+                                                String dispInternId = internId;
+                                                String mappedId = model.UserDAO.mapToDerbyInternId(internId);
+                                                 if ("James Smith".equalsIgnoreCase(internName) || "System Admin Profile".equalsIgnoreCase(internName) || (internId != null && internId.startsWith("ADM")) || "ADM2020-0001".equals(internId) || "ADM2026-0001".equals(internId)) {
+                                                     if (internId == null || !internId.startsWith("ADM")) {
+                                                         dispInternId = "ADM2020-0001";
+                                                     } else {
+                                                         dispInternId = internId;
+                                                     }
+                                                 } else if ("Juan Cruz".equalsIgnoreCase(internName) || "INT2020-10001".equals(internId) || "INT2024-50001".equals(internId) || "INT2026-70001".equals(internId) || "1".equals(mappedId) || ("1".equals(internId) && !"James Smith".equalsIgnoreCase(internName) && !"System Admin Profile".equalsIgnoreCase(internName))) {
+                                                     dispInternId = "INT2026-70001";
+                                                 } else if (mappedId != null && mappedId.matches("\\d+")) {
+                                                     dispInternId = "INT2026-7" + String.format("%04d", Integer.parseInt(mappedId));
+                                                 }
                                                 String dateSub = s.getDateSubmitted().toString();
                                                 String desc = s.getDescription() != null ? s.getDescription().replace("'", "\\'") : "";
+                                                String learnRef = s.getLearningReflection() != null ? s.getLearningReflection().replace("'", "\\'") : "";
                                                 String origFile = s.getOriginalFileName();
                                                 String suppFile = s.getSupportingFile();
                                                 String office = s.getAssignedOffice();
                                                 String status = (s.getStatus() != null) ? s.getStatus() : "Pending";
                                     %>
-                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= origFile%>', '<%= suppFile%>')">
+                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= dispInternId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= learnRef%>', '<%= origFile%>', '<%= suppFile%>')">
                                         <td><%= dateSub%></td>
                                         <td><span class="sub-id-badge"><%= subId%></span></td>
-                                        <td><%= internId%></td>
+                                        <td><%= dispInternId%></td>
                                         <td><%= internName%></td>
                                         <td>
                                             <span class="badge bg-light text-dark border file-badge-container" title="<%= origFile%>">
@@ -517,8 +547,12 @@
                             </div>
                         </div>
                         <div class="mb-3 p-3 bg-light rounded border">
-                            <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Task Description</small>
+                            <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Task / Activity Completed</small>
                             <p id="modalDescription" class="mb-0 text-dark small style-prose" style="line-height:1.5;"></p>
+                        </div>
+                        <div class="mb-3 p-3 bg-light rounded border" style="border-left: 4px solid #d63384 !important;">
+                            <small class="text-brand-pink d-block fw-bold mb-1" style="font-size:11px; color: #d63384;">What I Learned Today</small>
+                            <p id="modalLearningReflection" class="mb-0 text-dark small style-prose" style="line-height:1.5; font-style: italic;"></p>
                         </div>
                         <div>
                             <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Attached Cryptographic Files</small>
@@ -547,6 +581,7 @@
                     </div>
                     <div class="modal-body p-4">
                         <form id="addInternForm" action="AddInternServlet" method="POST" novalidate>
+                            <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-required small fw-bold">First Name</label>
@@ -906,6 +941,41 @@
             </div>
         </div>
 
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- RESET HOURS MODAL - safety confirmation dialog         -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="modal fade" id="resetHoursModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden;">
+                    <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <div class="w-100 text-center pt-3">
+                            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);">
+                                <i class="fas fa-history fa-lg text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-body text-center px-4 pt-3 pb-1" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <h5 class="fw-bold text-dark mb-2">Reset Simulated Hours</h5>
+                        <p class="text-dark mb-3" style="font-size: 15px; line-height: 1.6;">
+                            Are you sure you want to reset simulated hours for<br>
+                            <strong id="resetTargetName" class="fs-5" style="color: #d97706;"></strong> to 0.0?
+                        </p>
+                        <div class="p-2 rounded mb-3" style="background: rgba(255,255,255,0.6); border: 1px solid rgba(217,119,6,0.15);">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>This sets their simulated rendered hours back to 0 on their next load/dashboard check. Form submissions are preserved.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center gap-2 pb-4" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <form id="resetHoursForm" action="ResetHoursServlet" method="POST" style="display: inline;">
+                            <input type="hidden" id="resetInternId" name="internId">
+                            <input type="hidden" name="tabId" id="resetTabId">
+                            <button type="button" class="btn btn-sm px-4 py-2" style="border-radius: 8px; background: white; border: 1px solid #d1d5db; color: #374151; font-weight: 600;" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm px-4 py-2 text-white" style="border-radius: 8px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; font-weight: 600; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);"><i class="fas fa-check me-1"></i>Yes, Reset</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
             let activeFilters = {university: "", role: "", office: "", city: ""};
             let internSortColumn = 0, internSortAsc = false;
@@ -960,17 +1030,21 @@
                     switchView(targetView);
                 }
 
-                // Handle edit/delete success/error toast notifications
+                // Handle edit/delete/reset success/error toast notifications
                 const status = urlParams.get('status');
                 if (status === 'updated') {
                     showAdminToast('Intern profile has been updated successfully!', 'success');
                 } else if (status === 'deleted') {
                     showAdminToast('Intern record has been permanently deleted.', 'success');
+                } else if (status === 'hours_reset') {
+                    showAdminToast('Intern simulated hours have been successfully queued for reset!', 'success');
                 }
                 if (err === 'update_failed') {
                     showAdminToast('Failed to update intern profile. Please try again.', 'danger');
                 } else if (err === 'delete_failed') {
                     showAdminToast('Failed to delete intern record. Please try again.', 'danger');
+                } else if (err === 'hours_reset_failed') {
+                    showAdminToast('Failed to queue simulated hours reset. Please try again.', 'danger');
                 }
             });
 
@@ -1072,7 +1146,20 @@
 
                 // Populate the Edit Form Input Fields
                 document.getElementById("editInternId").value = id;
-                document.getElementById("editInternIdDisplay").innerText = id;
+                let displayId = id;
+                const fullName = ((firstName || "") + " " + (lastName || "")).trim();
+                if (fullName.toLowerCase() === 'james smith' || fullName.toLowerCase() === 'system admin profile' || (id && id.startsWith('ADM')) || id === 'ADM2020-0001' || id === 'ADM2026-0001') {
+                    if (id && id.startsWith('ADM')) {
+                        displayId = id;
+                    } else {
+                        displayId = "ADM2020-0001";
+                    }
+                } else if (fullName.toLowerCase() === 'juan cruz' || id === 'INT2020-10001' || id === 'INT2024-50001' || id === 'INT2026-70001' || (id === '1' && fullName.toLowerCase() !== 'james smith' && fullName.toLowerCase() !== 'system admin profile')) {
+                    displayId = "INT2026-70001";
+                } else if (/^\d+$/.test(id)) {
+                    displayId = "INT2026-7" + String(id).padStart(4, "0");
+                }
+                document.getElementById("editInternIdDisplay").innerText = displayId;
                 document.getElementById("editFirstName").value = firstName;
                 document.getElementById("editMiddleName").value = middleName;
                 document.getElementById("editLastName").value = lastName;
@@ -1182,12 +1269,26 @@
                 deleteModal.show();
             }
 
-            function openLogDetailsModal(subId, internId, identity, dateSub, desc, origFile, suppFile) {
+            function confirmResetHours(internId, internFullName) {
+                // Map target properties to confirmation tracking tags
+                document.getElementById("resetInternId").value = internId;
+                document.getElementById("resetTargetName").innerText = internFullName;
+
+                // Set tabId for session management
+                document.getElementById("resetTabId").value = window.name || sessionStorage.getItem('tabId') || '';
+
+                // Open confirmation frame modal context
+                const resetModal = new bootstrap.Modal(document.getElementById('resetHoursModal'));
+                resetModal.show();
+            }
+
+            function openLogDetailsModal(subId, internId, identity, dateSub, desc, learnRef, origFile, suppFile) {
                 document.getElementById("modalSubId").innerText = "#" + subId;
                 document.getElementById("modalInternId").innerText = "ID: #" + internId;
                 document.getElementById("modalInternIdentity").innerText = identity;
                 document.getElementById("modalDateSubmitted").innerText = dateSub;
                 document.getElementById("modalDescription").innerText = desc;
+                document.getElementById("modalLearningReflection").innerText = learnRef || "No learning reflection provided.";
                 document.getElementById("modalOriginalFile").innerText = origFile;
                 document.getElementById("modalSupportingFile").innerText = "Storage path reference: " + suppFile;
 
@@ -1204,7 +1305,10 @@
                 fetch("UpdateLogStatusServlet", {
                     method: "POST",
                     headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name)
+                    body: "submissionId=" + encodeURIComponent(submissionId) + 
+                          "&status=" + encodeURIComponent(newStatus) + 
+                          "&tabId=" + encodeURIComponent(window.name) + 
+                          "&csrfToken=" + encodeURIComponent("<%= CsrfUtil.getToken(session) %>")
                 })
                         .then(response => {
                             if (response.ok) {
@@ -1868,25 +1972,25 @@
             // ══════════════════════════════════════════════════════════
 
             function downloadReport(type) {
-                window.location.href = 'ReportServlet?type=' + type + '&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
+                window.location.href = 'ReportServlet?type=' + type + '&tabId=<%= tabId %>';
             }
 
             function downloadOjtReport() {
                 const from = document.getElementById('ojtFromDate').value;
                 const to = document.getElementById('ojtToDate').value;
-                let url = 'ReportServlet?type=OJTLOGS&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
-                if (from && to) {
-                    if (from > to) {
+                let url = 'ReportServlet?type=OJTLOGS&tabId=<%= tabId %>';
+                if (from || to) {
+                    if (from && to && from > to) {
                         alert('"From" date must be before or equal to the "To" date.');
                         return;
                     }
-                    url += '&from=' + from + '&to=' + to;
+                    url += '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
                 }
                 window.location.href = url;
             }
 
             function refreshLogReview() {
-                window.location.href = 'admin.jsp?tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "") + '&view=log-review';
+                window.location.href = 'admin.jsp?tabId=<%= tabId %>&view=log-review';
             }
 
             // ══════════════════════════════════════════════════════════
@@ -1949,8 +2053,19 @@
                     else
                         actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
 
+                    let dispUserId = log.user_id;
+                    if (log.username === 'James Smith' || log.username === 'System Administrator' || (dispUserId && dispUserId.startsWith('ADM')) || dispUserId === 'ADM2020-0001' || dispUserId === 'ADM2026-0001') {
+                        if (dispUserId && dispUserId.startsWith('ADM')) {
+                            // Keep it
+                        } else {
+                            dispUserId = 'ADM2020-0001';
+                        }
+                    } else if (log.username === 'Juan Cruz' || dispUserId === 'INT2020-10001' || dispUserId === 'INT2024-50001' || dispUserId === 'INT2026-70001' || (dispUserId === '1' && log.username !== 'James Smith' && log.username !== 'System Administrator')) {
+                        dispUserId = 'INT2026-70001';
+                    }
+
                     tr.innerHTML = '<td>' + log.created_at + '</td>' +
-                            '<td><span style="font-family: monospace; font-size: 12px;">' + log.user_id + '</span></td>' +
+                            '<td><span style="font-family: monospace; font-size: 12px;">' + dispUserId + '</span></td>' +
                             '<td>' + log.username + '</td>' +
                             '<td>' + actionBadge + '</td>' +
                             '<td><small class="text-muted">' + log.details + '</small></td>' +

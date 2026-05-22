@@ -47,13 +47,16 @@
                     DatabaseMetaData meta = conn.getMetaData();
                     out.println("<p>Product Name: " + meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion() + "</p>");
                     
-                    // Let's also check if table activity_submissions exists
-                    try (ResultSet rs = conn.getMetaData().getTables(null, null, "activity_submissions", null)) {
+                    ResultSet rs = null;
+                    try {
+                        rs = conn.getMetaData().getTables(null, null, "activity_submissions", null);
                         if (rs.next()) {
                             out.println("<p class='success'>SUCCESS: activity_submissions table exists.</p>");
                         } else {
                             out.println("<p class='failure'>WARNING: activity_submissions table NOT found in metadata.</p>");
                         }
+                    } finally {
+                        if (rs != null) rs.close();
                     }
                     
                     conn.close();
@@ -112,3 +115,4 @@
     </div>
 </body>
 </html>
+    

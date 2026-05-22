@@ -1,6 +1,8 @@
 <%@page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="model.User"%>
 <%@page import="util.TabSessionHelper"%>
+<%@page import="util.CsrfUtil"%>
+<%@page import="util.HtmlUtil"%>
 <%
     // Prevent browser caching of protected page
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -12,6 +14,20 @@
     if (loggedInUser == null || "admin".equalsIgnoreCase(loggedInUser.getRole())) {
         response.sendRedirect("login.jsp?err=unauthorized");
         return;
+    }
+    
+    // Check if the administrator triggered a reset for this intern's simulated hours
+    boolean forceResetHours = false;
+    double baselineHours = 148.5;
+    if (loggedInUser != null) {
+        model.User dbUser = model.UserDAO.getInternById(loggedInUser.getId(), getServletContext());
+        if (dbUser != null) {
+            baselineHours = dbUser.getBaselineHours();
+            if (dbUser.isResetHours()) {
+                forceResetHours = true;
+                model.UserDAO.setResetHoursFlag(loggedInUser.getId(), false, getServletContext());
+            }
+        }
     }
     
     String fullName = loggedInUser.getFirstName() + " " + loggedInUser.getLastName();
@@ -56,6 +72,9 @@
     } else if ("no_clock_in".equals(statusParam)) {
         alertMessage = "Error: No matching clock-in event timestamp tracked in session state.";
         alertClass = "alert alert-warning mt-3 mb-3";
+    } else if ("invalid_input".equals(statusParam)) {
+        alertMessage = "Error: Invalid input provided. Please verify hours (0.0001 - 24) and description (5 - 500 characters, no HTML).";
+        alertClass = "alert alert-danger mt-3 mb-3";
     }
 %>
 <!DOCTYPE html>
@@ -204,7 +223,7 @@
                                         <p class="download-record-desc-small">PDF report, hours & logs.</p>
                                     </div>
                                 </div>
-                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD" class="download-record-btn-small" title="Download Report">
+                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&tabId=<%= tabId %>" class="download-record-btn-small" title="Download Report">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                             </div>
@@ -212,26 +231,36 @@
 
                         <div class="dashboard-pane" id="manualTaskLogPane">
                             <h3 class="pane-title">Simulate Task Entry Log</h3>
-                            <form id="sandboxLogForm" action="SubmitTaskServlet" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
+                             <form id="sandboxLogForm" action="SubmitTaskServlet?tabId=<%= tabId %>" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
+                                <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold small">Hours Spent on Task</label>
-                                    <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="${param.simulatedHours}" required>
+                                    <input type="text" id="sandboxLogHours" name="simulatedHours" class="form-control" placeholder="e.g. 7.5" value="<%= request.getParameter("simulatedHours") != null ? HtmlUtil.escape(request.getParameter("simulatedHours")) : "" %>" required>
+                                    <div class="invalid-feedback">Please specify a valid count of entry hours between 0.0001 and 24.</div>
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold small">Description of Work / Task</label>
-                                    <textarea id="sandboxLogDescription" name="taskDescription" class="form-control" rows="2" placeholder="e.g. Completed documentation for Backend API" required></textarea>
+                                    <label class="form-label fw-bold small">Task / Activity Completed</label>
+                                    <textarea id="sandboxLogDescription" name="taskDescription" class="form-control" rows="2" placeholder="e.g. Created backend API for login validation." required></textarea>
+                                    <div class="invalid-feedback">Description must be between 5 and 500 characters and cannot contain HTML tags.</div>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold small">What I Learned Today</label>
+                                    <textarea id="sandboxLogLearningReflection" name="learningReflection" class="form-control" rows="2" placeholder="e.g. I learned how servlet controllers validate user credentials and redirect users based on role." required></textarea>
+                                    <div class="invalid-feedback">Learning reflection must be between 5 and 500 characters and cannot contain HTML tags.</div>
                                 </div>
 
                                 <div class="form-group attachment-container mb-3">
                                     <label class="form-label fw-bold small">Proof of Attendance <span class="text-danger">*</span></label>
-                                    <div class="photo-dropzone text-center p-3 border border-dashed rounded" style="cursor: pointer;" onclick="document.getElementById('attendance-photo').click();">
+                                    <div class="photo-dropzone text-center p-3 border border-dashed rounded" id="photoDropzone" style="cursor: pointer;" onclick="document.getElementById('attendance-photo').click();">
                                         <i class="fa-solid fa-camera fa-2x mb-2 text-muted"></i>
                                         <p class="m-0 small">Click to <strong>add attachment (photo)</strong></p>
                                         <span class="file-hint text-muted" style="font-size: 11px;">Supports PNG, JPG, or JPEG</span>
-                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/*" onchange="handleFileChange(this)" hidden required>
+                                        <input type="file" id="attendance-photo" name="attendancePhoto" accept="image/png, image/jpeg" onchange="handleFileChange(this)" hidden required>
                                     </div>
                                     <div id="photo-preview-name" class="photo-preview-text mt-2 text-success small fw-bold"></div>
+                                    <div id="photo-error-message" class="text-danger small mt-1 fw-bold" style="display: none;">Please upload a proof of attendance image (PNG, JPG, or JPEG, max 10MB).</div>
                                 </div>
 
                                 <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" style="background-color: #4f46e5; border: none;">
@@ -292,12 +321,7 @@
                                         <input type="date" id="inputStartDate" class="form-control" value="2026-05-06" required onchange="recalculateProgressEngine()">
                                     </div>
                                 </div>
-                                <div class="pt-2 border-top">
-                                    <label class="custom-label d-block mb-2">Simulated Hours Control</label>
-                                    <button type="button" class="btn btn-outline-danger btn-sm w-100 fw-bold py-2" onclick="resetRenderedHoursToZero()">
-                                        <i class="fa-solid fa-trash-can me-1"></i> Reset Rendered Hours to 0
-                                    </button>
-                                </div>
+
                             </div>
 
                             <div class="config-card card-ui-green">
@@ -372,7 +396,26 @@
         </div>
         <script>
             // --- Global State Variables ---
-            let renderedHoursBase = parseFloat(localStorage.getItem('guest_renderedHours')) || 148.5;
+            const currentUserId = "<%= loggedInUser != null ? loggedInUser.getId() : "" %>";
+            const renderedHoursKey = 'renderedHours_' + currentUserId;
+            
+            <%
+                double dbCustomHours = 0.0;
+                if (loggedInUser != null) {
+                    java.util.List<model.ActivitySubmission> userSubs = model.UserDAO.getSubmissionsByUserId(loggedInUser.getId(), getServletContext());
+                    if (userSubs != null) {
+                        for (model.ActivitySubmission sub : userSubs) {
+                            if (!"Rejected".equalsIgnoreCase(sub.getStatus())) {
+                                dbCustomHours += util.PdfReportHelper.extractHoursFromDescription(sub.getDescription());
+                            }
+                        }
+                    }
+                }
+            %>
+            let baselineHours = <%= baselineHours %>;
+            let dbCustomHours = <%= dbCustomHours %>;
+            let renderedHoursBase = baselineHours + dbCustomHours;
+            localStorage.setItem(renderedHoursKey, renderedHoursBase.toString());
             let calendarYear = 2026;
             let calendarMonth = 4; // May (0-indexed)
 
@@ -394,6 +437,34 @@
                 loadConfigState();
                 restoreTimerSessionOnLoad();
                 recalculateProgressEngine();
+
+                // Set up input listeners to clear invalid states dynamically
+                const hoursField = document.getElementById('sandboxLogHours');
+                if (hoursField) {
+                    hoursField.addEventListener('input', function() {
+                        this.classList.remove('is-invalid');
+                    });
+                }
+                const descField = document.getElementById('sandboxLogDescription');
+                if (descField) {
+                    descField.addEventListener('input', function() {
+                        this.classList.remove('is-invalid');
+                    });
+                }
+                const fileInput = document.getElementById('attendance-photo');
+                if (fileInput) {
+                    fileInput.addEventListener('change', function() {
+                        const dropzone = document.getElementById('photoDropzone');
+                        const photoErrorMsg = document.getElementById('photo-error-message');
+                        if (dropzone) {
+                            dropzone.style.border = '';
+                            dropzone.style.backgroundColor = '';
+                        }
+                        if (photoErrorMsg) {
+                            photoErrorMsg.style.display = 'none';
+                        }
+                    });
+                }
             };
 
             // --- Custom Coherent Toast Notification System ---
@@ -594,9 +665,9 @@
                     renderedHoursBase += computedHoursEarned;
                     
                     if (isNaN(renderedHoursBase) || renderedHoursBase < 0) {
-                        renderedHoursBase = 148.5;
+                        renderedHoursBase = baselineHours;
                     }
-                    localStorage.setItem('guest_renderedHours', String(renderedHoursBase));
+                    localStorage.setItem(renderedHoursKey, String(renderedHoursBase));
 
                     // Background AJAX POST to save stopwatch session in MySQL
                     if (computedHoursEarned > 0) {
@@ -604,6 +675,7 @@
                         formData.append("simulatedHours", computedHoursEarned.toFixed(4));
                         formData.append("taskDescription", "Daily attendance simulator: Clocked out session");
                         formData.append("tabId", window.name);
+                        formData.append("csrfToken", "<%= CsrfUtil.getToken(session) %>");
 
                         fetch("SubmitTaskServlet", {
                             method: "POST",
@@ -716,21 +788,93 @@
 
                     function handleManualLogSubmission(event) {
                         if (activeTimerRunning) {
+                            showCustomToast("Cannot submit logs while the live timer is running.", "error");
                             event.preventDefault();
                             return false;
                         }
 
-                        const hoursInput = parseFloat(document.getElementById('sandboxLogHours').value) || 0;
+                        const hoursField = document.getElementById('sandboxLogHours');
+                        const descField = document.getElementById('sandboxLogDescription');
+                        const learnField = document.getElementById('sandboxLogLearningReflection');
+                        const fileInput = document.getElementById('attendance-photo');
+                        const dropzone = document.getElementById('photoDropzone');
+                        const photoErrorMsg = document.getElementById('photo-error-message');
 
-                        if (hoursInput <= 0) {
-                            showCustomToast("Please specify a valid count of entry hours.", "error");
+                        // Reset visual states
+                        hoursField.classList.remove('is-invalid');
+                        descField.classList.remove('is-invalid');
+                        learnField.classList.remove('is-invalid');
+                        if (dropzone) {
+                            dropzone.style.border = '';
+                            dropzone.style.backgroundColor = '';
+                        }
+                        if (photoErrorMsg) {
+                            photoErrorMsg.style.display = 'none';
+                        }
+
+                        let isValid = true;
+
+                        // Hours validation
+                        const hoursVal = hoursField.value.trim();
+                        const hoursInput = parseFloat(hoursVal);
+                        if (isNaN(hoursInput) || hoursInput < 0.0001 || hoursInput > 24.0) {
+                            hoursField.classList.add('is-invalid');
+                            hoursField.focus();
+                            isValid = false;
+                        }
+
+                        // Description validation
+                        const descInput = descField.value.trim();
+                        if (descInput.length < 5 || descInput.length > 500 || descInput.includes("<") || descInput.includes(">")) {
+                            descField.classList.add('is-invalid');
+                            if (isValid) {
+                                descField.focus();
+                            }
+                            isValid = false;
+                        }
+
+                        // Learning Reflection validation
+                        const learnInput = learnField.value.trim();
+                        if (learnInput.length < 5 || learnInput.length > 500 || learnInput.includes("<") || learnInput.includes(">")) {
+                            learnField.classList.add('is-invalid');
+                            if (isValid) {
+                                learnField.focus();
+                            }
+                            isValid = false;
+                        }
+
+                        // Attachment validation
+                        let fileValid = true;
+                        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                            fileValid = false;
+                        } else {
+                            const file = fileInput.files[0];
+                            const fileName = file.name.toLowerCase();
+                            const isSupported = fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg');
+                            if (!isSupported || file.size > 10 * 1024 * 1024) {
+                                fileValid = false;
+                            }
+                        }
+
+                        if (!fileValid) {
+                            if (dropzone) {
+                                dropzone.style.border = '1.5px solid #dc3545';
+                                dropzone.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
+                            }
+                            if (photoErrorMsg) {
+                                photoErrorMsg.style.display = 'block';
+                            }
+                            isValid = false;
+                        }
+
+                        if (!isValid) {
                             event.preventDefault();
                             return false;
                         }
 
                         // Save to localStorage before submitting so client-side state is preserved on redirect!
                         renderedHoursBase += hoursInput;
-                        localStorage.setItem('guest_renderedHours', renderedHoursBase);
+                        localStorage.setItem(renderedHoursKey, renderedHoursBase);
 
                         return true;
                     }
@@ -876,14 +1020,7 @@
                         }
                     }
 
-                    function resetRenderedHoursToZero() {
-                        if (confirm("Are you sure you want to reset your rendered hours to 0h? This will update your local simulation matrix.")) {
-                            renderedHoursBase = 0;
-                            localStorage.setItem('guest_renderedHours', '0');
-                            showCustomToast("Simulated rendered hours reset to 0h successfully.", "success");
-                            recalculateProgressEngine();
-                        }
-                    }
+
 
                     function saveConfigState(event) {
                         event.preventDefault();

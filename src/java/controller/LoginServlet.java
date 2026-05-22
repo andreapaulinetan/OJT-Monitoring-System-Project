@@ -18,6 +18,14 @@ public class LoginServlet extends HttpServlet {
             throws ServletException, IOException {
         
         HttpSession session = request.getSession(true);
+        
+        // CSRF Token Validation
+        if (!util.CsrfUtil.validateToken(request, session)) {
+            util.ErrorLogger.logError("CSRF VIOLATION", "Login attempt blocked due to invalid or missing CSRF token.", null, session, getServletContext());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF token.");
+            return;
+        }
+
         String tabId = util.TabSessionHelper.getTabId(request);
 
         // Ensure we have a fallback tabId if none is provided (e.g. direct post)
@@ -31,11 +39,24 @@ public class LoginServlet extends HttpServlet {
 
         emailReq = (emailReq == null) ? "" : emailReq.trim().toLowerCase();
         passReq = (passReq == null) ? "" : passReq.trim();
+        captchaReq = (captchaReq == null) ? "" : captchaReq.trim();
 
         // 1. Validation
-        if (emailReq.isEmpty() || passReq.isEmpty()) {
-            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed login attempt: Email or Password was left empty", null, session, getServletContext());
+        if (emailReq.isEmpty() || passReq.isEmpty() || captchaReq.isEmpty()) {
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed login attempt: Email, Password, or Captcha was left empty", null, session, getServletContext());
             response.sendRedirect("login.jsp?err=empty");
+            return;
+        }
+
+        if (emailReq.length() > 255 || passReq.length() > 100 || captchaReq.length() != 5) {
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed login attempt: Input length limit exceeded. Email: " + emailReq.length() + ", Pass: " + passReq.length() + ", Captcha: " + captchaReq.length(), null, session, getServletContext());
+            response.sendRedirect("login.jsp?err=invalid_input");
+            return;
+        }
+
+        if (!util.InputValidator.isValidEmail(emailReq)) {
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed login attempt: Invalid email format: '" + emailReq + "'", null, session, getServletContext());
+            response.sendRedirect("login.jsp?err=2");
             return;
         }
 
@@ -61,10 +82,12 @@ public class LoginServlet extends HttpServlet {
         Integer loginRetries = (Integer) util.TabSessionHelper.getAttribute(session, tabId, "login_retries");
         if (loginRetries == null) loginRetries = 0;
 
-        // UserDAO should automatically search Admin/Intern tables based on email
-        User user = UserDAO.validateUser(emailReq, passReq, getServletContext());
+        User user = UserDAO.findUserByEmail(emailReq, getServletContext());
         
-        if (user != null) {
+        if (user != null && util.CryptoUtil.verifyPassword(passReq, user.getPassword())) {
+            // Prevent Session Fixation by rotating JSESSIONID completely
+            request.changeSessionId();
+
             // Re-initialize only this tab's sub-session to prevent session crossover
             util.TabSessionHelper.invalidateTab(session, tabId);
             util.TabSessionHelper.setUser(session, tabId, user);
@@ -72,6 +95,9 @@ public class LoginServlet extends HttpServlet {
             session.setAttribute("user", user);
             session.setAttribute("role", user.getRole());
             session.setMaxInactiveInterval(15 * 60); // 15 mins inactive interval for session
+            
+            // Clear CAPTCHA logic to prevent replay attacks
+            util.TabSessionHelper.removeAttribute(session, tabId, "captcha");
 
             // AUTO-LOG: Record LOGIN event to PostgreSQL (DBMS 3)
             PostgreSQLDAO.insertAuditLog(
