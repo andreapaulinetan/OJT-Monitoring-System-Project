@@ -107,8 +107,10 @@
                     <a href="#" id="nav-audit" class="nav-item" onclick="switchView('audit-trail')">
                         <i class="fas fa-history"></i> Audit Trail
                     </a>
-                    <a href="LogoutServlet" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Log out</a>
                 </nav>
+                <div class="sidebar-footer">
+                    <a href="LogoutServlet" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
+                </div>
             </aside>
 
             <main class="main-content">

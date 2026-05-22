@@ -39,6 +39,10 @@ public class LogoutServlet extends HttpServlet {
                  util.TabSessionHelper.invalidateTab(session, tabId);
              }
              
+             if (session != null) {
+                 session.invalidate(); // Clear global session attributes
+             }
+             
              // 4. Redirect to login page with a "logged out" message
              response.sendRedirect("login.jsp?msg=loggedout");
         } catch (Exception e) {
