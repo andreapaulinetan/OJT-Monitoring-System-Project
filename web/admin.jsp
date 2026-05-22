@@ -4,8 +4,6 @@
 <%@page import="model.ActivitySubmission"%>
 <%@page import="java.util.List"%>
 <%@page import="util.TabSessionHelper"%>
-<%@page import="util.HtmlUtil"%>
-<%@page import="util.CsrfUtil"%>
 <%
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
@@ -34,7 +32,7 @@
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <link rel="stylesheet" type="text/css" href="${pageContext.request.contextPath}/css/admin.css">
-        
+
         <style>
             /* Layout Correction Engine for Gorgeous Tables */
             .data-table tbody tr {
@@ -121,8 +119,8 @@
                     </div>
                     <div class="user-profile">
                         <div class="profile-chip">
-                            <span><%= HtmlUtil.escape(user.getFullName())%></span>
-                            <img src="https://ui-avatars.com/api/?name=<%= HtmlUtil.escape(user.getFullName())%>&background=d63384&color=fff" alt="Admin">
+                            <span><%= user.getFullName()%></span>
+                            <img src="https://ui-avatars.com/api/?name=<%= user.getFullName()%>&background=d63384&color=fff" alt="Admin">
                         </div>
                     </div>
                 </header>
@@ -186,22 +184,40 @@
                                 <tbody id="internTableBody">
                                     <% if (internList != null && !internList.isEmpty()) {
                                             for (User u : internList) {%>
-                                    <tr class="intern-row">
-                                        <td class="col-id"><%= HtmlUtil.escape(u.getId())%></td>
+                                    <tr class="intern-row"
+                                        data-id="<%= u.getId()%>"
+                                        data-firstname="<%= u.getFirstName()%>"
+                                        data-middlename="<%= u.getMiddleName() != null ? u.getMiddleName() : ""%>"
+                                        data-lastname="<%= u.getLastName()%>"
+                                        data-email="<%= u.getEmail()%>"
+                                        data-university="<%= u.getUniversity()%>"
+                                        data-city="<%= (u.getCity() != null) ? u.getCity() : ""%>"
+                                        data-role="<%= (u.getRole() != null) ? u.getRole() : ""%>"
+                                        data-rolecode="<%= (u.getRoleCode() != null) ? u.getRoleCode() : ""%>"
+                                        data-office="<%= u.getOffice()%>">
+                                        <td class="col-id"><%= u.getId()%></td>
                                         <td class="col-name">
                                             <div class="name-container">
-                                                <strong><%= HtmlUtil.escape(u.getFirstName())%> <%= HtmlUtil.escape(u.getLastName())%></strong>
-                                                <small class="text-primary"><%= HtmlUtil.escape(u.getEmail())%></small>
+                                                <strong><%= u.getFirstName()%> <%= u.getLastName()%></strong>
+                                                <small class="text-primary"><%= u.getEmail()%></small>
                                             </div>
                                         </td>
-                                        <td class="col-uni"><%= HtmlUtil.escape(u.getUniversity())%></td>
-                                        <td class="col-city"><%= HtmlUtil.escape((u.getCity() != null) ? u.getCity() : "N/A")%></td>
-                                        <td class="col-role"><%= HtmlUtil.escape((u.getRole() != null) ? u.getRole() : "N/A")%></td>
-                                        <td class="col-office"><%= HtmlUtil.escape(u.getOffice())%></td>
+                                        <td class="col-uni"><%= u.getUniversity()%></td>
+                                        <td class="col-city"><%= (u.getCity() != null) ? u.getCity() : "N/A"%></td>
+                                        <td class="col-role"><%= (u.getRole() != null) ? u.getRole() : "N/A"%></td>
+                                        <td class="col-office"><%= u.getOffice()%></td>
                                         <td class="col-actions">
-                                            <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= HtmlUtil.escape(u.getId()) %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;">
-                                                <i class="fas fa-download"></i> Record
-                                            </a>
+                                            <div class="d-flex gap-1 flex-nowrap">
+                                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openEditInternModal(this.closest('.intern-row'))" title="Edit Intern">
+                                                    <i class="fas fa-pen"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openDeleteInternModal('<%= u.getId()%>', '<%= u.getFirstName()%> <%= u.getLastName()%>')" title="Delete Intern">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     <% }
@@ -286,25 +302,25 @@
                                                 String internId = s.getUserId();
                                                 String internName = s.getInternName();
                                                 String dateSub = s.getDateSubmitted().toString();
-                                                String desc = (s.getDescription() != null) ? s.getDescription() : "";
+                                                String desc = s.getDescription() != null ? s.getDescription().replace("'", "\\'") : "";
                                                 String origFile = s.getOriginalFileName();
                                                 String suppFile = s.getSupportingFile();
                                                 String office = s.getAssignedOffice();
                                                 String status = (s.getStatus() != null) ? s.getStatus() : "Pending";
                                     %>
-                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= HtmlUtil.escapeJs(subId)%>', '<%= HtmlUtil.escapeJs(internId)%>', '<%= HtmlUtil.escapeJs(internName)%>', '<%= HtmlUtil.escapeJs(dateSub)%>', '<%= HtmlUtil.escapeJs(desc)%>', '<%= HtmlUtil.escapeJs(origFile)%>', '<%= HtmlUtil.escapeJs(suppFile)%>')">
-                                        <td><%= HtmlUtil.escape(dateSub)%></td>
-                                        <td><span class="sub-id-badge"><%= HtmlUtil.escape(subId)%></span></td>
-                                        <td><%= HtmlUtil.escape(internId)%></td>
-                                        <td><%= HtmlUtil.escape(internName)%></td>
+                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= origFile%>', '<%= suppFile%>')">
+                                        <td><%= dateSub%></td>
+                                        <td><span class="sub-id-badge"><%= subId%></span></td>
+                                        <td><%= internId%></td>
+                                        <td><%= internName%></td>
                                         <td>
-                                            <span class="badge bg-light text-dark border file-badge-container" title="<%= HtmlUtil.escape(origFile) %>">
-                                                <i class="fas fa-paperclip me-1 text-primary"></i> <%= HtmlUtil.escape(origFile)%>
+                                            <span class="badge bg-light text-dark border file-badge-container" title="<%= origFile%>">
+                                                <i class="fas fa-paperclip me-1 text-primary"></i> <%= origFile%>
                                             </span>
                                         </td>
-                                        <td><small class="text-muted"><%= HtmlUtil.escape(office)%></small></td>
+                                        <td><small class="text-muted"><%= office%></small></td>
                                         <td onclick="event.stopPropagation();">
-                                            <select class="form-select form-select-sm status-select status-<%= HtmlUtil.escape(status)%>" onchange="updateLogStatusDatabase('<%= HtmlUtil.escapeJs(subId)%>', this)">
+                                            <select class="form-select form-select-sm status-select status-<%= status%>" onchange="updateLogStatusDatabase('<%= subId%>', this)">
                                                 <option value="Pending" <%= "Pending".equalsIgnoreCase(status) ? "selected" : ""%>>Pending</option>
                                                 <option value="Approved" <%= "Approved".equalsIgnoreCase(status) ? "selected" : ""%>>Approved</option>
                                                 <option value="Rejected" <%= "Rejected".equalsIgnoreCase(status) ? "selected" : ""%>>Rejected</option>
@@ -388,11 +404,9 @@
                                             <i class="fas fa-file-alt fa-2x mb-3" style="color: #d63384;"></i>
                                             <h6 class="fw-bold mb-2">OJT Logs Report</h6>
                                             <p class="text-muted small mb-2">Activity submissions from MySQL. Use date filters or leave blank for all records.</p>
-                                            <div class="mb-2 text-start">
+                                            <div class="mb-2">
                                                 <input type="date" id="ojtFromDate" class="form-control form-control-sm mb-1" placeholder="From">
-                                                <div class="invalid-feedback mb-1" id="ojtFromDateFeedback" style="font-size: 0.75rem;">From date is invalid.</div>
                                                 <input type="date" id="ojtToDate" class="form-control form-control-sm" placeholder="To">
-                                                <div class="invalid-feedback" id="ojtToDateFeedback" style="font-size: 0.75rem;">To date is invalid.</div>
                                             </div>
                                             <button class="btn btn-sm btn-dark w-100" onclick="downloadOjtReport()">
                                                 <i class="fas fa-download me-1"></i> Download PDF
@@ -531,7 +545,6 @@
                     </div>
                     <div class="modal-body p-4">
                         <form id="addInternForm" action="AddInternServlet" method="POST" novalidate>
-                            <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-required small fw-bold">First Name</label>
@@ -713,22 +726,185 @@
                         </table>
                     </div>
                     <div class="modal-footer bg-f8f9fa">
-                        <button type="button" class="btn btn-sm btn-success px-4" data-bs-dismiss="modal" onclick="window.location.href='admin.jsp'">Close Account Details</button>
+                        <button type="button" class="btn btn-sm btn-success px-4" data-bs-dismiss="modal" onclick="window.location.href = 'admin.jsp'">Close Account Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- EDIT INTERN MODAL - Profile Modification Interface -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <div class="modal fade" id="editInternModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content style-form-card">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0;">
+                        <h5 class="modal-title fw-bold text-white"><i class="fas fa-user-edit me-2"></i>Edit Intern Profile</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form id="editInternForm" action="UpdateInternServlet" method="POST" novalidate>
+                            <input type="hidden" id="editInternId" name="internId">
+                            <input type="hidden" id="editEmail" name="email">
+                            <!-- Hidden fields for birth/age/contact - send existing or empty values -->
+                            <input type="hidden" id="editBirthMonth" name="birthMonth" value="">
+                            <input type="hidden" id="editBirthDate" name="birthDate" value="0">
+                            <input type="hidden" id="editBirthYear" name="birthYear" value="0">
+                            <input type="hidden" id="editAge" name="age" value="0">
+                            <input type="hidden" id="editContactNum" name="contactNum" value="">
+
+                            <!-- Intern ID Badge -->
+                            <div class="mb-3 p-3 rounded" style="background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 100%); border: 1px solid #e0e7ff;">
+                                <small class="text-muted d-block fw-bold" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Editing Record For</small>
+                                <span id="editInternIdDisplay" class="fw-bold fs-5" style="color: #4f46e5; font-family: 'SFMono-Regular', Consolas, monospace;"></span>
+                            </div>
+
+                            <!-- Name Fields -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-required small fw-bold">First Name</label>
+                                    <input type="text" id="editFirstName" name="firstName" class="form-control shadow-none" maxlength="50" required placeholder="First Name" oninput="clearInvalidState(this); updateEditEmail();">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Middle Name</label>
+                                    <input type="text" id="editMiddleName" name="middleName" class="form-control shadow-none" maxlength="50" placeholder="Middle Name">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-required small fw-bold">Last Name</label>
+                                    <input type="text" id="editLastName" name="lastName" class="form-control shadow-none" maxlength="50" required placeholder="Last Name" oninput="clearInvalidState(this); updateEditEmail();">
+                                </div>
+                            </div>
+
+                            <!-- University -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label form-label-required small fw-bold">University</label>
+                                    <input type="text" id="editUniversity" name="university" class="form-control shadow-none" maxlength="100" required placeholder="University" oninput="clearInvalidState(this)">
+                                </div>
+                            </div>
+
+                            <!-- City -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-required small fw-bold">City (Philippines)</label>
+                                    <select id="editCity" name="city" class="form-select shadow-none" required onchange="clearInvalidState(this)">
+                                        <option value="" disabled>Select City</option>
+                                        <optgroup label="Metro Manila">
+                                            <option value="Manila">Manila</option><option value="Quezon City">Quezon City</option>
+                                            <option value="Caloocan">Caloocan</option><option value="Las Piñas">Las Piñas</option>
+                                            <option value="Makati">Makati</option><option value="Malabon">Malabon</option>
+                                            <option value="Mandaluyong">Mandaluyong</option><option value="Marikina">Marikina</option>
+                                            <option value="Muntinlupa">Muntinlupa</option><option value="Navotas">Navotas</option>
+                                            <option value="Parañaque">Parañaque</option><option value="Pasay">Pasay</option>
+                                            <option value="Pasig">Pasig</option><option value="San Juan">San Juan</option>
+                                            <option value="Taguig">Taguig</option><option value="Valenzuela">Valenzuela</option>
+                                        </optgroup>
+                                        <optgroup label="Luzon">
+                                            <option value="Angeles City">Angeles City</option><option value="Antipolo">Antipolo</option>
+                                            <option value="Baguio City">Baguio City</option><option value="Batangas City">Batangas City</option>
+                                            <option value="Cabanatuan">Cabanatuan</option><option value="Dagupan">Dagupan</option>
+                                            <option value="Laoag">Laoag</option><option value="Legazpi">Legazpi</option>
+                                            <option value="Lucena">Lucena</option><option value="Naga City">Naga City</option>
+                                            <option value="Olongapo">Olongapo</option><option value="Puerto Princesa">Puerto Princesa</option>
+                                            <option value="San Fernando">San Fernando</option><option value="Tarlac City">Tarlac City</option>
+                                        </optgroup>
+                                        <optgroup label="Visayas">
+                                            <option value="Bacolod">Bacolod</option><option value="Cebu City">Cebu City</option>
+                                            <option value="Dumaguete">Dumaguete</option><option value="Iloilo City">Iloilo City</option>
+                                            <option value="Lapu-Lapu City">Lapu-Lapu City</option><option value="Mandaue City">Mandaue City</option>
+                                            <option value="Ormoc">Ormoc</option><option value="Roxas City">Roxas City</option>
+                                            <option value="Tacloban">Tacloban</option><option value="Tagbilaran">Tagbilaran</option>
+                                        </optgroup>
+                                        <optgroup label="Mindanao">
+                                            <option value="Butuan">Butuan</option><option value="Cagayan de Oro">Cagayan de Oro</option>
+                                            <option value="Cotabato City">Cotabato City</option><option value="Davao City">Davao City</option>
+                                            <option value="General Santos">General Santos</option><option value="Iligan City">Iligan City</option>
+                                            <option value="Marawi">Marawi</option><option value="Pagadian">Pagadian</option>
+                                            <option value="Surigao City">Surigao City</option><option value="Zamboanga City">Zamboanga City</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <!-- Role -->
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-required small fw-bold">Technical Intern Role</label>
+                                    <select id="editRole" name="role" class="form-select shadow-none" required onchange="handleEditRoleAssignment(); clearInvalidState(this);">
+                                        <option value="" disabled>Select Role Choice</option>
+                                        <option value="Data Engineer Intern" data-code="da" data-office="Office 1 - Data &amp; Analytics">Data Engineer Intern</option>
+                                        <option value="UI/UX Intern" data-code="uiux" data-office="Office 2 - Creative Design">UI/UX Intern</option>
+                                        <option value="Front-end Developer Intern" data-code="fe" data-office="Office 2 - Creative Design">Front-end Developer Intern</option>
+                                        <option value="Backend Developer Intern" data-code="be" data-office="Office 3 - Systems &amp; Infrastructure">Backend Developer Intern</option>
+                                        <option value="Quality Assurance Intern" data-code="qa" data-office="Office 4 - Quality Control">Quality Assurance Intern</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Office (Auto) and Email (Auto) -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Assigned Office Location (Auto)</label>
+                                    <input type="text" id="editOffice" name="office" class="form-control bg-light" readonly placeholder="Office Assignment">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Corporate Email Account (Auto)</label>
+                                    <input type="text" id="editEmailDisplay" class="form-control bg-light fw-bold text-success" readonly placeholder="Auto-generated email">
+                                </div>
+                            </div>
+
+                            <!-- Optional Password Change -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">New Password <span class="text-muted fw-normal">(leave blank to keep current)</span></label>
+                                <input type="password" id="editPassword" name="password" class="form-control shadow-none" maxlength="30" placeholder="Enter new password only if changing">
+                            </div>
+
+                            <div id="editFormError" class="alert alert-danger py-2 small" style="display: none;"></div>
+
+                            <div class="modal-footer px-0 pb-0 pt-3 border-top-eee">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-sm px-4 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="validateAndSubmitEditForm()">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- DELETE INTERN MODAL - Safety Confirmation Dialog      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="modal fade" id="deleteInternModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden;">
+                    <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);">
+                        <div class="w-100 text-center pt-3">
+                            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);">
+                                <i class="fas fa-exclamation-triangle fa-lg text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-body text-center px-4 pt-3 pb-1" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);">
+                        <h5 class="fw-bold text-dark mb-2">Confirm Deletion</h5>
+                        <p class="text-dark mb-3" style="font-size: 15px; line-height: 1.6;">
+                            Are you sure you want to delete<br>
+                            <strong id="deleteTargetName" class="fs-5" style="color: #dc2626;"></strong>?
+                        </p>
+                        <div class="p-2 rounded mb-3" style="background: rgba(255,255,255,0.6); border: 1px solid rgba(220,38,38,0.15);">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>This action is permanent and cannot be undone. All associated records for this intern will be removed from the system.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center gap-2 pb-4" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);">
+                        <form id="deleteInternForm" action="DeleteInternServlet" method="POST" style="display: inline;">
+                            <input type="hidden" id="deleteInternId" name="internId">
+                            <input type="hidden" name="tabId" id="deleteTabId">
+                            <button type="button" class="btn btn-sm px-4 py-2" style="border-radius: 8px; background: white; border: 1px solid #d1d5db; color: #374151; font-weight: 600;" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm px-4 py-2 text-white" style="border-radius: 8px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; font-weight: 600; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);"><i class="fas fa-trash-alt me-1"></i>Yes, Delete</button>
+                        </form>
                     </div>
                 </div>
             </div>
         </div>
 
         <script>
-            var csrfToken = '<%= CsrfUtil.getToken(session) %>';
-
-            function escapeHtml(str) {
-                if (!str) return '';
-                var div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
-            }
-
             let activeFilters = {university: "", role: "", office: "", city: ""};
             let internSortColumn = 0, internSortAsc = false;
             let logSortColumn = 0, logSortAsc = true;
@@ -750,23 +926,6 @@
                 sortInternTable(0, false);
                 sortLogTable(0, false);
 
-                // Reset invalid validation styles on date inputs in real time
-                const fromInput = document.getElementById('ojtFromDate');
-                const toInput = document.getElementById('ojtToDate');
-                const fromFeedback = document.getElementById('ojtFromDateFeedback');
-                const toFeedback = document.getElementById('ojtToDateFeedback');
-                
-                if (fromInput && toInput) {
-                    fromInput.addEventListener('input', () => {
-                        fromInput.classList.remove('is-invalid');
-                        if (fromFeedback) fromFeedback.style.display = 'none';
-                    });
-                    toInput.addEventListener('input', () => {
-                        toInput.classList.remove('is-invalid');
-                        if (toFeedback) toFeedback.style.display = 'none';
-                    });
-                }
-                
                 // Server Post-Submit Success Modal Interception Control
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('status') === 'success') {
@@ -780,7 +939,7 @@
                     document.getElementById("sumUniversity").innerText = urlParams.get('newUni');
                     document.getElementById("sumBirthAge").innerText = urlParams.get('newBirthAge');
                     document.getElementById("sumAvatar").src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(urlParams.get('newName')) + "&background=d63384&color=fff";
-                    
+
                     summaryInternModalObj = new bootstrap.Modal(document.getElementById('summaryInternModal'));
                     summaryInternModalObj.show();
                 }
@@ -791,32 +950,25 @@
                     showAdminToast("Date Range Error: 'From' date must be before or equal to 'To' date.", "danger");
                 } else if (err === 'malformed_dates') {
                     showAdminToast("Malformed Dates: The dates provided are invalid or empty.", "danger");
-                } else if (err === 'duplicate_email') {
-                    showAdminToast("Intern Registration Failed: Email already exists.", "danger");
-                } else if (err === 'invalid_input') {
-                    showAdminToast("Intern Registration Failed: Invalid form inputs provided.", "danger");
-                } else if (urlParams.get('status') === 'failed') {
-                    showAdminToast("Intern Registration Failed: Database transaction error.", "danger");
-                } else if (urlParams.get('status') === 'error') {
-                    showAdminToast("Intern Registration Failed: An unexpected error occurred.", "danger");
                 }
 
-                // Restore active view tab from URL parameter (e.g. log-review) or session storage
-                const targetView = urlParams.get('view') || sessionStorage.getItem('adminActiveView');
+                // Restore active view tab from URL parameter (e.g. log-review)
+                const targetView = urlParams.get('view');
                 if (targetView) {
                     switchView(targetView);
                 }
 
-                // Clear URL parameters to prevent re-triggering modals/toasts on page refresh
-                // BUT preserve the tabId parameter needed by tabSession.js
-                if (window.history.replaceState && window.location.search) {
-                    const currentParams = new URLSearchParams(window.location.search);
-                    const preservedTabId = currentParams.get('tabId');
-                    let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                    if (preservedTabId) {
-                        cleanUrl += '?tabId=' + encodeURIComponent(preservedTabId);
-                    }
-                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                // Handle edit/delete success/error toast notifications
+                const status = urlParams.get('status');
+                if (status === 'updated') {
+                    showAdminToast('Intern profile has been updated successfully!', 'success');
+                } else if (status === 'deleted') {
+                    showAdminToast('Intern record has been permanently deleted.', 'success');
+                }
+                if (err === 'update_failed') {
+                    showAdminToast('Failed to update intern profile. Please try again.', 'danger');
+                } else if (err === 'delete_failed') {
+                    showAdminToast('Failed to delete intern record. Please try again.', 'danger');
                 }
             });
 
@@ -842,7 +994,7 @@
                 // Create individual toast element
                 const toast = document.createElement('div');
                 toast.className = "admin-toast-alert animate-fade-in";
-                
+
                 // Color configuration
                 let bgColor = "#198754"; // Success green
                 let icon = "fa-circle-check";
@@ -897,6 +1049,137 @@
                 }, 4500);
             }
 
+            // --- INTERN MANAGEMENT OPERATIONS EXTENSION ---
+
+            function openEditInternModal(rowElement) {
+                // Extract metadata values mapped from your custom HTML5 data- attributes
+                const id = rowElement.getAttribute("data-id");
+                const firstName = rowElement.getAttribute("data-firstname");
+                const middleName = rowElement.getAttribute("data-middlename");
+                const lastName = rowElement.getAttribute("data-lastname");
+                const email = rowElement.getAttribute("data-email");
+                const university = rowElement.getAttribute("data-university");
+                const city = rowElement.getAttribute("data-city");
+                const role = rowElement.getAttribute("data-role");
+                const roleCode = rowElement.getAttribute("data-rolecode");
+                const office = rowElement.getAttribute("data-office");
+
+                // Reset error states
+                document.getElementById("editFormError").style.display = "none";
+                document.querySelectorAll('#editInternForm .form-control, #editInternForm .form-select').forEach(el => el.classList.remove('is-invalid'));
+
+                // Populate the Edit Form Input Fields
+                document.getElementById("editInternId").value = id;
+                document.getElementById("editInternIdDisplay").innerText = id;
+                document.getElementById("editFirstName").value = firstName;
+                document.getElementById("editMiddleName").value = middleName;
+                document.getElementById("editLastName").value = lastName;
+                document.getElementById("editEmail").value = email;
+                document.getElementById("editEmailDisplay").value = email;
+                document.getElementById("editUniversity").value = university;
+                document.getElementById("editPassword").value = "";
+
+                // Set city dropdown value
+                const citySelect = document.getElementById("editCity");
+                citySelect.value = city;
+                if (citySelect.value !== city) {
+                    // If city is not in dropdown, add it as selected option
+                    const opt = document.createElement('option');
+                    opt.value = city;
+                    opt.text = city;
+                    opt.selected = true;
+                    citySelect.appendChild(opt);
+                }
+
+                // Set role dropdown value and auto-fill office
+                const roleSelect = document.getElementById("editRole");
+                roleSelect.value = role;
+                document.getElementById("editOffice").value = office;
+
+                // Instantiate and display the Bootstrap Modal frame safely
+                const editModal = new bootstrap.Modal(document.getElementById('editInternModal'));
+                editModal.show();
+            }
+
+            function handleEditRoleAssignment() {
+                const roleSelect = document.getElementById("editRole");
+                if (roleSelect.selectedIndex <= 0) return;
+                const chosenOpt = roleSelect.options[roleSelect.selectedIndex];
+                document.getElementById("editOffice").value = chosenOpt.getAttribute("data-office");
+                updateEditEmail();
+            }
+
+            function updateEditEmail() {
+                const fName = document.getElementById("editFirstName").value.trim().replace(/\s+/g, "");
+                const lName = document.getElementById("editLastName").value.trim().replace(/\s+/g, "");
+                const roleSelect = document.getElementById("editRole");
+                let code = "";
+                if (roleSelect.selectedIndex > 0) {
+                    code = roleSelect.options[roleSelect.selectedIndex].getAttribute("data-code");
+                }
+                const emailBox = document.getElementById("editEmailDisplay");
+                const emailHidden = document.getElementById("editEmail");
+                if (fName !== "" && lName !== "" && code !== "") {
+                    const generatedEmail = (fName + "." + lName + "." + code).toLowerCase() + "@gmail.com";
+                    emailBox.value = generatedEmail;
+                    emailHidden.value = generatedEmail;
+                }
+            }
+
+            function validateAndSubmitEditForm() {
+                const errBox = document.getElementById("editFormError");
+                errBox.style.display = "none";
+                errBox.innerText = "";
+
+                const inputs = document.querySelectorAll('#editInternForm .form-control, #editInternForm .form-select');
+                inputs.forEach(input => input.classList.remove('is-invalid'));
+
+                let errors = [];
+                const fName = document.getElementById("editFirstName");
+                const lName = document.getElementById("editLastName");
+                const university = document.getElementById("editUniversity");
+                const city = document.getElementById("editCity");
+                const role = document.getElementById("editRole");
+
+                if (!fName.value.trim()) { fName.classList.add('is-invalid'); errors.push('First Name is required.'); }
+                if (!lName.value.trim()) { lName.classList.add('is-invalid'); errors.push('Last Name is required.'); }
+                if (!university.value.trim()) { university.classList.add('is-invalid'); errors.push('University is required.'); }
+                if (!city.value) { city.classList.add('is-invalid'); errors.push('City selection is required.'); }
+                if (!role.value) { role.classList.add('is-invalid'); errors.push('Role selection is required.'); }
+
+                if (errors.length > 0) {
+                    errBox.innerHTML = errors.map(e => '<i class="fas fa-exclamation-circle me-1"></i>' + e).join('<br>');
+                    errBox.style.display = "block";
+                    return;
+                }
+
+                // Ensure tabId is included for session management
+                let tabInput = document.querySelector('#editInternForm input[name="tabId"]');
+                if (!tabInput) {
+                    tabInput = document.createElement('input');
+                    tabInput.type = 'hidden';
+                    tabInput.name = 'tabId';
+                    document.getElementById('editInternForm').appendChild(tabInput);
+                }
+                tabInput.value = window.name || sessionStorage.getItem('tabId') || '';
+
+                // Submit the form
+                document.getElementById('editInternForm').submit();
+            }
+
+            function openDeleteInternModal(internId, internFullName) {
+                // Map target properties to confirmation tracking tags
+                document.getElementById("deleteInternId").value = internId;
+                document.getElementById("deleteTargetName").innerText = internFullName;
+
+                // Set tabId for session management
+                document.getElementById("deleteTabId").value = window.name || sessionStorage.getItem('tabId') || '';
+
+                // Open confirmation frame modal context
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteInternModal'));
+                deleteModal.show();
+            }
+
             function openLogDetailsModal(subId, internId, identity, dateSub, desc, origFile, suppFile) {
                 document.getElementById("modalSubId").innerText = "#" + subId;
                 document.getElementById("modalInternId").innerText = "ID: #" + internId;
@@ -914,40 +1197,22 @@
 
             function updateLogStatusDatabase(submissionId, selectElement) {
                 const newStatus = selectElement.value;
-                
-                // Pre-validate input formats
-                const idRegex = /^\d{8}-[a-zA-Z]{2,4}-\d{4,}$/;
-                const statusWhitelist = ["Pending", "Approved", "Rejected"];
-                
-                if (!idRegex.test(submissionId)) {
-                    showAdminToast("Validation Error: Invalid submission ID format.", "danger");
-                    return;
-                }
-                if (!statusWhitelist.includes(newStatus)) {
-                    showAdminToast("Validation Error: Invalid status value.", "danger");
-                    return;
-                }
-
                 selectElement.className = "form-select form-select-sm status-select status-" + newStatus;
 
                 fetch("UpdateLogStatusServlet", {
                     method: "POST",
                     headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name) + "&csrfToken=" + encodeURIComponent(csrfToken)
+                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name)
                 })
                         .then(response => {
                             if (response.ok) {
                                 console.log("Database parameters operational flag synchronization completed.");
                                 refreshPendingCounters();
-                                showAdminToast("Status updated successfully to " + newStatus + ".", "success");
                             } else {
-                                showAdminToast("Failed to update status on the server.", "danger");
+                                alert("System failed to execute server parameter database save operations cycles.");
                             }
                         })
-                        .catch(err => {
-                            console.error("Pipeline Sync Connection Interrupted Exception: ", err);
-                            showAdminToast("Network connection error. Failed to sync status.", "danger");
-                        });
+                        .catch(err => console.error("Pipeline Sync Connection Interrupted Exception: ", err));
             }
 
             function refreshPendingCounters() {
@@ -965,7 +1230,8 @@
             }
 
             function sortLogTable(columnIndex, toggle = true) {
-                if (columnIndex === 4) return;
+                if (columnIndex === 4)
+                    return;
                 const tbody = document.getElementById("logReviewTableBody");
                 const rows = Array.from(document.querySelectorAll(".log-row"));
 
@@ -1132,10 +1398,12 @@
 
             function renderPaginationControls(totalPages, type) {
                 const container = document.getElementById(type === 'intern' ? "paginationButtons" : "logPaginationButtons");
-                if (!container) return;
+                if (!container)
+                    return;
 
                 container.innerHTML = "";
-                if (totalPages <= 1) return;
+                if (totalPages <= 1)
+                    return;
 
                 const curr = type === 'intern' ? internCurrentPage : logCurrentPage;
 
@@ -1189,7 +1457,6 @@
             }
 
             function switchView(viewId) {
-                sessionStorage.setItem('adminActiveView', viewId);
                 document.getElementById("internSearch").value = "";
 
                 document.getElementById('dashboard-view').style.display = 'none';
@@ -1226,7 +1493,8 @@
                     document.getElementById('audit-trail-view').style.display = 'block';
                     document.getElementById('nav-audit').classList.add('active');
                     document.getElementById('mainPageTitle').innerText = "System Audit Trail";
-                    if (!auditLoaded) loadAuditTrail();
+                    if (!auditLoaded)
+                        loadAuditTrail();
                 } else {
                     document.getElementById(viewId + '-view').style.display = 'block';
                     document.getElementById('nav-' + viewId.split('-')[0]).classList.add('active');
@@ -1277,7 +1545,8 @@
 
             function renderLogOfficeMenu(containerId, labelDefault, valueSet, icon) {
                 const container = document.getElementById(containerId);
-                if (!container) return;
+                if (!container)
+                    return;
                 container.innerHTML = "";
                 const allOpt = document.createElement("div");
                 allOpt.className = "filter-option reset-opt";
@@ -1454,33 +1723,6 @@
                 }
             }
 
-            function isValidCalendarDate(monthStr, dateStr, yearStr) {
-                const day = parseInt(dateStr, 10);
-                const year = parseInt(yearStr, 10);
-                if (isNaN(day) || isNaN(year)) return false;
-                if (year < 1900 || year > 2100) return false;
-                
-                let monthVal;
-                switch (monthStr.trim().toLowerCase()) {
-                    case "january": monthVal = 0; break;
-                    case "february": monthVal = 1; break;
-                    case "march": monthVal = 2; break;
-                    case "april": monthVal = 3; break;
-                    case "may": monthVal = 4; break;
-                    case "june": monthVal = 5; break;
-                    case "july": monthVal = 6; break;
-                    case "august": monthVal = 7; break;
-                    case "september": monthVal = 8; break;
-                    case "october": monthVal = 9; break;
-                    case "november": monthVal = 10; break;
-                    case "december": monthVal = 11; break;
-                    default: return false;
-                }
-                
-                const d = new Date(year, monthVal, day);
-                return d.getFullYear() === year && d.getMonth() === monthVal && d.getDate() === day;
-            }
-
             function validateAndProcessInternForm() {
                 const errBox = document.getElementById("modalFormError");
                 errBox.style.display = "none";
@@ -1502,86 +1744,71 @@
                 const roleField = document.getElementById("intRole");
                 const passField = document.getElementById("intPassword");
 
-                const nameRegex = /^[a-zA-Z\s.\-']{2,100}$/;
-                const uniRegex = /^[a-zA-Z0-9\s.\-()']{2,150}$/;
-                const phoneRegex = /^[+]?[0-9\s-]{10,15}$/;
-                const passRegex = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!\-_*()]).{8,100}$/;
-
-                const fName = fNameField.value.trim();
-                if (!fName) {
+                if (!fNameField.value.trim()) {
                     fNameField.classList.add('is-invalid');
                     errors.push("First Name is required.");
-                } else if (!nameRegex.test(fName)) {
-                    fNameField.classList.add('is-invalid');
-                    errors.push("First Name contains invalid characters or length (2-100).");
                 }
-
-                const mName = mNameField.value.trim();
-                if (mName && !nameRegex.test(mName)) {
+                if (!mNameField.value.trim()) {
                     mNameField.classList.add('is-invalid');
-                    errors.push("Middle Name contains invalid characters or length (2-100).");
+                    errors.push("Middle Name is required.");
                 }
-
-                const lName = lNameField.value.trim();
-                if (!lName) {
+                if (!lNameField.value.trim()) {
                     lNameField.classList.add('is-invalid');
                     errors.push("Last Name is required.");
-                } else if (!nameRegex.test(lName)) {
-                    lNameField.classList.add('is-invalid');
-                    errors.push("Last Name contains invalid characters or length (2-100).");
+                }
+                if (!bMonthField.value) {
+                    bMonthField.classList.add('is-invalid');
+                    errors.push("Birth Month is required.");
+                }
+                if (!bDateField.value) {
+                    bDateField.classList.add('is-invalid');
+                    errors.push("Birth Date is required.");
                 }
 
-                const bMonth = bMonthField.value;
-                const bDateStr = bDateField.value;
-                const bYearStr = bYearField.value.trim();
-
-                if (!bMonth) { bMonthField.classList.add('is-invalid'); errors.push("Birth Month is required."); }
-                if (!bDateStr) { bDateField.classList.add('is-invalid'); errors.push("Birth Date is required."); }
-                
-                const bYear = parseInt(bYearStr, 10);
-                if (isNaN(bYear) || bYearStr.length !== 4 || bYear < 1900 || bYear > 2026) {
+                const bYear = parseInt(bYearField.value);
+                if (isNaN(bYear) || bYearField.value.trim().length !== 4 || bYear < 1900 || bYear > 2026) {
                     bYearField.classList.add('is-invalid');
                     errors.push("Provide a valid 4-digit Birth Year (1900-2026).");
                 }
-
-                if (bMonth && bDateStr && !isNaN(bYear)) {
-                    if (!isValidCalendarDate(bMonth, bDateStr, bYearStr)) {
-                        bMonthField.classList.add('is-invalid');
-                        bDateField.classList.add('is-invalid');
-                        bYearField.classList.add('is-invalid');
-                        errors.push("Provide a logically valid calendar date (e.g., check leap years).");
-                    }
+                if (!cityField.value) {
+                    cityField.classList.add('is-invalid');
+                    errors.push("City Selection is required.");
                 }
-
-                if (!cityField.value) { cityField.classList.add('is-invalid'); errors.push("City Selection is required."); }
-
-                const uni = uniField.value.trim();
-                if (!uni) {
+                if (!uniField.value.trim()) {
                     uniField.classList.add('is-invalid');
                     errors.push("University Name is required.");
-                } else if (!uniRegex.test(uni)) {
-                    uniField.classList.add('is-invalid');
-                    errors.push("University Name contains invalid characters or length.");
+                }
+                if (!roleField.value) {
+                    roleField.classList.add('is-invalid');
+                    errors.push("Technical Intern Role is required.");
                 }
 
-                if (!roleField.value) { roleField.classList.add('is-invalid'); errors.push("Technical Intern Role is required."); }
-
+                const digitsRegex = /^[0-9]+$/;
                 const phoneNum = phoneField.value.trim();
                 if (!phoneNum) {
                     phoneField.classList.add('is-invalid');
                     errors.push("Contact Number is required.");
-                } else if (!phoneRegex.test(phoneNum)) {
+                } else if (!digitsRegex.test(phoneNum)) {
                     phoneField.classList.add('is-invalid');
-                    errors.push("Contact Number must be a valid phone number (10-15 digits, optionally starting with +).");
+                    errors.push("Contact Number must contain numbers only.");
+                } else if (phoneNum.length !== 10 || !phoneNum.startsWith("9")) {
+                    phoneField.classList.add('is-invalid');
+                    errors.push("PH Mobile Number must be exactly 10 digits starting with 9.");
                 }
 
                 const pass = passField.value;
                 if (!pass) {
                     passField.classList.add('is-invalid');
                     errors.push("Access Security Password is required.");
-                } else if (!passRegex.test(pass)) {
-                    passField.classList.add('is-invalid');
-                    errors.push("Password must be 8-100 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+                } else {
+                    if (pass.length < 8 || pass.length > 30) {
+                        passField.classList.add('is-invalid');
+                        errors.push("Password must be between 8 and 30 characters.");
+                    }
+                    if (!/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass)) {
+                        passField.classList.add('is-invalid');
+                        errors.push("Password criteria verification failed.");
+                    }
                 }
 
                 if (errors.length > 0) {
@@ -1591,19 +1818,7 @@
                 }
 
                 addInternModalObj.hide();
-                
-                const addForm = document.getElementById("addInternForm");
-                const currentTabId = window.name || sessionStorage.getItem("tabId") || "";
-                let tabInput = addForm.querySelector('input[name="tabId"]');
-                if (!tabInput) {
-                    tabInput = document.createElement("input");
-                    tabInput.type = "hidden";
-                    tabInput.name = "tabId";
-                    addForm.appendChild(tabInput);
-                }
-                tabInput.value = currentTabId;
-                
-                addForm.submit();
+                document.getElementById("addInternForm").submit();
             }
 
             function updateNoDataMessage(visibleCount) {
@@ -1636,9 +1851,12 @@
 
             function customChangePageSize(value, type) {
                 let labelId;
-                if (type === 'intern') labelId = 'internSizeLabel';
-                else if (type === 'audit') labelId = 'auditSizeLabel';
-                else labelId = 'logSizeLabel';
+                if (type === 'intern')
+                    labelId = 'internSizeLabel';
+                else if (type === 'audit')
+                    labelId = 'auditSizeLabel';
+                else
+                    labelId = 'logSizeLabel';
                 document.querySelector("#" + labelId + " span").innerText = value;
                 changePageSize(value, type);
             }
@@ -1652,58 +1870,14 @@
             }
 
             function downloadOjtReport() {
-                const fromInput = document.getElementById('ojtFromDate');
-                const toInput = document.getElementById('ojtToDate');
-                const fromFeedback = document.getElementById('ojtFromDateFeedback');
-                const toFeedback = document.getElementById('ojtToDateFeedback');
-
-                // Clear previous validation states
-                fromInput.classList.remove('is-invalid');
-                toInput.classList.remove('is-invalid');
-                if (fromFeedback) fromFeedback.style.display = 'none';
-                if (toFeedback) toFeedback.style.display = 'none';
-
-                const from = fromInput.value;
-                const to = toInput.value;
-
-                let isValid = true;
-
-                if (from || to) {
-                    if (!from) {
-                        fromInput.classList.add('is-invalid');
-                        if (fromFeedback) {
-                            fromFeedback.textContent = 'From date is required when To date is specified.';
-                            fromFeedback.style.display = 'block';
-                        }
-                        isValid = false;
-                    }
-                    if (!to) {
-                        toInput.classList.add('is-invalid');
-                        if (toFeedback) {
-                            toFeedback.textContent = 'To date is required when From date is specified.';
-                            toFeedback.style.display = 'block';
-                        }
-                        isValid = false;
-                    }
-
-                    if (from && to && from > to) {
-                        fromInput.classList.add('is-invalid');
-                        toInput.classList.add('is-invalid');
-                        if (fromFeedback) {
-                            fromFeedback.textContent = '"From" date must be before or equal to the "To" date.';
-                            fromFeedback.style.display = 'block';
-                        }
-                        isValid = false;
-                    }
-                }
-
-                if (!isValid) {
-                    showAdminToast("Date Range Error: Please correct the highlighted errors.", "danger");
-                    return;
-                }
-
+                const from = document.getElementById('ojtFromDate').value;
+                const to = document.getElementById('ojtToDate').value;
                 let url = 'ReportServlet?type=OJTLOGS&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
                 if (from && to) {
+                    if (from > to) {
+                        alert('"From" date must be before or equal to the "To" date.');
+                        return;
+                    }
                     url += '&from=' + from + '&to=' + to;
                 }
                 window.location.href = url;
@@ -1722,20 +1896,21 @@
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading audit data from PostgreSQL...</td></tr>';
 
                 fetch('AuditServlet?tabId=' + encodeURIComponent(window.name))
-                    .then(response => {
-                        if (!response.ok) throw new Error('Server returned ' + response.status);
-                        return response.json();
-                    })
-                    .then(data => {
-                        auditData = data;
-                        auditLoaded = true;
-                        auditCurrentPage = 1;
-                        renderAuditTable();
-                    })
-                    .catch(err => {
-                        console.error('Audit trail fetch error:', err);
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load audit data. Check PostgreSQL connection.</td></tr>';
-                    });
+                        .then(response => {
+                            if (!response.ok)
+                                throw new Error('Server returned ' + response.status);
+                            return response.json();
+                        })
+                        .then(data => {
+                            auditData = data;
+                            auditLoaded = true;
+                            auditCurrentPage = 1;
+                            renderAuditTable();
+                        })
+                        .catch(err => {
+                            console.error('Audit trail fetch error:', err);
+                            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load audit data. Check PostgreSQL connection.</td></tr>';
+                        });
             }
 
             function renderAuditTable() {
@@ -1752,7 +1927,8 @@
 
                 const totalEntries = auditData.length;
                 const totalPages = Math.ceil(totalEntries / auditPageSize) || 1;
-                if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+                if (auditCurrentPage > totalPages)
+                    auditCurrentPage = totalPages;
 
                 const startIdx = (auditCurrentPage - 1) * auditPageSize;
                 const endIdx = Math.min(startIdx + auditPageSize, totalEntries);
@@ -1764,17 +1940,19 @@
 
                     // Action badge color
                     let actionBadge = '';
-                    const escapedAction = escapeHtml(log.action);
-                    if (log.action === 'LOGIN') actionBadge = '<span class="badge bg-success">' + escapedAction + '</span>';
-                    else if (log.action === 'LOGOUT') actionBadge = '<span class="badge bg-secondary">' + escapedAction + '</span>';
-                    else actionBadge = '<span class="badge bg-primary">' + escapedAction + '</span>';
+                    if (log.action === 'LOGIN')
+                        actionBadge = '<span class="badge bg-success">' + log.action + '</span>';
+                    else if (log.action === 'LOGOUT')
+                        actionBadge = '<span class="badge bg-secondary">' + log.action + '</span>';
+                    else
+                        actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
 
-                    tr.innerHTML = '<td>' + escapeHtml(log.created_at) + '</td>' +
-                        '<td><span style="font-family: monospace; font-size: 12px;">' + escapeHtml(log.user_id) + '</span></td>' +
-                        '<td>' + escapeHtml(log.username) + '</td>' +
-                        '<td>' + actionBadge + '</td>' +
-                        '<td><small class="text-muted">' + escapeHtml(log.details) + '</small></td>' +
-                        '<td><small>' + escapeHtml(log.ip_address) + '</small></td>';
+                    tr.innerHTML = '<td>' + log.created_at + '</td>' +
+                            '<td><span style="font-family: monospace; font-size: 12px;">' + log.user_id + '</span></td>' +
+                            '<td>' + log.username + '</td>' +
+                            '<td>' + actionBadge + '</td>' +
+                            '<td><small class="text-muted">' + log.details + '</small></td>' +
+                            '<td><small>' + log.ip_address + '</small></td>';
                     tbody.appendChild(tr);
                 }
 
@@ -1787,7 +1965,8 @@
             function renderAuditPagination(totalPages) {
                 const container = document.getElementById('auditPaginationButtons');
                 container.innerHTML = '';
-                if (totalPages <= 1) return;
+                if (totalPages <= 1)
+                    return;
 
                 const prevLi = document.createElement('li');
                 prevLi.className = 'page-item ' + (auditCurrentPage === 1 ? 'disabled' : '');
@@ -1813,8 +1992,10 @@
             }
 
             function sortAuditTable(columnIndex) {
-                if (auditSortColumn === columnIndex) auditSortAsc = !auditSortAsc;
-                else auditSortAsc = true;
+                if (auditSortColumn === columnIndex)
+                    auditSortAsc = !auditSortAsc;
+                else
+                    auditSortAsc = true;
                 auditSortColumn = columnIndex;
 
                 const keys = ['created_at', 'user_id', 'username', 'action'];

@@ -458,6 +458,106 @@ public class UserDAO {
         return prefix + "0001";
     }
 
+    /**
+     * UPDATE INTERN: Modifies an existing intern record (DBMS 1 - Apache Derby).
+     * If password is blank/null, keeps the existing password unchanged.
+     */
+    public static boolean updateIntern(User internUser, String birthMonth, int birthDate, int birthYear,
+            int age, String contactNum, boolean changePassword, ServletContext context) {
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            if (conn == null) return false;
+
+            String sql;
+            if (changePassword) {
+                sql = "UPDATE APP.INTERN SET FIRST_NAME=?, MIDDLE_NAME=?, LAST_NAME=?, BIRTH_MONTH=?, " +
+                      "BIRTH_DATE=?, BIRTH_YEAR=?, AGE=?, CITY=?, CONTACT_NUM=?, UNIVERSITY=?, " +
+                      "ROLE=?, ROLE_CODE=?, OFFICE=?, EMAIL=?, PASSWORD=? WHERE INTERN_ID=?";
+            } else {
+                sql = "UPDATE APP.INTERN SET FIRST_NAME=?, MIDDLE_NAME=?, LAST_NAME=?, BIRTH_MONTH=?, " +
+                      "BIRTH_DATE=?, BIRTH_YEAR=?, AGE=?, CITY=?, CONTACT_NUM=?, UNIVERSITY=?, " +
+                      "ROLE=?, ROLE_CODE=?, OFFICE=?, EMAIL=? WHERE INTERN_ID=?";
+            }
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, internUser.getFirstName());
+                ps.setString(2, internUser.getMiddleName());
+                ps.setString(3, internUser.getLastName());
+                ps.setString(4, birthMonth);
+                ps.setInt(5, birthDate);
+                ps.setInt(6, birthYear);
+                ps.setInt(7, age);
+                ps.setString(8, internUser.getCity());
+                ps.setString(9, contactNum);
+                ps.setString(10, internUser.getUniversity());
+                ps.setString(11, internUser.getRole());
+                ps.setString(12, internUser.getRoleCode());
+                ps.setString(13, internUser.getOffice());
+                ps.setString(14, internUser.getEmail());
+                if (changePassword) {
+                    ps.setString(15, internUser.getPassword());
+                    ps.setString(16, internUser.getId());
+                } else {
+                    ps.setString(15, internUser.getId());
+                }
+                return ps.executeUpdate() > 0;
+            }
+        } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update Intern profile: " + internUser.getId(), e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * DELETE INTERN: Removes an intern record from Apache Derby.
+     */
+    public static boolean deleteIntern(String internId, ServletContext context) {
+        String sql = "DELETE FROM APP.INTERN WHERE INTERN_ID = ?";
+        try (Connection conn = DBConnection.getDerbyConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, internId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to delete Intern profile: " + internId, e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * UPDATE SUBMISSION: Modifies description and date of an activity log (DBMS 2 - MySQL).
+     */
+    public static boolean updateSubmission(String submissionId, String description, String dateSubmitted, ServletContext context) {
+        String sql = "UPDATE ACTIVITY_SUBMISSIONS SET DESCRIPTION=?, DATE_SUBMITTED=? WHERE SUBMISSION_ID=?";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, description);
+            ps.setDate(2, java.sql.Date.valueOf(dateSubmitted));
+            ps.setString(3, submissionId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update submission: " + submissionId, e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * DELETE SUBMISSION: Removes an activity log entry from MySQL.
+     */
+    public static boolean deleteSubmission(String submissionId, ServletContext context) {
+        String sql = "DELETE FROM ACTIVITY_SUBMISSIONS WHERE SUBMISSION_ID = ?";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, submissionId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to delete submission: " + submissionId, e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public static boolean addActivitySubmission(ActivitySubmission sub, ServletContext context) {
         String sql = "INSERT INTO ACTIVITY_SUBMISSIONS (SUBMISSION_ID, USER_ID, DATE_SUBMITTED, DESCRIPTION, SUPPORTING_FILE, ORIGINAL_FILE_NAME, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
