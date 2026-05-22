@@ -17,6 +17,7 @@ public class UserDAO {
      * the password via CryptoUtil.verifyPassword(). Returns null if no matching email found.
      */
     public static User findUserByEmail(String email, ServletContext context) {
+        checkDerbySchema(context);
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return null;
 
@@ -100,6 +101,7 @@ public class UserDAO {
                     sub.setUserId(userId);
                     sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
                     sub.setDescription(rs.getString("DESCRIPTION"));
+                    sub.setLearningReflection(rs.getString("LEARNING_REFLECTION"));
                     sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
                     sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
                     sub.setStatus(rs.getString("STATUS"));
@@ -200,6 +202,7 @@ public class UserDAO {
      * GET INTERN BY ID: Fetches a single intern by their ID (DBMS 1 - Apache Derby).
      */
     public static User getInternById(String internId, ServletContext context) {
+        checkDerbySchema(context);
         String mappedId = mapToDerbyInternId(internId);
         String sql = "SELECT * FROM INTERN WHERE INTERN_ID = ?";
         try (Connection conn = DBConnection.getDerbyConnection(context);
@@ -258,6 +261,7 @@ public class UserDAO {
                         sub.setUserId(userId);
                         sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
                         sub.setDescription(rs.getString("DESCRIPTION"));
+                        sub.setLearningReflection(rs.getString("LEARNING_REFLECTION"));
                         sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
                         sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
                         sub.setStatus(rs.getString("STATUS"));
@@ -301,6 +305,11 @@ public class UserDAO {
             u.setOffice(rs.getString("OFFICE"));
             u.setRoleCode(rs.getString("ROLE_CODE"));
             u.setCity(rs.getString("CITY"));
+            try {
+                u.setResetHours(rs.getBoolean("RESET_HOURS"));
+            } catch (SQLException ex) {
+                // Fallback for schema compatibility
+            }
             
             if (!"Admin".equalsIgnoreCase(role)) {
                 u.setLogStatus(getIndividualStatus(id, context));
@@ -527,13 +536,14 @@ public class UserDAO {
     /**
      * UPDATE SUBMISSION: Modifies description and date of an activity log (DBMS 2 - MySQL).
      */
-    public static boolean updateSubmission(String submissionId, String description, String dateSubmitted, ServletContext context) {
-        String sql = "UPDATE ACTIVITY_SUBMISSIONS SET DESCRIPTION=?, DATE_SUBMITTED=? WHERE SUBMISSION_ID=?";
+    public static boolean updateSubmission(String submissionId, String description, String learningReflection, String dateSubmitted, ServletContext context) {
+        String sql = "UPDATE ACTIVITY_SUBMISSIONS SET DESCRIPTION=?, LEARNING_REFLECTION=?, DATE_SUBMITTED=? WHERE SUBMISSION_ID=?";
         try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, description);
-            ps.setDate(2, java.sql.Date.valueOf(dateSubmitted));
-            ps.setString(3, submissionId);
+            ps.setString(2, learningReflection);
+            ps.setDate(3, java.sql.Date.valueOf(dateSubmitted));
+            ps.setString(4, submissionId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update submission: " + submissionId, e, null, context);
@@ -559,7 +569,7 @@ public class UserDAO {
     }
 
     public static boolean addActivitySubmission(ActivitySubmission sub, ServletContext context) {
-        String sql = "INSERT INTO ACTIVITY_SUBMISSIONS (SUBMISSION_ID, USER_ID, DATE_SUBMITTED, DESCRIPTION, SUPPORTING_FILE, ORIGINAL_FILE_NAME, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO ACTIVITY_SUBMISSIONS (SUBMISSION_ID, USER_ID, DATE_SUBMITTED, DESCRIPTION, LEARNING_REFLECTION, SUPPORTING_FILE, ORIGINAL_FILE_NAME, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
             if (conn == null) {
                 System.err.println("CRITICAL: MySQL connection failed inside addActivitySubmission!");
@@ -579,16 +589,77 @@ public class UserDAO {
                 ps.setString(2, sub.getUserId());
                 ps.setDate(3, sub.getDateSubmitted());
                 ps.setString(4, sub.getDescription());
-                ps.setString(5, sub.getSupportingFile());
-                ps.setString(6, sub.getOriginalFileName());
-                ps.setString(7, sub.getStatus());
+                ps.setString(5, sub.getLearningReflection());
+                ps.setString(6, sub.getSupportingFile());
+                ps.setString(7, sub.getOriginalFileName());
+                ps.setString(8, sub.getStatus());
                 return ps.executeUpdate() > 0;
             }
         } catch (Exception e) {
-            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert activity submission for User ID: " + sub.getUserId(), e, null, context);
             System.err.println("Error adding activity submission: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
+    }
+
+    public static void checkDerbySchema(ServletContext context) {
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            if (conn == null) return;
+            DatabaseMetaData meta = conn.getMetaData();
+            boolean columnExists = false;
+            try (ResultSet rs = meta.getColumns(null, "APP", "INTERN", "RESET_HOURS")) {
+                if (rs.next()) {
+                    columnExists = true;
+                }
+            }
+            if (!columnExists) {
+                try (ResultSet rs = meta.getColumns(null, null, "INTERN", "RESET_HOURS")) {
+                    if (rs.next()) {
+                        columnExists = true;
+                    }
+                }
+            }
+            if (!columnExists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE INTERN ADD RESET_HOURS BOOLEAN DEFAULT FALSE");
+                    System.out.println("SUCCESS: Table 'INTERN' altered. Column 'RESET_HOURS' added.");
+                } catch (SQLException e) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE APP.INTERN ADD RESET_HOURS BOOLEAN DEFAULT FALSE");
+                        System.out.println("SUCCESS: Table 'APP.INTERN' altered. Column 'RESET_HOURS' added.");
+                    } catch (SQLException ex) {
+                        System.err.println("Failed to alter INTERN table: " + ex.getMessage());
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking Derby schema: " + e.getMessage());
+        }
+    }
+
+    public static boolean setResetHoursFlag(String internId, boolean flag, ServletContext context) {
+        checkDerbySchema(context);
+        String mappedId = mapToDerbyInternId(internId);
+        String sql = "UPDATE INTERN SET RESET_HOURS = ? WHERE INTERN_ID = ?";
+        try (Connection conn = DBConnection.getDerbyConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBoolean(1, flag);
+            ps.setString(2, mappedId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            try {
+                String sqlApp = "UPDATE APP.INTERN SET RESET_HOURS = ? WHERE INTERN_ID = ?";
+                try (Connection conn = DBConnection.getDerbyConnection(context);
+                     PreparedStatement ps = conn.prepareStatement(sqlApp)) {
+                    ps.setBoolean(1, flag);
+                    ps.setString(2, mappedId);
+                    return ps.executeUpdate() > 0;
+                }
+            } catch (Exception ex) {
+                util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update RESET_HOURS flag for intern: " + internId, ex, null, context);
+                ex.printStackTrace();
+            }
+        }
+        return false;
     }
 }

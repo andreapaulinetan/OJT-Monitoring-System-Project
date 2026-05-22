@@ -152,7 +152,10 @@
         <%
             // Resolve session context details
             String sessId = session.getId();
-            String logPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Logs";
+            String logPath = application.getRealPath("/logs");
+            if (logPath == null) {
+                logPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Logs";
+            }
             File logDirFile = new File(logPath);
             File sessionLogFile = new File(logDirFile, "session_" + sessId + "_errors.log");
 

@@ -89,7 +89,7 @@ public class PdfReportHelper {
         table.setSpacingBefore(15f);
 
         // Header row
-        addTableHeader(table, new String[]{"#", "Full Name", "Email", "Role"});
+        addTableHeader(table, new String[]{"#", "Full Name", "Email", "Role"}, new int[]{Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_LEFT});
 
         // Data rows
         int rowNum = 1;
@@ -169,7 +169,7 @@ public class PdfReportHelper {
             table.setWidthPercentage(100);
             table.setSpacingBefore(10f);
 
-            addTableHeader(table, new String[]{"#", "Action", "IP Address", "Details", "Date", "Time"});
+            addTableHeader(table, new String[]{"#", "Action", "IP Address", "Details", "Date", "Time"}, new int[]{Element.ALIGN_CENTER, Element.ALIGN_CENTER, Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_CENTER, Element.ALIGN_CENTER});
 
             int rowNum = 1;
             SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy-MM-dd");
@@ -239,7 +239,7 @@ public class PdfReportHelper {
             table.setWidthPercentage(100);
             table.setSpacingBefore(10f);
 
-            addTableHeader(table, new String[]{"#", "Submission ID", "Date", "Intern Name", "Description", "Office", "Status"});
+            addTableHeader(table, new String[]{"#", "Submission ID", "Date", "Intern Name", "Description", "Office", "Status"}, new int[]{Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_CENTER});
 
             int rowNum = 1;
             for (ActivitySubmission s : submissions) {
@@ -303,7 +303,7 @@ public class PdfReportHelper {
             table.setWidthPercentage(100);
             table.setSpacingBefore(10f);
 
-            addTableHeader(table, new String[]{"#", "User ID", "Username", "Action", "Details", "IP Address", "Timestamp"});
+            addTableHeader(table, new String[]{"#", "User ID", "Username", "Action", "Details", "IP Address", "Timestamp"}, new int[]{Element.ALIGN_CENTER, Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_CENTER, Element.ALIGN_CENTER});
 
             int rowNum = 1;
             SimpleDateFormat fullFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -313,7 +313,7 @@ public class PdfReportHelper {
                 Timestamp ts = (Timestamp) log.get("created_at");
 
                 addCell(table, String.valueOf(rowNum), TD_FONT, rowBg, Element.ALIGN_CENTER);
-                addCell(table, safeStr(log.get("user_id")), TD_FONT, rowBg, Element.ALIGN_LEFT);
+                addCell(table, safeStr(log.get("user_id")), TD_FONT, rowBg, Element.ALIGN_CENTER);
                 addCell(table, safeStr(log.get("username")), TD_FONT, rowBg, Element.ALIGN_LEFT);
                 addCell(table, safeStr(log.get("action")), TD_BOLD_FONT, rowBg, Element.ALIGN_CENTER);
                 addCell(table, safeStr(log.get("details")), TD_FONT, rowBg, Element.ALIGN_LEFT);
@@ -438,11 +438,11 @@ public class PdfReportHelper {
             empty.setSpacingBefore(20f);
             doc.add(empty);
         } else {
-            PdfPTable table = new PdfPTable(new float[]{5f, 15f, 15f, 35f, 18f, 12f});
+            PdfPTable table = new PdfPTable(new float[]{4f, 11f, 12f, 25f, 25f, 13f, 10f});
             table.setWidthPercentage(100);
             table.setSpacingBefore(5f);
 
-            addTableHeader(table, new String[]{"#", "Submission Date", "Submission ID", "Task Description", "Attached File", "Status"});
+            addTableHeader(table, new String[]{"#", "Submission Date", "Submission ID", "Task / Activity Completed", "What I Learned Today", "Attached File", "Status"}, new int[]{Element.ALIGN_CENTER, Element.ALIGN_CENTER, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_LEFT, Element.ALIGN_CENTER});
 
             int rowNum = 1;
             for (ActivitySubmission s : submissions) {
@@ -452,6 +452,7 @@ public class PdfReportHelper {
                 addCell(table, s.getDateSubmitted() != null ? s.getDateSubmitted().toString() : "N/A", TD_FONT, rowBg, Element.ALIGN_CENTER);
                 addCell(table, safeStr(s.getSubmissionId()), TD_FONT, rowBg, Element.ALIGN_LEFT);
                 addCell(table, safeStr(s.getDescription()), TD_FONT, rowBg, Element.ALIGN_LEFT);
+                addCell(table, safeStr(s.getLearningReflection()), TD_FONT, rowBg, Element.ALIGN_LEFT);
                 addCell(table, safeStr(s.getOriginalFileName()), TD_FONT, rowBg, Element.ALIGN_LEFT);
                 addCell(table, safeStr(s.getStatus()), TD_BOLD_FONT, rowBg, Element.ALIGN_CENTER);
                 rowNum++;
@@ -523,19 +524,21 @@ public class PdfReportHelper {
         doc.add(new Chunk(line));
     }
 
-    /**
-     * Adds a styled header row to the table.
-     */
-    private static void addTableHeader(PdfPTable table, String[] headers) {
-        for (String header : headers) {
-            PdfPCell cell = new PdfPCell(new Phrase(header, TH_FONT));
+    private static void addTableHeader(PdfPTable table, String[] headers, int[] alignments) {
+        for (int i = 0; i < headers.length; i++) {
+            PdfPCell cell = new PdfPCell(new Phrase(headers[i], TH_FONT));
             cell.setBackgroundColor(HEADER_BG);
             cell.setPadding(8f);
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            int alignment = (alignments != null && i < alignments.length) ? alignments[i] : Element.ALIGN_CENTER;
+            cell.setHorizontalAlignment(alignment);
             cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             cell.setBorder(Rectangle.NO_BORDER);
             table.addCell(cell);
         }
+    }
+
+    private static void addTableHeader(PdfPTable table, String[] headers) {
+        addTableHeader(table, headers, null);
     }
 
     /**

@@ -210,9 +210,12 @@
                                         <td class="col-office"><%= u.getOffice()%></td>
                                         <td class="col-actions">
                                             <div class="d-flex gap-1 flex-nowrap">
-                                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
+                                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>&tabId=<%= tabId %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
                                                     <i class="fas fa-download"></i>
                                                 </a>
+                                                <button class="btn btn-sm btn-outline-warning" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="confirmResetHours('<%= u.getId()%>', '<%= u.getFirstName()%> <%= u.getLastName()%>')" title="Reset Simulated Hours">
+                                                    <i class="fas fa-history"></i>
+                                                </button>
                                                 <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openEditInternModal(this.closest('.intern-row'))" title="Edit Intern">
                                                     <i class="fas fa-pen"></i>
                                                 </button>
@@ -305,12 +308,13 @@
                                                 String internName = s.getInternName();
                                                 String dateSub = s.getDateSubmitted().toString();
                                                 String desc = s.getDescription() != null ? s.getDescription().replace("'", "\\'") : "";
+                                                String learnRef = s.getLearningReflection() != null ? s.getLearningReflection().replace("'", "\\'") : "";
                                                 String origFile = s.getOriginalFileName();
                                                 String suppFile = s.getSupportingFile();
                                                 String office = s.getAssignedOffice();
                                                 String status = (s.getStatus() != null) ? s.getStatus() : "Pending";
                                     %>
-                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= origFile%>', '<%= suppFile%>')">
+                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= learnRef%>', '<%= origFile%>', '<%= suppFile%>')">
                                         <td><%= dateSub%></td>
                                         <td><span class="sub-id-badge"><%= subId%></span></td>
                                         <td><%= internId%></td>
@@ -517,8 +521,12 @@
                             </div>
                         </div>
                         <div class="mb-3 p-3 bg-light rounded border">
-                            <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Task Description</small>
+                            <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Task / Activity Completed</small>
                             <p id="modalDescription" class="mb-0 text-dark small style-prose" style="line-height:1.5;"></p>
+                        </div>
+                        <div class="mb-3 p-3 bg-light rounded border" style="border-left: 4px solid #d63384 !important;">
+                            <small class="text-brand-pink d-block fw-bold mb-1" style="font-size:11px; color: #d63384;">What I Learned Today</small>
+                            <p id="modalLearningReflection" class="mb-0 text-dark small style-prose" style="line-height:1.5; font-style: italic;"></p>
                         </div>
                         <div>
                             <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Attached Cryptographic Files</small>
@@ -906,6 +914,41 @@
             </div>
         </div>
 
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- RESET HOURS MODAL - safety confirmation dialog         -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="modal fade" id="resetHoursModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden;">
+                    <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <div class="w-100 text-center pt-3">
+                            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);">
+                                <i class="fas fa-history fa-lg text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-body text-center px-4 pt-3 pb-1" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <h5 class="fw-bold text-dark mb-2">Reset Simulated Hours</h5>
+                        <p class="text-dark mb-3" style="font-size: 15px; line-height: 1.6;">
+                            Are you sure you want to reset simulated hours for<br>
+                            <strong id="resetTargetName" class="fs-5" style="color: #d97706;"></strong> to 0.0?
+                        </p>
+                        <div class="p-2 rounded mb-3" style="background: rgba(255,255,255,0.6); border: 1px solid rgba(217,119,6,0.15);">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>This sets their simulated rendered hours back to 0 on their next load/dashboard check. Form submissions are preserved.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center gap-2 pb-4" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+                        <form id="resetHoursForm" action="ResetHoursServlet" method="POST" style="display: inline;">
+                            <input type="hidden" id="resetInternId" name="internId">
+                            <input type="hidden" name="tabId" id="resetTabId">
+                            <button type="button" class="btn btn-sm px-4 py-2" style="border-radius: 8px; background: white; border: 1px solid #d1d5db; color: #374151; font-weight: 600;" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm px-4 py-2 text-white" style="border-radius: 8px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; font-weight: 600; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);"><i class="fas fa-check me-1"></i>Yes, Reset</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
             let activeFilters = {university: "", role: "", office: "", city: ""};
             let internSortColumn = 0, internSortAsc = false;
@@ -960,17 +1003,21 @@
                     switchView(targetView);
                 }
 
-                // Handle edit/delete success/error toast notifications
+                // Handle edit/delete/reset success/error toast notifications
                 const status = urlParams.get('status');
                 if (status === 'updated') {
                     showAdminToast('Intern profile has been updated successfully!', 'success');
                 } else if (status === 'deleted') {
                     showAdminToast('Intern record has been permanently deleted.', 'success');
+                } else if (status === 'hours_reset') {
+                    showAdminToast('Intern simulated hours have been successfully queued for reset!', 'success');
                 }
                 if (err === 'update_failed') {
                     showAdminToast('Failed to update intern profile. Please try again.', 'danger');
                 } else if (err === 'delete_failed') {
                     showAdminToast('Failed to delete intern record. Please try again.', 'danger');
+                } else if (err === 'hours_reset_failed') {
+                    showAdminToast('Failed to queue simulated hours reset. Please try again.', 'danger');
                 }
             });
 
@@ -1182,12 +1229,26 @@
                 deleteModal.show();
             }
 
-            function openLogDetailsModal(subId, internId, identity, dateSub, desc, origFile, suppFile) {
+            function confirmResetHours(internId, internFullName) {
+                // Map target properties to confirmation tracking tags
+                document.getElementById("resetInternId").value = internId;
+                document.getElementById("resetTargetName").innerText = internFullName;
+
+                // Set tabId for session management
+                document.getElementById("resetTabId").value = window.name || sessionStorage.getItem('tabId') || '';
+
+                // Open confirmation frame modal context
+                const resetModal = new bootstrap.Modal(document.getElementById('resetHoursModal'));
+                resetModal.show();
+            }
+
+            function openLogDetailsModal(subId, internId, identity, dateSub, desc, learnRef, origFile, suppFile) {
                 document.getElementById("modalSubId").innerText = "#" + subId;
                 document.getElementById("modalInternId").innerText = "ID: #" + internId;
                 document.getElementById("modalInternIdentity").innerText = identity;
                 document.getElementById("modalDateSubmitted").innerText = dateSub;
                 document.getElementById("modalDescription").innerText = desc;
+                document.getElementById("modalLearningReflection").innerText = learnRef || "No learning reflection provided.";
                 document.getElementById("modalOriginalFile").innerText = origFile;
                 document.getElementById("modalSupportingFile").innerText = "Storage path reference: " + suppFile;
 
@@ -1868,25 +1929,25 @@
             // ══════════════════════════════════════════════════════════
 
             function downloadReport(type) {
-                window.location.href = 'ReportServlet?type=' + type + '&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
+                window.location.href = 'ReportServlet?type=' + type + '&tabId=<%= tabId %>';
             }
 
             function downloadOjtReport() {
                 const from = document.getElementById('ojtFromDate').value;
                 const to = document.getElementById('ojtToDate').value;
-                let url = 'ReportServlet?type=OJTLOGS&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
-                if (from && to) {
-                    if (from > to) {
+                let url = 'ReportServlet?type=OJTLOGS&tabId=<%= tabId %>';
+                if (from || to) {
+                    if (from && to && from > to) {
                         alert('"From" date must be before or equal to the "To" date.');
                         return;
                     }
-                    url += '&from=' + from + '&to=' + to;
+                    url += '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
                 }
                 window.location.href = url;
             }
 
             function refreshLogReview() {
-                window.location.href = 'admin.jsp?tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "") + '&view=log-review';
+                window.location.href = 'admin.jsp?tabId=<%= tabId %>&view=log-review';
             }
 
             // ══════════════════════════════════════════════════════════

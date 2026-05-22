@@ -132,7 +132,7 @@ public class UpdateInternServlet extends HttpServlet {
             
             // 6. Direct server context execution routing response logic back to interface views
             if (isUpdated) {
-                response.sendRedirect("admin.jsp?view=intern-management&status=updated");
+                response.sendRedirect("admin.jsp?view=intern-management&status=updated&tabId=" + (tabId != null ? tabId : ""));
             } else {
                 util.ErrorLogger.logError(
                     "DATABASE TRANSACTION ERROR", 
@@ -141,7 +141,7 @@ public class UpdateInternServlet extends HttpServlet {
                     request.getSession(false), 
                     getServletContext()
                 );
-                response.sendRedirect("admin.jsp?view=intern-management&err=update_failed");
+                response.sendRedirect("admin.jsp?view=intern-management&err=update_failed&tabId=" + (tabId != null ? tabId : ""));
             }
             
         } catch (Exception e) {
@@ -153,7 +153,7 @@ public class UpdateInternServlet extends HttpServlet {
                 getServletContext()
             );
             e.printStackTrace();
-            response.sendRedirect("admin.jsp?view=intern-management&err=update_failed");
+            response.sendRedirect("admin.jsp?view=intern-management&err=update_failed&tabId=" + (tabId != null ? tabId : ""));
         }
     }
 }

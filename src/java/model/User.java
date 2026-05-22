@@ -25,6 +25,7 @@ public class User implements Serializable {
     private String university;
     private String office;
     private String logStatus;
+    private boolean resetHours;
 
     // Default Constructor
     public User() {
@@ -153,5 +154,13 @@ public class User implements Serializable {
         }
         
         return fullName.toString().trim();
+    }
+
+    public boolean isResetHours() {
+        return resetHours;
+    }
+
+    public void setResetHours(boolean resetHours) {
+        this.resetHours = resetHours;
     }
 }

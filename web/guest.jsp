@@ -16,6 +16,16 @@
         return;
     }
     
+    // Check if the administrator triggered a reset for this intern's simulated hours
+    boolean forceResetHours = false;
+    if (loggedInUser != null) {
+        model.User dbUser = model.UserDAO.getInternById(loggedInUser.getId(), getServletContext());
+        if (dbUser != null && dbUser.isResetHours()) {
+            forceResetHours = true;
+            model.UserDAO.setResetHoursFlag(loggedInUser.getId(), false, getServletContext());
+        }
+    }
+    
     String fullName = loggedInUser.getFirstName() + " " + loggedInUser.getLastName();
 
     // Build initials from name (e.g. "Juan Cruz" -> "JC")
@@ -209,7 +219,7 @@
                                         <p class="download-record-desc-small">PDF report, hours & logs.</p>
                                     </div>
                                 </div>
-                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD" class="download-record-btn-small" title="Download Report">
+                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&tabId=<%= tabId %>" class="download-record-btn-small" title="Download Report">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                             </div>
@@ -217,7 +227,7 @@
 
                         <div class="dashboard-pane" id="manualTaskLogPane">
                             <h3 class="pane-title">Simulate Task Entry Log</h3>
-                            <form id="sandboxLogForm" action="SubmitTaskServlet" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
+                             <form id="sandboxLogForm" action="SubmitTaskServlet?tabId=<%= tabId %>" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
                                 <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold small">Hours Spent on Task</label>
@@ -226,9 +236,15 @@
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold small">Description of Work / Task</label>
-                                    <textarea id="sandboxLogDescription" name="taskDescription" class="form-control" rows="2" placeholder="e.g. Completed documentation for Backend API" required></textarea>
+                                    <label class="form-label fw-bold small">Task / Activity Completed</label>
+                                    <textarea id="sandboxLogDescription" name="taskDescription" class="form-control" rows="2" placeholder="e.g. Created backend API for login validation." required></textarea>
                                     <div class="invalid-feedback">Description must be between 5 and 500 characters and cannot contain HTML tags.</div>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="form-label fw-bold small">What I Learned Today</label>
+                                    <textarea id="sandboxLogLearningReflection" name="learningReflection" class="form-control" rows="2" placeholder="e.g. I learned how servlet controllers validate user credentials and redirect users based on role." required></textarea>
+                                    <div class="invalid-feedback">Learning reflection must be between 5 and 500 characters and cannot contain HTML tags.</div>
                                 </div>
 
                                 <div class="form-group attachment-container mb-3">
@@ -301,12 +317,7 @@
                                         <input type="date" id="inputStartDate" class="form-control" value="2026-05-06" required onchange="recalculateProgressEngine()">
                                     </div>
                                 </div>
-                                <div class="pt-2 border-top">
-                                    <label class="custom-label d-block mb-2">Simulated Hours Control</label>
-                                    <button type="button" class="btn btn-outline-danger btn-sm w-100 fw-bold py-2" onclick="resetRenderedHoursToZero()">
-                                        <i class="fa-solid fa-trash-can me-1"></i> Reset Rendered Hours to 0
-                                    </button>
-                                </div>
+
                             </div>
 
                             <div class="config-card card-ui-green">
@@ -381,7 +392,13 @@
         </div>
         <script>
             // --- Global State Variables ---
-            let renderedHoursBase = parseFloat(localStorage.getItem('guest_renderedHours')) || 148.5;
+            const currentUserId = "<%= loggedInUser != null ? loggedInUser.getId() : "" %>";
+            const renderedHoursKey = 'renderedHours_' + currentUserId;
+            
+            <% if (forceResetHours) { %>
+                localStorage.setItem(renderedHoursKey, '0');
+            <% } %>
+            let renderedHoursBase = parseFloat(localStorage.getItem(renderedHoursKey)) || 148.5;
             let calendarYear = 2026;
             let calendarMonth = 4; // May (0-indexed)
 
@@ -633,7 +650,7 @@
                     if (isNaN(renderedHoursBase) || renderedHoursBase < 0) {
                         renderedHoursBase = 148.5;
                     }
-                    localStorage.setItem('guest_renderedHours', String(renderedHoursBase));
+                    localStorage.setItem(renderedHoursKey, String(renderedHoursBase));
 
                     // Background AJAX POST to save stopwatch session in MySQL
                     if (computedHoursEarned > 0) {
@@ -761,6 +778,7 @@
 
                         const hoursField = document.getElementById('sandboxLogHours');
                         const descField = document.getElementById('sandboxLogDescription');
+                        const learnField = document.getElementById('sandboxLogLearningReflection');
                         const fileInput = document.getElementById('attendance-photo');
                         const dropzone = document.getElementById('photoDropzone');
                         const photoErrorMsg = document.getElementById('photo-error-message');
@@ -768,6 +786,7 @@
                         // Reset visual states
                         hoursField.classList.remove('is-invalid');
                         descField.classList.remove('is-invalid');
+                        learnField.classList.remove('is-invalid');
                         if (dropzone) {
                             dropzone.style.border = '';
                             dropzone.style.backgroundColor = '';
@@ -793,6 +812,16 @@
                             descField.classList.add('is-invalid');
                             if (isValid) {
                                 descField.focus();
+                            }
+                            isValid = false;
+                        }
+
+                        // Learning Reflection validation
+                        const learnInput = learnField.value.trim();
+                        if (learnInput.length < 5 || learnInput.length > 500 || learnInput.includes("<") || learnInput.includes(">")) {
+                            learnField.classList.add('is-invalid');
+                            if (isValid) {
+                                learnField.focus();
                             }
                             isValid = false;
                         }
@@ -828,7 +857,7 @@
 
                         // Save to localStorage before submitting so client-side state is preserved on redirect!
                         renderedHoursBase += hoursInput;
-                        localStorage.setItem('guest_renderedHours', renderedHoursBase);
+                        localStorage.setItem(renderedHoursKey, renderedHoursBase);
 
                         return true;
                     }
@@ -974,14 +1003,7 @@
                         }
                     }
 
-                    function resetRenderedHoursToZero() {
-                        if (confirm("Are you sure you want to reset your rendered hours to 0h? This will update your local simulation matrix.")) {
-                            renderedHoursBase = 0;
-                            localStorage.setItem('guest_renderedHours', '0');
-                            showCustomToast("Simulated rendered hours reset to 0h successfully.", "success");
-                            recalculateProgressEngine();
-                        }
-                    }
+
 
                     function saveConfigState(event) {
                         event.preventDefault();
