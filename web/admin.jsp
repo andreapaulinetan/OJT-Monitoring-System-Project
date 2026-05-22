@@ -232,9 +232,15 @@
                                                 <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openEditInternModal(this.closest('.intern-row'))" title="Edit Intern">
                                                     <i class="fas fa-pen"></i>
                                                 </button>
+                                                <% if (u.getId() != null && !u.getId().equalsIgnoreCase(user.getId())) { %>
                                                 <button class="btn btn-sm btn-outline-danger" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" onclick="openDeleteInternModal('<%= u.getId()%>', '<%= u.getFirstName()%> <%= u.getLastName()%>')" title="Delete Intern">
                                                     <i class="fas fa-trash-alt"></i>
                                                 </button>
+                                                <% } else { %>
+                                                <button class="btn btn-sm btn-outline-secondary" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px;" disabled title="Cannot Delete Self">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                                <% } %>
                                             </div>
                                         </td>
                                     </tr>
@@ -582,6 +588,7 @@
                     <div class="modal-body p-4">
                         <form id="addInternForm" action="AddInternServlet" method="POST" novalidate>
                             <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
+                            <input type="hidden" name="tabId" value="<%= tabId %>"/>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-required small fw-bold">First Name</label>
@@ -1043,6 +1050,8 @@
                     showAdminToast('Failed to update intern profile. Please try again.', 'danger');
                 } else if (err === 'delete_failed') {
                     showAdminToast('Failed to delete intern record. Please try again.', 'danger');
+                } else if (err === 'delete_self_blocked') {
+                    showAdminToast('You cannot delete your own admin account.', 'danger');
                 } else if (err === 'hours_reset_failed') {
                     showAdminToast('Failed to queue simulated hours reset. Please try again.', 'danger');
                 }
@@ -1257,6 +1266,13 @@
             }
 
             function openDeleteInternModal(internId, internFullName) {
+                // Check if admin is deleting their own account
+                const currentUserId = '<%= user.getId() %>';
+                if (internId === currentUserId) {
+                    showAdminToast("You cannot delete your own admin account.", "danger");
+                    return;
+                }
+
                 // Map target properties to confirmation tracking tags
                 document.getElementById("deleteInternId").value = internId;
                 document.getElementById("deleteTargetName").innerText = internFullName;
@@ -1922,6 +1938,16 @@
                     errBox.style.display = "block";
                     return;
                 }
+
+                // Ensure tabId is included for session management
+                let tabInput = document.querySelector('#addInternForm input[name="tabId"]');
+                if (!tabInput) {
+                    tabInput = document.createElement('input');
+                    tabInput.type = 'hidden';
+                    tabInput.name = 'tabId';
+                    document.getElementById('addInternForm').appendChild(tabInput);
+                }
+                tabInput.value = window.name || sessionStorage.getItem('tabId') || '';
 
                 addInternModalObj.hide();
                 document.getElementById("addInternForm").submit();
