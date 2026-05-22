@@ -408,9 +408,9 @@ public class PdfReportHelper {
         double renderedHours = 0.0;
         if (submissions != null) {
             for (ActivitySubmission s : submissions) {
+                renderedHours += extractHoursFromDescription(s.getDescription());
                 if ("Approved".equalsIgnoreCase(s.getStatus())) {
                     approvedTasks++;
-                    renderedHours += extractHoursFromDescription(s.getDescription());
                 } else if ("Pending".equalsIgnoreCase(s.getStatus())) {
                     pendingTasks++;
                 } else if ("Rejected".equalsIgnoreCase(s.getStatus())) {
