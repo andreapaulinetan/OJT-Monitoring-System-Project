@@ -1585,7 +1585,19 @@
                 }
 
                 addInternModalObj.hide();
-                document.getElementById("addInternForm").submit();
+                
+                const addForm = document.getElementById("addInternForm");
+                const currentTabId = window.name || sessionStorage.getItem("tabId") || "";
+                let tabInput = addForm.querySelector('input[name="tabId"]');
+                if (!tabInput) {
+                    tabInput = document.createElement("input");
+                    tabInput.type = "hidden";
+                    tabInput.name = "tabId";
+                    addForm.appendChild(tabInput);
+                }
+                tabInput.value = currentTabId;
+                
+                addForm.submit();
             }
 
             function updateNoDataMessage(visibleCount) {
