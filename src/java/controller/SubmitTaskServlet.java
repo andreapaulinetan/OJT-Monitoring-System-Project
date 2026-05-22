@@ -130,7 +130,6 @@ public class SubmitTaskServlet extends HttpServlet {
                 filePart.write(uploadPath + File.separator + supportingFile);
             } catch (Exception e) {
                 util.ErrorLogger.logError("SERVLET UPLOAD ERROR", "Error occurred while handling multipart task submission", e, session, getServletContext());
-                e.printStackTrace();
                 response.sendRedirect("guest.jsp?status=db_error" + (tabId != null ? "&tabId=" + tabId : ""));
                 return;
             }

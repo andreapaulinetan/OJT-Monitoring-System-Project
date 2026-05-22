@@ -175,7 +175,6 @@ public class AddInternServlet extends HttpServlet {
             
         } catch (Exception e) {
             util.ErrorLogger.logError("SERVLET REGISTER ERROR", "Failed to register new intern due to input or processing exception. Form Email: " + request.getParameter("email"), e, request.getSession(false), getServletContext());
-            e.printStackTrace();
             response.sendRedirect("admin.jsp?status=error&tabId=" + tabId);
         }
     }

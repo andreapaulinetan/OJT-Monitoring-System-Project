@@ -178,7 +178,7 @@ public class ReportServlet extends HttpServlet {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            util.ErrorLogger.logError("SERVLET REPORT ERROR", "Failed to generate report PDF", e, request.getSession(false), getServletContext());
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "PDF generation failed: " + e.getMessage());
         }

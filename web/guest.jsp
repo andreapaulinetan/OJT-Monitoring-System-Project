@@ -209,7 +209,7 @@
                                         <p class="download-record-desc-small">PDF report, hours & logs.</p>
                                     </div>
                                 </div>
-                                <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD" class="download-record-btn-small" title="Download Report">
+                                <a href="${pageContext.request.contextPath}/DownloadRecordServlet?tabId=<%= HtmlUtil.escape(tabId) %>" class="download-record-btn-small" title="Download Report">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                             </div>

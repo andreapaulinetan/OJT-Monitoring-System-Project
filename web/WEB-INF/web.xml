@@ -113,6 +113,10 @@
         <servlet-name>AuditServlet</servlet-name>
         <servlet-class>controller.AuditServlet</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>DownloadRecordServlet</servlet-name>
+        <servlet-class>controller.DownloadRecordServlet</servlet-class>
+    </servlet>
 
 
     <!-- Servlet Mappings -->
@@ -139,6 +143,10 @@
     <servlet-mapping>
         <servlet-name>AuditServlet</servlet-name>
         <url-pattern>/AuditServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DownloadRecordServlet</servlet-name>
+        <url-pattern>/DownloadRecordServlet</url-pattern>
     </servlet-mapping>
 
 

@@ -94,7 +94,6 @@ public class UpdateLogStatusServlet extends HttpServlet {
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("SERVLET UPDATE ERROR", "Error updating submission status for submission ID: " + submissionId + " to status: " + canonicalStatus, e, session, getServletContext());
-            e.printStackTrace();
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An internal database transaction error occurred.");
         }
     }

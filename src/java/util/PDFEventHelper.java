@@ -58,7 +58,7 @@ public class PDFEventHelper extends PdfPageEventHelper {
             // Template that will hold the total page number — filled in onCloseDocument()
             totalPagesTemplate = writer.getDirectContent().createTemplate(50, 16);
         } catch (Exception e) {
-            e.printStackTrace();
+            ErrorLogger.logError("PDF HELPER ERROR", "Failed to initialize base font or template inside PDF Event Helper", e);
         }
     }
 

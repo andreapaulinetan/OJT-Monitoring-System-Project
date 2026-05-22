@@ -43,7 +43,6 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to look up user by email: " + email, e, null, context);
-            e.printStackTrace();
         }
         return null;
     }
@@ -60,12 +59,11 @@ public class UserDAO {
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                User u = mapResultSetToUser(rs, rs.getString("ROLE"), context);
+                User u = mapResultSetToUser(rs, rs.getString("ROLE"), context, false);
                 list.add(u);
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to retrieve all intern profiles", e, null, context);
-            e.printStackTrace();
         }
         return list;
     }
@@ -119,7 +117,6 @@ public class UserDAO {
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to fetch all activity submissions", e, null, context);
-            e.printStackTrace();
         }
         return list;
     }
@@ -163,7 +160,6 @@ public class UserDAO {
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Error fetching status for User ID: " + userId, e, null, context);
             System.err.println("Error fetching status for User ID " + userId + ": " + e.getMessage());
-            e.printStackTrace();
         }
         return status;
     }
@@ -191,7 +187,6 @@ public class UserDAO {
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to count pending activity submissions", e, null, context);
             System.err.println("Error executing getPendingLogsCount query: " + e.getMessage());
-            e.printStackTrace();
         }
         return count;
     }
@@ -213,7 +208,6 @@ public class UserDAO {
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to query intern profile for ID: " + internId, e, null, context);
-            e.printStackTrace();
         }
         return null;
     }
@@ -275,12 +269,15 @@ public class UserDAO {
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to query submissions for User ID: " + userId, e, null, context);
-            e.printStackTrace();
         }
         return list;
     }
 
     private static User mapResultSetToUser(ResultSet rs, String role, ServletContext context) throws SQLException {
+        return mapResultSetToUser(rs, role, context, true);
+    }
+
+    private static User mapResultSetToUser(ResultSet rs, String role, ServletContext context, boolean fetchStatus) throws SQLException {
         User u = new User();
         String id;
         try {
@@ -303,7 +300,11 @@ public class UserDAO {
             u.setCity(rs.getString("CITY"));
             
             if (!"Admin".equalsIgnoreCase(role)) {
-                u.setLogStatus(getIndividualStatus(id, context));
+                if (fetchStatus) {
+                    u.setLogStatus(getIndividualStatus(id, context));
+                } else {
+                    u.setLogStatus("Pending");
+                }
             }
         } catch (SQLException e) {
             // Ignored for Admins
@@ -386,7 +387,6 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Intern profile: " + internUser.getEmail(), e, null, context);
-            e.printStackTrace();
             return false;
         }
     }
@@ -408,7 +408,6 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Admin profile: " + adminUser.getEmail(), e, null, context);
-            e.printStackTrace();
             return false;
         }
     }
@@ -487,7 +486,6 @@ public class UserDAO {
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert activity submission for User ID: " + sub.getUserId(), e, null, context);
             System.err.println("Error adding activity submission: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }

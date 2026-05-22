@@ -230,7 +230,7 @@ public class PdfReportHelper {
         doc.add(rangePara);
 
         if (submissions == null || submissions.isEmpty()) {
-            Paragraph empty = new Paragraph("No records found for the specified date range.", EMPTY_FONT);
+            Paragraph empty = new Paragraph("No records found for the selected period.", EMPTY_FONT);
             empty.setAlignment(Element.ALIGN_CENTER);
             empty.setSpacingBefore(40f);
             doc.add(empty);

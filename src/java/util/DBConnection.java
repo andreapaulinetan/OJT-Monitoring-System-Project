@@ -18,7 +18,6 @@ public class DBConnection {
             );
         } catch (Exception e) {
             ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to Apache Derby database", e, null, context);
-            e.printStackTrace();
             return null;
         }
     }
@@ -39,7 +38,6 @@ public static Connection getMySQLMonitoringConnection(ServletContext context) {
         );
     } catch (Exception e) {
         ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to MySQL Monitoring database", e, null, context);
-        e.printStackTrace();
         return null;
     }
 }
@@ -53,8 +51,7 @@ public static Connection getMySQLMonitoringConnection(ServletContext context) {
                 context.getInitParameter("pgsql.password")
             );
         } catch (Exception e) {
-            ErrorLogger.logError("DATABASE CONNECTION ERROR", "Failed to connect to PostgreSQL Audit database", e, null, context);
-            e.printStackTrace();
+            ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to connect to PostgreSQL Audit database", e, null, context);
             return null;
         }
     }
