@@ -231,7 +231,7 @@
 
                         <div class="dashboard-pane" id="manualTaskLogPane">
                             <h3 class="pane-title">Simulate Task Entry Log</h3>
-                             <form id="sandboxLogForm" action="SubmitTaskServlet?tabId=<%= tabId %>" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
+                             <form id="sandboxLogForm" action="SubmitTaskServlet?tabId=<%= tabId %>&csrfToken=<%= CsrfUtil.getToken(session) %>" method="POST" enctype="multipart/form-data" onsubmit="return handleManualLogSubmission(event)">
                                 <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold small">Hours Spent on Task</label>

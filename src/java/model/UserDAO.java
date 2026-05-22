@@ -327,17 +327,9 @@ public class UserDAO {
 
     public static String mapToDerbyInternId(String userId) {
         if (userId == null) return null;
-        if (userId.contains("-")) {
-            String[] parts = userId.split("-");
-            String seqPart = parts[parts.length - 1]; // e.g. "10001" or "50003"
-            try {
-                int n = Integer.parseInt(seqPart);
-                int seq = n % 10000;
-                return String.valueOf(seq);
-            } catch (NumberFormatException e) {
-                return seqPart;
-            }
-        }
+        
+        // If the database actually contains the full ID like INT2026-70001, we shouldn't truncate it.
+        // We will just return the original ID. The caller's SQL query will match exactly.
         return userId;
     }
 

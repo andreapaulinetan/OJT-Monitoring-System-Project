@@ -31,6 +31,15 @@ public class SubmitTaskServlet extends HttpServlet {
         // 1. Session verification check
         HttpSession session = request.getSession(false);
         
+        boolean isMultipart = request.getContentType() != null && request.getContentType().startsWith("multipart/form-data");
+        if (isMultipart) {
+            try {
+                request.getParts(); // Force GlassFish to parse the multipart body so request.getParameter() works
+            } catch (Exception e) {
+                // Ignore parse errors here; they will be handled later if parts are actually missing
+            }
+        }
+        
         // CSRF Token Validation
         if (session == null || !util.CsrfUtil.validateToken(request, session)) {
             util.ErrorLogger.logError("CSRF VIOLATION", "Task submission attempt blocked due to invalid or missing CSRF token.", null, session, getServletContext());
@@ -55,7 +64,6 @@ public class SubmitTaskServlet extends HttpServlet {
         String originalFileName = "";
         String supportingFile = "";
 
-        boolean isMultipart = request.getContentType() != null && request.getContentType().startsWith("multipart/form-data");
 
         if (isMultipart) {
             // A. Multipart file upload case (Manual simulated form)
