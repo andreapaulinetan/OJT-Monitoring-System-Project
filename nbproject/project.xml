@@ -19,9 +19,10 @@
                     <path-in-war>WEB-INF/lib</path-in-war>
                 </library>
                 <library dirs="200">
-                    <file>${file.reference.postgresql-42.7.11.jar}</file>
+                    <file>${file.reference.postgresql-42.2.27.jar}</file>
                     <path-in-war>WEB-INF/lib</path-in-war>
                 </library>
+
             </web-module-libraries>
             <web-module-additional-libraries/>
             <source-roots>

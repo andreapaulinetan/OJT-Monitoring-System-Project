@@ -22,6 +22,11 @@
 
     int totalInterns = (internList != null) ? internList.size() : 0;
     int pendingLogs = UserDAO.getPendingLogsCount(getServletContext());
+
+    String reqView = request.getParameter("view");
+    if (reqView == null || reqView.trim().isEmpty()) {
+        reqView = "dashboard";
+    }
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -93,19 +98,19 @@
             <aside class="sidebar">
                 <div class="sidebar-header"><h4 class="brand-name">Active Learning</h4></div>
                 <nav class="sidebar-nav">
-                    <a href="#" id="nav-dashboard" class="nav-item active" onclick="switchView('dashboard')">
+                    <a href="#" id="nav-dashboard" class="nav-item <%= "dashboard".equals(reqView) ? "active" : "" %>" onclick="switchView('dashboard')">
                         <i class="fas fa-th-large"></i> Dashboard
                     </a>
-                    <a href="#" id="nav-interns" class="nav-item" onclick="switchView('intern-management')">
+                    <a href="#" id="nav-interns" class="nav-item <%= "intern-management".equals(reqView) ? "active" : "" %>" onclick="switchView('intern-management')">
                         <i class="fas fa-users"></i> Intern Management
                     </a>
-                    <a href="#" id="nav-logs" class="nav-item" onclick="switchView('log-review')">
+                    <a href="#" id="nav-logs" class="nav-item <%= "log-review".equals(reqView) ? "active" : "" %>" onclick="switchView('log-review')">
                         <i class="fas fa-file-alt"></i> Log Review <span class="badge bg-danger ms-2" id="sidebarPendingBadge"><%= pendingLogs%></span>
                     </a>
-                    <a href="#" id="nav-reports" class="nav-item" onclick="switchView('report-center')">
+                    <a href="#" id="nav-reports" class="nav-item <%= "report-center".equals(reqView) ? "active" : "" %>" onclick="switchView('report-center')">
                         <i class="fas fa-chart-bar"></i> Report Center
                     </a>
-                    <a href="#" id="nav-audit" class="nav-item" onclick="switchView('audit-trail')">
+                    <a href="#" id="nav-audit" class="nav-item <%= "audit-trail".equals(reqView) ? "active" : "" %>" onclick="switchView('audit-trail')">
                         <i class="fas fa-history"></i> Audit Trail
                     </a>
                 </nav>
@@ -128,7 +133,7 @@
                     </div>
                 </header>
 
-                <div id="dashboard-view" class="view-section">
+                <div id="dashboard-view" class="view-section" style="display: <%= "dashboard".equals(reqView) ? "block" : "none" %>;">
                     <section class="stats-row mb-4">
                         <div class="stat-card yellow"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
                         <div class="stat-card pink"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
@@ -140,7 +145,7 @@
                     </div>
                 </div>
 
-                <div id="intern-management-view" class="view-section" style="display: none;">
+                <div id="intern-management-view" class="view-section" style="display: <%= "intern-management".equals(reqView) ? "block" : "none" %>;">
                     <section class="table-section p-0 overflow-hidden">
                         <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
                             <h3>Master Intern Accounts Registry (DBMS 1)</h3>
@@ -278,7 +283,7 @@
                     </section>
                 </div>
 
-                <div id="log-review-view" class="view-section" style="display: none;">
+                <div id="log-review-view" class="view-section" style="display: <%= "log-review".equals(reqView) ? "block" : "none" %>;">
                     <section class="table-section p-0 overflow-hidden">
                         <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
                             <div>
@@ -399,7 +404,7 @@
                     </section>
                 </div>
 
-                <div id="report-center-view" class="view-section" style="display: none;">
+                <div id="report-center-view" class="view-section" style="display: <%= "report-center".equals(reqView) ? "block" : "none" %>;">
                     <section class="table-section p-0 overflow-hidden">
                         <div class="section-header p-4 pb-2">
                             <h3>PDF Report Compilation Hub</h3>
@@ -471,7 +476,7 @@
                     </section>
                 </div>
 
-                <div id="audit-trail-view" class="view-section" style="display: none;">
+                <div id="audit-trail-view" class="view-section" style="display: <%= "audit-trail".equals(reqView) ? "block" : "none" %>;">
                     <section class="table-section p-0 overflow-hidden">
                         <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
                             <div>
@@ -770,7 +775,7 @@
                         </table>
                     </div>
                     <div class="modal-footer bg-f8f9fa">
-                        <button type="button" class="btn btn-sm btn-success px-4" data-bs-dismiss="modal" onclick="window.location.href = 'admin.jsp'">Close Account Details</button>
+                        <button type="button" class="btn btn-sm btn-success px-4" data-bs-dismiss="modal" onclick="window.location.href = 'admin.jsp?tabId=<%= tabId %>&view=intern-management'">Close Account Details</button>
                     </div>
                 </div>
             </div>

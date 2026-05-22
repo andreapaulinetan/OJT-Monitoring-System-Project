@@ -11,9 +11,13 @@
     --card-blue: #d1e9ff;
 }
 
-body {
-    background-color: var(--bg-cream);
+* {
     font-family: 'Inter', sans-serif;
+}
+
+body {
+    font-family: 'Inter', sans-serif !important;
+    background-color: var(--bg-cream);
     margin: 0;
 }
 

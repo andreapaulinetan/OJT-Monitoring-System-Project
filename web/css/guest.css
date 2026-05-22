@@ -38,6 +38,7 @@
 }
 
 body {
+    font-family: 'Inter', sans-serif !important;
     background-color: var(--bg-workspace);
     color: var(--text-primary);
     overflow: hidden;

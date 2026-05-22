@@ -50,7 +50,8 @@ public class AuthFilter implements Filter {
             
             // Root path check (e.g., just visiting http://localhost:8080/Project/)
             boolean isRoot = lowerURI.equals(contextPath.toLowerCase() + "/") || 
-                             lowerURI.equals(contextPath.toLowerCase());
+                             lowerURI.equals(contextPath.toLowerCase()) ||
+                             lowerURI.endsWith("/index.jsp");
 
             // Verify if the requested resource actually exists in the deployment context.
             // If it doesn't, we bypass redirect security checks so that the container naturally

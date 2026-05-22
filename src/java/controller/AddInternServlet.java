@@ -90,14 +90,14 @@ public class AddInternServlet extends HttpServlet {
 
             if (!valid) {
                 util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed intern registration validation for email: " + email, null, session, getServletContext());
-                response.sendRedirect("admin.jsp?status=failed&err=invalid_input&tabId=" + tabId);
+                response.sendRedirect("admin.jsp?view=intern-management&status=failed&err=invalid_input&tabId=" + tabId);
                 return;
             }
 
             // Check if email already exists in Database
             if (UserDAO.findUserByEmail(email, getServletContext()) != null) {
                 util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Intern registration failed: Duplicate email: " + email, null, session, getServletContext());
-                response.sendRedirect("admin.jsp?status=failed&err=duplicate_email&tabId=" + tabId);
+                response.sendRedirect("admin.jsp?view=intern-management&status=failed&err=duplicate_email&tabId=" + tabId);
                 return;
             }
 
@@ -128,7 +128,7 @@ public class AddInternServlet extends HttpServlet {
             String expectedEmail = (cleanFirstName + "." + cleanLastName + "." + roleCode).toLowerCase() + "@gmail.com";
             if (!expectedEmail.equals(email)) {
                 util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Intern registration failed: Tampered or invalid email address. Received: '" + email + "', Expected: '" + expectedEmail + "'", null, session, getServletContext());
-                response.sendRedirect("admin.jsp?status=failed&err=invalid_input&tabId=" + tabId);
+                response.sendRedirect("admin.jsp?view=intern-management&status=failed&err=invalid_input&tabId=" + tabId);
                 return;
             }
 
@@ -158,25 +158,34 @@ public class AddInternServlet extends HttpServlet {
             
             // 7. Direct server execution response parameters using cross-boundary URL parameter formatting
             if (isSaved) {
-                response.sendRedirect("admin.jsp?status=success&tabId=" + tabId
-                        + "&newId=" + URLEncoder.encode(newIntern.getId(), "UTF-8")
-                        + "&newName=" + URLEncoder.encode(newIntern.getFullName(), "UTF-8")
-                        + "&newEmail=" + URLEncoder.encode(newIntern.getEmail(), "UTF-8")
-                        + "&newOffice=" + URLEncoder.encode(newIntern.getOffice(), "UTF-8")
-                        + "&newRole=" + URLEncoder.encode(newIntern.getRole(), "UTF-8")
-                        + "&newCity=" + URLEncoder.encode(newIntern.getCity(), "UTF-8")
-                        + "&newContact=" + URLEncoder.encode(contactNum, "UTF-8")
-                        + "&newUni=" + URLEncoder.encode(newIntern.getUniversity(), "UTF-8")
+                String safeId = newIntern.getId() != null ? newIntern.getId() : "";
+                String safeName = newIntern.getFullName() != null ? newIntern.getFullName() : "";
+                String safeEmail = newIntern.getEmail() != null ? newIntern.getEmail() : "";
+                String safeOffice = newIntern.getOffice() != null ? newIntern.getOffice() : "";
+                String safeRole = newIntern.getRole() != null ? newIntern.getRole() : "";
+                String safeCity = newIntern.getCity() != null ? newIntern.getCity() : "";
+                String safeContact = contactNum != null ? contactNum : "";
+                String safeUni = newIntern.getUniversity() != null ? newIntern.getUniversity() : "";
+                
+                response.sendRedirect("admin.jsp?view=intern-management&status=success&tabId=" + tabId
+                        + "&newId=" + URLEncoder.encode(safeId, "UTF-8")
+                        + "&newName=" + URLEncoder.encode(safeName, "UTF-8")
+                        + "&newEmail=" + URLEncoder.encode(safeEmail, "UTF-8")
+                        + "&newOffice=" + URLEncoder.encode(safeOffice, "UTF-8")
+                        + "&newRole=" + URLEncoder.encode(safeRole, "UTF-8")
+                        + "&newCity=" + URLEncoder.encode(safeCity, "UTF-8")
+                        + "&newContact=" + URLEncoder.encode(safeContact, "UTF-8")
+                        + "&newUni=" + URLEncoder.encode(safeUni, "UTF-8")
                         + "&newBirthAge=" + URLEncoder.encode(birthMonth + " " + birthDate + ", " + birthYear + " (Age: " + age + ")", "UTF-8"));
             } else {
                 util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to save new intern profile to database for: " + email, null, request.getSession(false), getServletContext());
-                response.sendRedirect("admin.jsp?status=failed&tabId=" + tabId);
+                response.sendRedirect("admin.jsp?view=intern-management&status=failed&tabId=" + tabId);
             }
             
         } catch (Exception e) {
             util.ErrorLogger.logError("SERVLET REGISTER ERROR", "Failed to register new intern due to input or processing exception. Form Email: " + request.getParameter("email"), e, request.getSession(false), getServletContext());
             e.printStackTrace();
-            response.sendRedirect("admin.jsp?status=error&tabId=" + tabId);
+            response.sendRedirect("admin.jsp?view=intern-management&status=error&tabId=" + tabId);
         }
     }
 }
