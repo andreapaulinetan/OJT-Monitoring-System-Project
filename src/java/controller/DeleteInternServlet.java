@@ -1,0 +1,85 @@
+package controller;
+
+import java.io.IOException;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import model.User;
+import model.UserDAO;
+
+@WebServlet("/DeleteInternServlet")
+public class DeleteInternServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        
+        // Security & session verification check matching your multi-tab architecture
+        HttpSession session = request.getSession(false);
+        String tabId = util.TabSessionHelper.getTabId(request);
+        User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        
+        if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
+            util.ErrorLogger.logError(
+                "SECURITY VIOLATION", 
+                "Unauthorized attempt to delete intern profile. Active user: " + (user != null ? user.getEmail() : "anonymous") + " (Tab ID: " + tabId + ")", 
+                null, 
+                session, 
+                getServletContext()
+            );
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin privileges required.");
+            return;
+        }
+
+        try {
+            // 1. Extract intern ID parameter passed from the front-end deletion modal form
+            String internId = request.getParameter("internId");
+            
+            // Fail-safe check if parameter is null or completely empty
+            if (internId == null || internId.trim().isEmpty()) {
+                util.ErrorLogger.logError(
+                    "MALFORMED REQUEST", 
+                    "Delete operation aborted. Received an invalid or missing 'internId' parameter.", 
+                    null, 
+                    request.getSession(false), 
+                    getServletContext()
+                );
+                response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed");
+                return;
+            }
+
+            // 2. Fire delete transaction statement via the Data Access Object layer
+            boolean isDeleted = UserDAO.deleteIntern(internId.trim(), getServletContext());
+            
+            // 3. Direct server execution response based on database transaction status
+            if (isDeleted) {
+                response.sendRedirect("admin.jsp?view=intern-management&status=deleted");
+            } else {
+                util.ErrorLogger.logError(
+                    "DATABASE TRANSACTION ERROR", 
+                    "Failed to delete intern profile from database for ID: " + internId, 
+                    null, 
+                    request.getSession(false), 
+                    getServletContext()
+                );
+                response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed");
+            }
+            
+        } catch (Exception e) {
+            util.ErrorLogger.logError(
+                "SERVLET DELETE ERROR", 
+                "Failed to delete intern due to input or processing exception. Intern ID: " + request.getParameter("internId"), 
+                e, 
+                request.getSession(false), 
+                getServletContext()
+            );
+            e.printStackTrace();
+            response.sendRedirect("admin.jsp?view=intern-management&err=delete_failed");
+        }
+    }
+}
