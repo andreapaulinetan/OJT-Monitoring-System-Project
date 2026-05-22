@@ -21,7 +21,7 @@ public class InspectDerby {
                 ResultSetMetaData meta = rs.getMetaData();
                 int colCount = meta.getColumnCount();
                 for (int i = 1; i <= colCount; i++) {
-                    System.out.print(meta.getColumnName(i) + "\t");
+                    System.out.println(meta.getColumnName(i) + "\t" + meta.getColumnTypeName(i) + "\tAutoIncrement: " + meta.isAutoIncrement(i));
                 }
                 System.out.println("\n------------------------------------------------");
                 
@@ -35,8 +35,31 @@ public class InspectDerby {
                     );
                 }
             }
+
+            // Query Admins
+            String sqlAdmin = "SELECT * FROM ADMIN";
+            try (PreparedStatement ps = conn.prepareStatement(sqlAdmin);
+                 ResultSet rs = ps.executeQuery()) {
+                
+                System.out.println("\n--- ADMINS IN DERBY DATABASE ---");
+                ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+                for (int i = 1; i <= colCount; i++) {
+                    System.out.println(meta.getColumnName(i) + "\t" + meta.getColumnTypeName(i) + "\tAutoIncrement: " + meta.isAutoIncrement(i));
+                }
+                System.out.println("\n------------------------------------------------");
+                
+                while (rs.next()) {
+                    System.out.println(
+                        rs.getString("ADMIN_ID") + " | " +
+                        rs.getString("FIRST_NAME") + " " + rs.getString("LAST_NAME") + " | " +
+                        rs.getString("EMAIL")
+                    );
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 }
+

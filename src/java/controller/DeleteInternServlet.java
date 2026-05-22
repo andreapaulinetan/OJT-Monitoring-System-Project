@@ -40,6 +40,19 @@ public class DeleteInternServlet extends HttpServlet {
             // 1. Extract intern ID parameter passed from the front-end deletion modal form
             String internId = request.getParameter("internId");
             
+            // Prevent self-deletion
+            if (internId != null && user != null && internId.trim().equalsIgnoreCase(user.getId())) {
+                util.ErrorLogger.logError(
+                    "SECURITY VIOLATION", 
+                    "Blocked attempt by admin to delete their own account: " + user.getEmail(), 
+                    null, 
+                    session, 
+                    getServletContext()
+                );
+                response.sendRedirect("admin.jsp?view=intern-management&err=delete_self_blocked&tabId=" + (tabId != null ? tabId : ""));
+                return;
+            }
+            
             // Fail-safe check if parameter is null or completely empty
             if (internId == null || internId.trim().isEmpty()) {
                 util.ErrorLogger.logError(

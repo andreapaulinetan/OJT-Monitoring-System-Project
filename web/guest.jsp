@@ -401,8 +401,9 @@
             
             <%
                 double dbCustomHours = 0.0;
+                java.util.List<model.ActivitySubmission> userSubs = null;
                 if (loggedInUser != null) {
-                    java.util.List<model.ActivitySubmission> userSubs = model.UserDAO.getSubmissionsByUserId(loggedInUser.getId(), getServletContext());
+                    userSubs = model.UserDAO.getSubmissionsByUserId(loggedInUser.getId(), getServletContext());
                     if (userSubs != null) {
                         for (model.ActivitySubmission sub : userSubs) {
                             if (!"Rejected".equalsIgnoreCase(sub.getStatus())) {
@@ -413,6 +414,25 @@
                 }
             %>
             let baselineHours = <%= baselineHours %>;
+            let dbSubmissions = [
+                <%
+                if (userSubs != null) {
+                    for (int i = 0; i < userSubs.size(); i++) {
+                        model.ActivitySubmission sub = userSubs.get(i);
+                        String cleanId = sub.getSubmissionId() != null ? sub.getSubmissionId().replace("\"", "\\\"").replace("\n", " ").replace("\r", " ") : "";
+                        String cleanStatus = sub.getStatus() != null ? sub.getStatus().replace("\"", "\\\"").replace("\n", " ").replace("\r", " ") : "";
+                        String cleanDesc = sub.getDescription() != null ? sub.getDescription().replace("\"", "\\\"").replace("\n", " ").replace("\r", " ") : "";
+                        %>
+                        {
+                            id: "<%= cleanId %>",
+                            status: "<%= cleanStatus %>",
+                            desc: "<%= cleanDesc %>"
+                        }<%= (i < userSubs.size() - 1) ? "," : "" %>
+                        <%
+                    }
+                }
+                %>
+            ];
             let dbCustomHours = <%= dbCustomHours %>;
             let renderedHoursBase = baselineHours + dbCustomHours;
             localStorage.setItem(renderedHoursKey, renderedHoursBase.toString());
@@ -437,6 +457,7 @@
                 loadConfigState();
                 restoreTimerSessionOnLoad();
                 recalculateProgressEngine();
+                checkSubmissionNotifications();
 
                 // Set up input listeners to clear invalid states dynamically
                 const hoursField = document.getElementById('sandboxLogHours');
@@ -466,6 +487,39 @@
                     });
                 }
             };
+
+            function checkSubmissionNotifications() {
+                if (!currentUserId) return;
+                const storedStatusesKey = 'submission_statuses_' + currentUserId;
+                let savedStatuses = {};
+                try {
+                    const localData = localStorage.getItem(storedStatusesKey);
+                    if (localData) {
+                        savedStatuses = JSON.parse(localData);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse saved statuses:", e);
+                }
+
+                let newStatuses = {};
+                dbSubmissions.forEach(sub => {
+                    const savedStatus = savedStatuses[sub.id];
+                    if (savedStatus && savedStatus !== sub.status) {
+                        if (sub.status === "Approved") {
+                            showCustomToast("Your log \"" + sub.desc + "\" has been Approved!", "success");
+                        } else if (sub.status === "Rejected") {
+                            showCustomToast("Your log \"" + sub.desc + "\" has been Rejected!", "error");
+                        }
+                    }
+                    newStatuses[sub.id] = sub.status;
+                });
+                
+                try {
+                    localStorage.setItem(storedStatusesKey, JSON.stringify(newStatuses));
+                } catch (e) {
+                    console.error("Failed to save submission statuses:", e);
+                }
+            }
 
             // --- Custom Coherent Toast Notification System ---
             function showCustomToast(message, type = "success") {
@@ -514,7 +568,7 @@
 
                 // 4. Create the icon using a bold tag (which works)
                 const checkIcon = document.createElement('b');
-                checkIcon.textContent = "✓";
+                checkIcon.textContent = type === "success" ? "✓" : "✗";
                 Object.assign(checkIcon.style, {
                     color: textColor,
                     fontSize: '20px',
