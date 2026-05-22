@@ -12,7 +12,7 @@
     </context-param>
     <context-param>
         <param-name>derby.url</param-name>
-        <param-value>jdbc:derby://localhost:1527/C:/Users/Sean/OneDrive/Documents/NetBeansProjects/OJT-Monitoring-System-Project/database/ojt_AuthenticationDB</param-value>
+        <param-value>jdbc:derby://localhost:1527/ojt_AuthenticationDB</param-value>
     </context-param>
     <context-param>
         <param-name>derby.username</param-name>

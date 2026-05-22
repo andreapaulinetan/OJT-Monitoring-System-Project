@@ -109,8 +109,10 @@
                     <a href="#" id="nav-audit" class="nav-item" onclick="switchView('audit-trail')">
                         <i class="fas fa-history"></i> Audit Trail
                     </a>
-                    <a href="LogoutServlet" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Log out</a>
                 </nav>
+                <div class="sidebar-logout">
+                    <a href="LogoutServlet" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Log out</a>
+                </div>
             </aside>
 
             <main class="main-content">
@@ -808,8 +810,14 @@
                 }
 
                 // Clear URL parameters to prevent re-triggering modals/toasts on page refresh
+                // BUT preserve the tabId parameter needed by tabSession.js
                 if (window.history.replaceState && window.location.search) {
-                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    const currentParams = new URLSearchParams(window.location.search);
+                    const preservedTabId = currentParams.get('tabId');
+                    let cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    if (preservedTabId) {
+                        cleanUrl += '?tabId=' + encodeURIComponent(preservedTabId);
+                    }
                     window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
                 }
             });
