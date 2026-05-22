@@ -18,11 +18,15 @@
     
     // Check if the administrator triggered a reset for this intern's simulated hours
     boolean forceResetHours = false;
+    double baselineHours = 148.5;
     if (loggedInUser != null) {
         model.User dbUser = model.UserDAO.getInternById(loggedInUser.getId(), getServletContext());
-        if (dbUser != null && dbUser.isResetHours()) {
-            forceResetHours = true;
-            model.UserDAO.setResetHoursFlag(loggedInUser.getId(), false, getServletContext());
+        if (dbUser != null) {
+            baselineHours = dbUser.getBaselineHours();
+            if (dbUser.isResetHours()) {
+                forceResetHours = true;
+                model.UserDAO.setResetHoursFlag(loggedInUser.getId(), false, getServletContext());
+            }
         }
     }
     
@@ -395,11 +399,23 @@
             const currentUserId = "<%= loggedInUser != null ? loggedInUser.getId() : "" %>";
             const renderedHoursKey = 'renderedHours_' + currentUserId;
             
-            <% if (forceResetHours) { %>
-                localStorage.setItem(renderedHoursKey, '0');
-            <% } %>
-            let renderedHoursVal = localStorage.getItem(renderedHoursKey);
-            let renderedHoursBase = (renderedHoursVal !== null && !isNaN(parseFloat(renderedHoursVal))) ? parseFloat(renderedHoursVal) : 148.5;
+            <%
+                double dbCustomHours = 0.0;
+                if (loggedInUser != null) {
+                    java.util.List<model.ActivitySubmission> userSubs = model.UserDAO.getSubmissionsByUserId(loggedInUser.getId(), getServletContext());
+                    if (userSubs != null) {
+                        for (model.ActivitySubmission sub : userSubs) {
+                            if (!"Rejected".equalsIgnoreCase(sub.getStatus())) {
+                                dbCustomHours += util.PdfReportHelper.extractHoursFromDescription(sub.getDescription());
+                            }
+                        }
+                    }
+                }
+            %>
+            let baselineHours = <%= baselineHours %>;
+            let dbCustomHours = <%= dbCustomHours %>;
+            let renderedHoursBase = baselineHours + dbCustomHours;
+            localStorage.setItem(renderedHoursKey, renderedHoursBase.toString());
             let calendarYear = 2026;
             let calendarMonth = 4; // May (0-indexed)
 
@@ -649,7 +665,7 @@
                     renderedHoursBase += computedHoursEarned;
                     
                     if (isNaN(renderedHoursBase) || renderedHoursBase < 0) {
-                        renderedHoursBase = 148.5;
+                        renderedHoursBase = baselineHours;
                     }
                     localStorage.setItem(renderedHoursKey, String(renderedHoursBase));
 

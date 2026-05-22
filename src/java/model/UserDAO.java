@@ -310,6 +310,11 @@ public class UserDAO {
             } catch (SQLException ex) {
                 // Fallback for schema compatibility
             }
+            try {
+                u.setBaselineHours(rs.getDouble("BASELINE_HOURS"));
+            } catch (SQLException ex) {
+                u.setBaselineHours(148.5); // Fallback for schema compatibility
+            }
             
             if (!"Admin".equalsIgnoreCase(role)) {
                 u.setLogStatus(getIndividualStatus(id, context));
@@ -632,14 +637,93 @@ public class UserDAO {
                     }
                 }
             }
+
+            boolean baselineExists = false;
+            try (ResultSet rs = meta.getColumns(null, "APP", "INTERN", "BASELINE_HOURS")) {
+                if (rs.next()) {
+                    baselineExists = true;
+                }
+            }
+            if (!baselineExists) {
+                try (ResultSet rs = meta.getColumns(null, null, "INTERN", "BASELINE_HOURS")) {
+                    if (rs.next()) {
+                        baselineExists = true;
+                    }
+                }
+            }
+            if (!baselineExists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE INTERN ADD BASELINE_HOURS DOUBLE DEFAULT 148.5");
+                    System.out.println("SUCCESS: Table 'INTERN' altered. Column 'BASELINE_HOURS' added.");
+                } catch (SQLException e) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE APP.INTERN ADD BASELINE_HOURS DOUBLE DEFAULT 148.5");
+                        System.out.println("SUCCESS: Table 'APP.INTERN' altered. Column 'BASELINE_HOURS' added.");
+                    } catch (SQLException ex) {
+                        System.err.println("Failed to alter INTERN table for BASELINE_HOURS: " + ex.getMessage());
+                    }
+                }
+            }
         } catch (SQLException e) {
             System.err.println("Error checking Derby schema: " + e.getMessage());
+        }
+    }
+
+    public static boolean deleteCustomSubmissionsByUserId(String userId, ServletContext context) {
+        String sql = "DELETE FROM ACTIVITY_SUBMISSIONS WHERE (USER_ID = ? OR USER_ID LIKE ?) AND DESCRIPTION LIKE '%(Hours Spent:%'";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
+            if (conn == null) return false;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                String likePattern = "";
+                try {
+                    int seq = Integer.parseInt(userId);
+                    likePattern = "%-%" + String.format("%04d", seq);
+                } catch (NumberFormatException e) {
+                    String mappedId = mapToDerbyInternId(userId);
+                    try {
+                        int seq = Integer.parseInt(mappedId);
+                        likePattern = "%-%" + String.format("%04d", seq);
+                    } catch (NumberFormatException ex) {
+                        likePattern = userId;
+                    }
+                }
+                ps.setString(2, likePattern);
+                return ps.executeUpdate() >= 0;
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to delete custom submissions for User ID: " + userId, e, null, context);
+            e.printStackTrace();
+            return false;
         }
     }
 
     public static boolean setResetHoursFlag(String internId, boolean flag, ServletContext context) {
         checkDerbySchema(context);
         String mappedId = mapToDerbyInternId(internId);
+        
+        if (flag) {
+            deleteCustomSubmissionsByUserId(internId, context);
+            try (Connection conn = DBConnection.getDerbyConnection(context)) {
+                String sqlBaseline = "UPDATE INTERN SET BASELINE_HOURS = 0.0 WHERE INTERN_ID = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlBaseline)) {
+                    ps.setString(1, mappedId);
+                    ps.executeUpdate();
+                }
+            } catch (Exception e) {
+                try {
+                    String sqlBaselineApp = "UPDATE APP.INTERN SET BASELINE_HOURS = 0.0 WHERE INTERN_ID = ?";
+                    try (Connection conn = DBConnection.getDerbyConnection(context);
+                         PreparedStatement ps = conn.prepareStatement(sqlBaselineApp)) {
+                        ps.setString(1, mappedId);
+                        ps.executeUpdate();
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+        
         String sql = "UPDATE INTERN SET RESET_HOURS = ? WHERE INTERN_ID = ?";
         try (Connection conn = DBConnection.getDerbyConnection(context);
              PreparedStatement ps = conn.prepareStatement(sql)) {

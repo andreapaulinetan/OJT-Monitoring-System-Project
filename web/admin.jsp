@@ -189,13 +189,15 @@
                                                 String dispId = u.getId();
                                                 String uFullName = (u.getFirstName() != null ? u.getFirstName() : "") + " " + (u.getLastName() != null ? u.getLastName() : "");
                                                 uFullName = uFullName.trim();
-                                                 if ("James Smith".equalsIgnoreCase(uFullName) || "ADM2026-0001".equals(dispId)) {
-                                                     dispId = "ADM2026-0001";
-                                                 } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName))) {
-                                                     dispId = "INT2026-70001";
-                                                 } else if (dispId != null && dispId.matches("\\d+")) {
-                                                     dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
-                                                 }
+                                                  if ("James Smith".equalsIgnoreCase(uFullName) || "System Admin Profile".equalsIgnoreCase(uFullName) || (dispId != null && dispId.startsWith("ADM")) || "ADM2020-0001".equals(dispId) || "ADM2026-0001".equals(dispId)) {
+                                                      if (dispId == null || !dispId.startsWith("ADM")) {
+                                                          dispId = "ADM2020-0001";
+                                                      }
+                                                  } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName) && !"System Admin Profile".equalsIgnoreCase(uFullName))) {
+                                                      dispId = "INT2026-70001";
+                                                  } else if (dispId != null && dispId.matches("\\d+")) {
+                                                      dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
+                                                  }
                                     %>
                                     <tr class="intern-row"
                                         data-id="<%= u.getId()%>"
@@ -319,9 +321,13 @@
                                                 String internName = s.getInternName();
                                                 String dispInternId = internId;
                                                 String mappedId = model.UserDAO.mapToDerbyInternId(internId);
-                                                 if ("James Smith".equalsIgnoreCase(internName) || "ADM2026-0001".equals(internId)) {
-                                                     dispInternId = "ADM2026-0001";
-                                                 } else if ("Juan Cruz".equalsIgnoreCase(internName) || "INT2020-10001".equals(internId) || "INT2024-50001".equals(internId) || "INT2026-70001".equals(internId) || "1".equals(mappedId) || ("1".equals(internId) && !"James Smith".equalsIgnoreCase(internName))) {
+                                                 if ("James Smith".equalsIgnoreCase(internName) || "System Admin Profile".equalsIgnoreCase(internName) || (internId != null && internId.startsWith("ADM")) || "ADM2020-0001".equals(internId) || "ADM2026-0001".equals(internId)) {
+                                                     if (internId == null || !internId.startsWith("ADM")) {
+                                                         dispInternId = "ADM2020-0001";
+                                                     } else {
+                                                         dispInternId = internId;
+                                                     }
+                                                 } else if ("Juan Cruz".equalsIgnoreCase(internName) || "INT2020-10001".equals(internId) || "INT2024-50001".equals(internId) || "INT2026-70001".equals(internId) || "1".equals(mappedId) || ("1".equals(internId) && !"James Smith".equalsIgnoreCase(internName) && !"System Admin Profile".equalsIgnoreCase(internName))) {
                                                      dispInternId = "INT2026-70001";
                                                  } else if (mappedId != null && mappedId.matches("\\d+")) {
                                                      dispInternId = "INT2026-7" + String.format("%04d", Integer.parseInt(mappedId));
@@ -1142,9 +1148,13 @@
                 document.getElementById("editInternId").value = id;
                 let displayId = id;
                 const fullName = ((firstName || "") + " " + (lastName || "")).trim();
-                if (fullName.toLowerCase() === 'james smith' || id === 'ADM2026-0001') {
-                    displayId = "ADM2026-0001";
-                } else if (fullName.toLowerCase() === 'juan cruz' || id === 'INT2020-10001' || id === 'INT2024-50001' || id === 'INT2026-70001' || (id === '1' && fullName.toLowerCase() !== 'james smith')) {
+                if (fullName.toLowerCase() === 'james smith' || fullName.toLowerCase() === 'system admin profile' || (id && id.startsWith('ADM')) || id === 'ADM2020-0001' || id === 'ADM2026-0001') {
+                    if (id && id.startsWith('ADM')) {
+                        displayId = id;
+                    } else {
+                        displayId = "ADM2020-0001";
+                    }
+                } else if (fullName.toLowerCase() === 'juan cruz' || id === 'INT2020-10001' || id === 'INT2024-50001' || id === 'INT2026-70001' || (id === '1' && fullName.toLowerCase() !== 'james smith' && fullName.toLowerCase() !== 'system admin profile')) {
                     displayId = "INT2026-70001";
                 } else if (/^\d+$/.test(id)) {
                     displayId = "INT2026-7" + String(id).padStart(4, "0");
@@ -2044,9 +2054,13 @@
                         actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
 
                     let dispUserId = log.user_id;
-                    if (log.username === 'James Smith' || dispUserId === 'ADM2026-0001') {
-                        dispUserId = 'ADM2026-0001';
-                    } else if (log.username === 'Juan Cruz' || dispUserId === 'INT2020-10001' || dispUserId === 'INT2024-50001' || dispUserId === 'INT2026-70001' || (dispUserId === '1' && log.username !== 'James Smith')) {
+                    if (log.username === 'James Smith' || log.username === 'System Administrator' || (dispUserId && dispUserId.startsWith('ADM')) || dispUserId === 'ADM2020-0001' || dispUserId === 'ADM2026-0001') {
+                        if (dispUserId && dispUserId.startsWith('ADM')) {
+                            // Keep it
+                        } else {
+                            dispUserId = 'ADM2020-0001';
+                        }
+                    } else if (log.username === 'Juan Cruz' || dispUserId === 'INT2020-10001' || dispUserId === 'INT2024-50001' || dispUserId === 'INT2026-70001' || (dispUserId === '1' && log.username !== 'James Smith' && log.username !== 'System Administrator')) {
                         dispUserId = 'INT2026-70001';
                     }
 

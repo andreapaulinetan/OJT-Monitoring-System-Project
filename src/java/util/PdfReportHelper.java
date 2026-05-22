@@ -316,9 +316,11 @@ public class PdfReportHelper {
                 
                 String userId = safeStr(log.get("user_id"));
                 String username = safeStr(log.get("username"));
-                if ("James Smith".equalsIgnoreCase(username) || "ADM2026-0001".equals(userId)) {
-                    userId = "ADM2026-0001";
-                } else if ("Juan Cruz".equalsIgnoreCase(username) || "INT2020-10001".equals(userId) || "INT2024-50001".equals(userId) || "INT2026-70001".equals(userId) || ("1".equals(userId) && !"James Smith".equalsIgnoreCase(username))) {
+                if ("James Smith".equalsIgnoreCase(username) || "System Admin Profile".equalsIgnoreCase(username) || (userId != null && userId.startsWith("ADM")) || "ADM2020-0001".equals(userId) || "ADM2026-0001".equals(userId)) {
+                    if (userId == null || !userId.startsWith("ADM")) {
+                        userId = "ADM2020-0001";
+                    }
+                } else if ("Juan Cruz".equalsIgnoreCase(username) || "INT2020-10001".equals(userId) || "INT2024-50001".equals(userId) || "INT2026-70001".equals(userId) || ("1".equals(userId) && !"James Smith".equalsIgnoreCase(username) && !"System Admin Profile".equalsIgnoreCase(username))) {
                     userId = "INT2026-70001";
                 }
                 
@@ -367,9 +369,11 @@ public class PdfReportHelper {
         addBorderlessProfileCell(profileTable, "Intern ID:", TD_BOLD_FONT);
         String dispId = intern.getId();
         String uFullName = ((intern.getFirstName() != null ? intern.getFirstName() : "") + " " + (intern.getLastName() != null ? intern.getLastName() : "")).trim();
-        if ("James Smith".equalsIgnoreCase(uFullName) || "ADM2026-0001".equals(dispId)) {
-            dispId = "ADM2026-0001";
-        } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName))) {
+        if ("James Smith".equalsIgnoreCase(uFullName) || "System Admin Profile".equalsIgnoreCase(uFullName) || (dispId != null && dispId.startsWith("ADM")) || "ADM2020-0001".equals(dispId) || "ADM2026-0001".equals(dispId)) {
+            if (dispId == null || !dispId.startsWith("ADM")) {
+                dispId = "ADM2020-0001";
+            }
+        } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName) && !"System Admin Profile".equalsIgnoreCase(uFullName))) {
             dispId = "INT2026-70001";
         } else if (dispId != null && dispId.matches("\\d+")) {
             dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
@@ -405,14 +409,15 @@ public class PdfReportHelper {
         int approvedTasks = 0;
         int pendingTasks = 0;
         int rejectedTasks = 0;
-        double renderedHours = 0.0;
+        double renderedHours = intern.getBaselineHours();
         if (submissions != null) {
             for (ActivitySubmission s : submissions) {
-                renderedHours += extractHoursFromDescription(s.getDescription());
                 if ("Approved".equalsIgnoreCase(s.getStatus())) {
                     approvedTasks++;
+                    renderedHours += extractHoursFromDescription(s.getDescription());
                 } else if ("Pending".equalsIgnoreCase(s.getStatus())) {
                     pendingTasks++;
+                    renderedHours += extractHoursFromDescription(s.getDescription());
                 } else if ("Rejected".equalsIgnoreCase(s.getStatus())) {
                     rejectedTasks++;
                 }
@@ -574,8 +579,8 @@ public class PdfReportHelper {
         table.addCell(cell);
     }
 
-    private static double extractHoursFromDescription(String desc) {
-        if (desc == null) return 8.0;
+    public static double extractHoursFromDescription(String desc) {
+        if (desc == null) return 0.0;
         java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\(Hours Spent:\\s*([0-9.]+)\\s*h\\)");
         java.util.regex.Matcher m = p.matcher(desc);
         if (m.find()) {
@@ -585,7 +590,7 @@ public class PdfReportHelper {
                 // Fallback
             }
         }
-        return 8.0; // Fallback to 8 hours for seeded data
+        return 0.0; // Fallback to 0.0 for seeded data so baseline is not double counted
     }
 
     /**

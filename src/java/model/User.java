@@ -26,6 +26,7 @@ public class User implements Serializable {
     private String office;
     private String logStatus;
     private boolean resetHours;
+    private double baselineHours = 148.5;
 
     // Default Constructor
     public User() {
@@ -129,6 +130,14 @@ public class User implements Serializable {
 
     public void setLogStatus(String logStatus) {
         this.logStatus = logStatus;
+    }
+
+    public double getBaselineHours() {
+        return baselineHours;
+    }
+
+    public void setBaselineHours(double baselineHours) {
+        this.baselineHours = baselineHours;
     }
 
     // ==========================================
