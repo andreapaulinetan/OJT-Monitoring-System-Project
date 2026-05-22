@@ -65,21 +65,21 @@ public class SubmitTaskServlet extends HttpServlet {
                 Part filePart = request.getPart("attendancePhoto");
                 if (filePart == null || filePart.getSize() <= 0) {
                     util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: No proof file uploaded.", null, session, getServletContext());
-                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                     return;
                 }
 
                 // Check file size (max 10MB)
                 if (filePart.getSize() > 10 * 1024 * 1024) {
                     util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: File size exceeds 10MB limit.", null, session, getServletContext());
-                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                     return;
                 }
 
                 originalFileName = getSubmittedFileName(filePart);
                 if (originalFileName == null || originalFileName.isEmpty()) {
                     util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Filename is empty.", null, session, getServletContext());
-                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                     return;
                 }
 
@@ -92,7 +92,7 @@ public class SubmitTaskServlet extends HttpServlet {
                     util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
                         "Invalid file type uploaded. Expected PNG or JPEG image. Filename: '" + originalFileName + "', Content-Type: '" + contentType + "' for user ID: " + userId, 
                         null, session, getServletContext());
-                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                     return;
                 }
 
@@ -102,7 +102,7 @@ public class SubmitTaskServlet extends HttpServlet {
                     int bytesRead = is.read(header);
                     if (bytesRead < 3) {
                         util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: File is too small to verify magic bytes.", null, session, getServletContext());
-                        response.sendRedirect("guest.jsp?status=invalid_file");
+                        response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                         return;
                     }
                 }
@@ -110,7 +110,7 @@ public class SubmitTaskServlet extends HttpServlet {
                 boolean isJpegMagic = (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8 && header[2] == (byte) 0xFF);
                 if (!isPngMagic && !isJpegMagic) {
                     util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Magic bytes verification failed for " + originalFileName, null, session, getServletContext());
-                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    response.sendRedirect("guest.jsp?status=invalid_file" + (tabId != null ? "&tabId=" + tabId : ""));
                     return;
                 }
 
@@ -131,7 +131,7 @@ public class SubmitTaskServlet extends HttpServlet {
             } catch (Exception e) {
                 util.ErrorLogger.logError("SERVLET UPLOAD ERROR", "Error occurred while handling multipart task submission", e, session, getServletContext());
                 e.printStackTrace();
-                response.sendRedirect("guest.jsp?status=db_error");
+                response.sendRedirect("guest.jsp?status=db_error" + (tabId != null ? "&tabId=" + tabId : ""));
                 return;
             }
         } else {
@@ -149,7 +149,7 @@ public class SubmitTaskServlet extends HttpServlet {
         if (!util.InputValidator.isValidDoubleInRange(hoursStr, 0.0001, 24.0)) {
             util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Invalid hours format or range: '" + hoursStr + "'", null, session, getServletContext());
             if (isMultipart) {
-                response.sendRedirect("guest.jsp?status=invalid_input");
+                response.sendRedirect("guest.jsp?status=invalid_input" + (tabId != null ? "&tabId=" + tabId : ""));
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid hours format or range.");
             }
@@ -159,7 +159,7 @@ public class SubmitTaskServlet extends HttpServlet {
         if (!util.InputValidator.isValidLength(description, 5, 500) || description.contains("<") || description.contains(">")) {
             util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Invalid description length or contains HTML: '" + description + "'", null, session, getServletContext());
             if (isMultipart) {
-                response.sendRedirect("guest.jsp?status=invalid_input");
+                response.sendRedirect("guest.jsp?status=invalid_input" + (tabId != null ? "&tabId=" + tabId : ""));
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid description length or characters.");
             }
@@ -187,10 +187,10 @@ public class SubmitTaskServlet extends HttpServlet {
 
         if (isMultipart) {
             if (success) {
-                response.sendRedirect("guest.jsp?status=success&approvedHours=" + hours);
+                response.sendRedirect("guest.jsp?status=success&approvedHours=" + hours + (tabId != null ? "&tabId=" + tabId : ""));
             } else {
                 util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Task submission database write failed for user: " + userId + ". File: " + originalFileName, null, session, getServletContext());
-                response.sendRedirect("guest.jsp?status=db_error");
+                response.sendRedirect("guest.jsp?status=db_error" + (tabId != null ? "&tabId=" + tabId : ""));
             }
         } else {
             // AJAX responses

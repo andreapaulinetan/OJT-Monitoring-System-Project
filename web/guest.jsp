@@ -381,7 +381,8 @@
         </div>
         <script>
             // --- Global State Variables ---
-            let renderedHoursBase = parseFloat(localStorage.getItem('guest_renderedHours')) || 148.5;
+            let storedHours = localStorage.getItem('guest_renderedHours');
+            let renderedHoursBase = (storedHours !== null) ? parseFloat(storedHours) : 148.5;
             let calendarYear = 2026;
             let calendarMonth = 4; // May (0-indexed)
 

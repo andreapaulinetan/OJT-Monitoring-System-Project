@@ -14,10 +14,10 @@
     User loggedInUser = TabSessionHelper.getUser(session, tabId);
     if (loggedInUser != null) {
         if ("admin".equalsIgnoreCase(loggedInUser.getRole())) {
-            response.sendRedirect("admin.jsp");
+            response.sendRedirect("admin.jsp" + (tabId != null ? "?tabId=" + tabId : ""));
             return;
         } else {
-            response.sendRedirect("guest.jsp");
+            response.sendRedirect("guest.jsp" + (tabId != null ? "?tabId=" + tabId : ""));
             return;
         }
     }
