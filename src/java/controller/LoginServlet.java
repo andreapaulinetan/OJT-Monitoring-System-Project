@@ -68,6 +68,9 @@ public class LoginServlet extends HttpServlet {
             // Re-initialize only this tab's sub-session to prevent session crossover
             util.TabSessionHelper.invalidateTab(session, tabId);
             util.TabSessionHelper.setUser(session, tabId, user);
+            // Also set globally for fallback when tabId is dropped during redirects or back button
+            session.setAttribute("user", user);
+            session.setAttribute("role", user.getRole());
             session.setMaxInactiveInterval(15 * 60); // 15 mins inactive interval for session
 
             // AUTO-LOG: Record LOGIN event to PostgreSQL (DBMS 3)

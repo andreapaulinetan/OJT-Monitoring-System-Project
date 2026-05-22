@@ -38,7 +38,8 @@ public class AuthFilter implements Filter {
                                        lowerURI.contains("fontawesome");
 
             // 2. Identify Public Pages
-            boolean loggedIn = (session != null && tabId != null && util.TabSessionHelper.getUser(session, tabId) != null);
+            model.User globalUser = (session != null) ? (model.User) session.getAttribute("user") : null;
+            boolean loggedIn = (session != null && ((tabId != null && util.TabSessionHelper.getUser(session, tabId) != null) || globalUser != null));
             boolean isLoginPage = lowerURI.endsWith("login.jsp");
             boolean isLoginServlet = lowerURI.endsWith("loginservlet");
             boolean isCaptcha = lowerURI.endsWith("captchaservlet");
@@ -74,6 +75,9 @@ public class AuthFilter implements Filter {
                 // Role-Based Access Control (RBAC) Checks
                 if (loggedIn && !isStaticResource) {
                     model.User loggedInUser = util.TabSessionHelper.getUser(session, tabId);
+                    if (loggedInUser == null && session != null) {
+                        loggedInUser = (model.User) session.getAttribute("user");
+                    }
                     if (loggedInUser != null) {
                         boolean isAdminUser = "admin".equalsIgnoreCase(loggedInUser.getRole());
                         
@@ -94,15 +98,7 @@ public class AuthFilter implements Filter {
                     }
                 }
 
-                // Add headers to prevent caching issues
-                if (isStaticResource) {
-                    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-                } else {
-                    // Prevent browser caching on all dynamic pages so back button triggers a session re-evaluation
-                    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-                    res.setHeader("Pragma", "no-cache");
-                    res.setDateHeader("Expires", 0);
-                }
+                // Caching headers removed to allow browser back button navigation without triggering session re-evaluation block.
                 chain.doFilter(request, response);
             } else {
                 // If not logged in or missing tabId, detect direct JSP or servlet access attempts

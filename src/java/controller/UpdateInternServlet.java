@@ -27,6 +27,9 @@ public class UpdateInternServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         String tabId = util.TabSessionHelper.getTabId(request);
         User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        if (user == null && session != null) {
+            user = (User) session.getAttribute("user");
+        }
         
         if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
             util.ErrorLogger.logError(

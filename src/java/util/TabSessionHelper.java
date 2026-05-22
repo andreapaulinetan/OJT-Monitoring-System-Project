@@ -76,7 +76,11 @@ public class TabSessionHelper {
     }
 
     public static User getUser(HttpSession session, String tabId) {
-        return (User) getAttribute(session, tabId, "user");
+        User user = (User) getAttribute(session, tabId, "user");
+        if (user == null && session != null) {
+            user = (User) session.getAttribute("user");
+        }
+        return user;
     }
 
     public static void setUser(HttpSession session, String tabId, User user) {
