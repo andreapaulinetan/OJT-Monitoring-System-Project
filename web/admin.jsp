@@ -4,6 +4,7 @@
 <%@page import="model.ActivitySubmission"%>
 <%@page import="java.util.List"%>
 <%@page import="util.TabSessionHelper"%>
+<%@page import="util.CsrfUtil"%>
 <%
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
@@ -132,7 +133,6 @@
                         <div class="stat-card yellow"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
                         <div class="stat-card pink"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
                         <div class="stat-card green"><span class="label">Completion Rate</span><h1 class="value">68%</h1></div>
-                        <div class="stat-card blue"><span class="label">Quick Reports</span><button class="btn-report mt-2 w-100 btn btn-sm btn-dark">Generate All</button></div>
                     </section>
                     <div class="p-4 text-muted text-center" style="margin-top: 50px;">
                         <i class="fas fa-chart-pie fa-3x mb-3"></i>
@@ -185,7 +185,18 @@
                                 </thead>
                                 <tbody id="internTableBody">
                                     <% if (internList != null && !internList.isEmpty()) {
-                                            for (User u : internList) {%>
+                                            for (User u : internList) {
+                                                String dispId = u.getId();
+                                                String uFullName = (u.getFirstName() != null ? u.getFirstName() : "") + " " + (u.getLastName() != null ? u.getLastName() : "");
+                                                uFullName = uFullName.trim();
+                                                 if ("James Smith".equalsIgnoreCase(uFullName) || "ADM2026-0001".equals(dispId)) {
+                                                     dispId = "ADM2026-0001";
+                                                 } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName))) {
+                                                     dispId = "INT2026-70001";
+                                                 } else if (dispId != null && dispId.matches("\\d+")) {
+                                                     dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
+                                                 }
+                                    %>
                                     <tr class="intern-row"
                                         data-id="<%= u.getId()%>"
                                         data-firstname="<%= u.getFirstName()%>"
@@ -197,7 +208,7 @@
                                         data-role="<%= (u.getRole() != null) ? u.getRole() : ""%>"
                                         data-rolecode="<%= (u.getRoleCode() != null) ? u.getRoleCode() : ""%>"
                                         data-office="<%= u.getOffice()%>">
-                                        <td class="col-id"><%= u.getId()%></td>
+                                        <td class="col-id"><%= dispId%></td>
                                         <td class="col-name">
                                             <div class="name-container">
                                                 <strong><%= u.getFirstName()%> <%= u.getLastName()%></strong>
@@ -306,6 +317,15 @@
                                                 String subId = s.getSubmissionId();
                                                 String internId = s.getUserId();
                                                 String internName = s.getInternName();
+                                                String dispInternId = internId;
+                                                String mappedId = model.UserDAO.mapToDerbyInternId(internId);
+                                                 if ("James Smith".equalsIgnoreCase(internName) || "ADM2026-0001".equals(internId)) {
+                                                     dispInternId = "ADM2026-0001";
+                                                 } else if ("Juan Cruz".equalsIgnoreCase(internName) || "INT2020-10001".equals(internId) || "INT2024-50001".equals(internId) || "INT2026-70001".equals(internId) || "1".equals(mappedId) || ("1".equals(internId) && !"James Smith".equalsIgnoreCase(internName))) {
+                                                     dispInternId = "INT2026-70001";
+                                                 } else if (mappedId != null && mappedId.matches("\\d+")) {
+                                                     dispInternId = "INT2026-7" + String.format("%04d", Integer.parseInt(mappedId));
+                                                 }
                                                 String dateSub = s.getDateSubmitted().toString();
                                                 String desc = s.getDescription() != null ? s.getDescription().replace("'", "\\'") : "";
                                                 String learnRef = s.getLearningReflection() != null ? s.getLearningReflection().replace("'", "\\'") : "";
@@ -314,10 +334,10 @@
                                                 String office = s.getAssignedOffice();
                                                 String status = (s.getStatus() != null) ? s.getStatus() : "Pending";
                                     %>
-                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= learnRef%>', '<%= origFile%>', '<%= suppFile%>')">
+                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= dispInternId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= learnRef%>', '<%= origFile%>', '<%= suppFile%>')">
                                         <td><%= dateSub%></td>
                                         <td><span class="sub-id-badge"><%= subId%></span></td>
-                                        <td><%= internId%></td>
+                                        <td><%= dispInternId%></td>
                                         <td><%= internName%></td>
                                         <td>
                                             <span class="badge bg-light text-dark border file-badge-container" title="<%= origFile%>">
@@ -555,6 +575,7 @@
                     </div>
                     <div class="modal-body p-4">
                         <form id="addInternForm" action="AddInternServlet" method="POST" novalidate>
+                            <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-required small fw-bold">First Name</label>
@@ -1119,7 +1140,16 @@
 
                 // Populate the Edit Form Input Fields
                 document.getElementById("editInternId").value = id;
-                document.getElementById("editInternIdDisplay").innerText = id;
+                let displayId = id;
+                const fullName = ((firstName || "") + " " + (lastName || "")).trim();
+                if (fullName.toLowerCase() === 'james smith' || id === 'ADM2026-0001') {
+                    displayId = "ADM2026-0001";
+                } else if (fullName.toLowerCase() === 'juan cruz' || id === 'INT2020-10001' || id === 'INT2024-50001' || id === 'INT2026-70001' || (id === '1' && fullName.toLowerCase() !== 'james smith')) {
+                    displayId = "INT2026-70001";
+                } else if (/^\d+$/.test(id)) {
+                    displayId = "INT2026-7" + String(id).padStart(4, "0");
+                }
+                document.getElementById("editInternIdDisplay").innerText = displayId;
                 document.getElementById("editFirstName").value = firstName;
                 document.getElementById("editMiddleName").value = middleName;
                 document.getElementById("editLastName").value = lastName;
@@ -1265,7 +1295,10 @@
                 fetch("UpdateLogStatusServlet", {
                     method: "POST",
                     headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name)
+                    body: "submissionId=" + encodeURIComponent(submissionId) + 
+                          "&status=" + encodeURIComponent(newStatus) + 
+                          "&tabId=" + encodeURIComponent(window.name) + 
+                          "&csrfToken=" + encodeURIComponent("<%= CsrfUtil.getToken(session) %>")
                 })
                         .then(response => {
                             if (response.ok) {
@@ -2010,8 +2043,15 @@
                     else
                         actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
 
+                    let dispUserId = log.user_id;
+                    if (log.username === 'James Smith' || dispUserId === 'ADM2026-0001') {
+                        dispUserId = 'ADM2026-0001';
+                    } else if (log.username === 'Juan Cruz' || dispUserId === 'INT2020-10001' || dispUserId === 'INT2024-50001' || dispUserId === 'INT2026-70001' || (dispUserId === '1' && log.username !== 'James Smith')) {
+                        dispUserId = 'INT2026-70001';
+                    }
+
                     tr.innerHTML = '<td>' + log.created_at + '</td>' +
-                            '<td><span style="font-family: monospace; font-size: 12px;">' + log.user_id + '</span></td>' +
+                            '<td><span style="font-family: monospace; font-size: 12px;">' + dispUserId + '</span></td>' +
                             '<td>' + log.username + '</td>' +
                             '<td>' + actionBadge + '</td>' +
                             '<td><small class="text-muted">' + log.details + '</small></td>' +

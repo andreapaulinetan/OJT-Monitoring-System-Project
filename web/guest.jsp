@@ -398,7 +398,8 @@
             <% if (forceResetHours) { %>
                 localStorage.setItem(renderedHoursKey, '0');
             <% } %>
-            let renderedHoursBase = parseFloat(localStorage.getItem(renderedHoursKey)) || 148.5;
+            let renderedHoursVal = localStorage.getItem(renderedHoursKey);
+            let renderedHoursBase = (renderedHoursVal !== null && !isNaN(parseFloat(renderedHoursVal))) ? parseFloat(renderedHoursVal) : 148.5;
             let calendarYear = 2026;
             let calendarMonth = 4; // May (0-indexed)
 

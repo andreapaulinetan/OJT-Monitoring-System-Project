@@ -129,7 +129,11 @@ public class SubmitTaskServlet extends HttpServlet {
                 // Strip all non-alphanumeric/dot/dash/underscore characters to prevent traversal/injection
                 cleanName = cleanName.replaceAll("[^a-zA-Z0-9.\\-_]", "");
                 supportingFile = System.currentTimeMillis() + "_" + cleanName;
-                filePart.write(uploadPath + File.separator + supportingFile);
+                File targetFile = new File(uploadPath + File.separator + supportingFile);
+                try (java.io.InputStream input = filePart.getInputStream()) {
+                    java.nio.file.Files.copy(input, targetFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+
             } catch (Exception e) {
                 util.ErrorLogger.logError("SERVLET UPLOAD ERROR", "Error occurred while handling multipart task submission", e, session, getServletContext());
                 e.printStackTrace();
