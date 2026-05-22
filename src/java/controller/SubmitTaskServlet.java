@@ -30,8 +30,16 @@ public class SubmitTaskServlet extends HttpServlet {
         
         // 1. Session verification check
         HttpSession session = request.getSession(false);
+        
+        // CSRF Token Validation
+        if (session == null || !util.CsrfUtil.validateToken(request, session)) {
+            util.ErrorLogger.logError("CSRF VIOLATION", "Task submission attempt blocked due to invalid or missing CSRF token.", null, session, getServletContext());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF token.");
+            return;
+        }
+
         String tabId = util.TabSessionHelper.getTabId(request);
-        User user = (session != null && tabId != null) ? util.TabSessionHelper.getUser(session, tabId) : null;
+        User user = util.TabSessionHelper.getUser(session, tabId);
         
         if (user == null) {
             util.ErrorLogger.logError("UNAUTHORIZED ACCESS", "Attempted task submission without a valid authenticated user session (Tab ID: " + tabId + ")", null, session, getServletContext());
@@ -55,36 +63,71 @@ public class SubmitTaskServlet extends HttpServlet {
                 description = request.getParameter("taskDescription");
 
                 Part filePart = request.getPart("attendancePhoto");
-                if (filePart != null && filePart.getSize() > 0) {
-                    originalFileName = getSubmittedFileName(filePart);
-                    if (originalFileName != null && !originalFileName.isEmpty()) {
-                        String contentType = filePart.getContentType();
-                        String lowerName = originalFileName.toLowerCase();
-                        boolean isSupportedExtension = lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
-                        boolean isSupportedMime = contentType != null && (contentType.equalsIgnoreCase("image/png") || contentType.equalsIgnoreCase("image/jpeg") || contentType.equalsIgnoreCase("image/jpg"));
-                        
-                        if (!isSupportedExtension || !isSupportedMime) {
-                            util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
-                                "Invalid file type uploaded. Expected PNG or JPEG image. Filename: '" + originalFileName + "', Content-Type: '" + contentType + "' for user ID: " + userId, 
-                                null, session, getServletContext());
-                            response.sendRedirect("guest.jsp?status=invalid_file");
-                            return;
-                        }
+                if (filePart == null || filePart.getSize() <= 0) {
+                    util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: No proof file uploaded.", null, session, getServletContext());
+                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    return;
+                }
 
-                        String uploadPath = getServletContext().getRealPath("/uploads");
-                        if (uploadPath == null) {
-                            uploadPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Uploads";
-                        }
-                        File uploadDir = new File(uploadPath);
-                        if (!uploadDir.exists()) {
-                            uploadDir.mkdirs();
-                        }
-                        // Create a clean filename
-                        String cleanName = new File(originalFileName).getName();
-                        supportingFile = System.currentTimeMillis() + "_" + cleanName;
-                        filePart.write(uploadPath + File.separator + supportingFile);
+                // Check file size (max 10MB)
+                if (filePart.getSize() > 10 * 1024 * 1024) {
+                    util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: File size exceeds 10MB limit.", null, session, getServletContext());
+                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    return;
+                }
+
+                originalFileName = getSubmittedFileName(filePart);
+                if (originalFileName == null || originalFileName.isEmpty()) {
+                    util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Filename is empty.", null, session, getServletContext());
+                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    return;
+                }
+
+                String contentType = filePart.getContentType();
+                String lowerName = originalFileName.toLowerCase();
+                boolean isSupportedExtension = lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+                boolean isSupportedMime = contentType != null && (contentType.equalsIgnoreCase("image/png") || contentType.equalsIgnoreCase("image/jpeg") || contentType.equalsIgnoreCase("image/jpg"));
+                
+                if (!isSupportedExtension || !isSupportedMime) {
+                    util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
+                        "Invalid file type uploaded. Expected PNG or JPEG image. Filename: '" + originalFileName + "', Content-Type: '" + contentType + "' for user ID: " + userId, 
+                        null, session, getServletContext());
+                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    return;
+                }
+
+                // Validate file magic bytes
+                byte[] header = new byte[4];
+                try (java.io.InputStream is = filePart.getInputStream()) {
+                    int bytesRead = is.read(header);
+                    if (bytesRead < 3) {
+                        util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: File is too small to verify magic bytes.", null, session, getServletContext());
+                        response.sendRedirect("guest.jsp?status=invalid_file");
+                        return;
                     }
                 }
+                boolean isPngMagic = (header[0] == (byte) 0x89 && header[1] == (byte) 0x50 && header[2] == (byte) 0x4E && header[3] == (byte) 0x47);
+                boolean isJpegMagic = (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8 && header[2] == (byte) 0xFF);
+                if (!isPngMagic && !isJpegMagic) {
+                    util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Magic bytes verification failed for " + originalFileName, null, session, getServletContext());
+                    response.sendRedirect("guest.jsp?status=invalid_file");
+                    return;
+                }
+
+                String uploadPath = getServletContext().getRealPath("/uploads");
+                if (uploadPath == null) {
+                    uploadPath = System.getProperty("user.home") + File.separator + "OJT_Monitoring_System_Uploads";
+                }
+                File uploadDir = new File(uploadPath);
+                if (!uploadDir.exists()) {
+                    uploadDir.mkdirs();
+                }
+                // Create a clean filename
+                String cleanName = new File(originalFileName).getName();
+                // Strip all non-alphanumeric/dot/dash/underscore characters to prevent traversal/injection
+                cleanName = cleanName.replaceAll("[^a-zA-Z0-9.\\-_]", "");
+                supportingFile = System.currentTimeMillis() + "_" + cleanName;
+                filePart.write(uploadPath + File.separator + supportingFile);
             } catch (Exception e) {
                 util.ErrorLogger.logError("SERVLET UPLOAD ERROR", "Error occurred while handling multipart task submission", e, session, getServletContext());
                 e.printStackTrace();
@@ -99,15 +142,31 @@ public class SubmitTaskServlet extends HttpServlet {
             supportingFile = "stopwatch_sync_timestamp";
         }
 
-        // Parse hours and append to description so admin can see details in log reviews
-        double hours = 0.0;
-        try {
-            if (hoursStr != null && !hoursStr.trim().isEmpty()) {
-                hours = Double.parseDouble(hoursStr);
+        // Validate hours and description
+        hoursStr = (hoursStr == null) ? "" : hoursStr.trim();
+        description = (description == null) ? "" : description.trim();
+
+        if (!util.InputValidator.isValidDoubleInRange(hoursStr, 0.0001, 24.0)) {
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Invalid hours format or range: '" + hoursStr + "'", null, session, getServletContext());
+            if (isMultipart) {
+                response.sendRedirect("guest.jsp?status=invalid_input");
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid hours format or range.");
             }
-        } catch (NumberFormatException e) {
-            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Failed parsing simulatedHours. Invalid format: '" + hoursStr + "'", e, session, getServletContext());
+            return;
         }
+
+        if (!util.InputValidator.isValidLength(description, 5, 500) || description.contains("<") || description.contains(">")) {
+            util.ErrorLogger.logError("INPUT VALIDATION ERROR", "Task submission failed: Invalid description length or contains HTML: '" + description + "'", null, session, getServletContext());
+            if (isMultipart) {
+                response.sendRedirect("guest.jsp?status=invalid_input");
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid description length or characters.");
+            }
+            return;
+        }
+
+        double hours = Double.parseDouble(hoursStr);
 
         // Refine description with hours metadata
         String refinedDesc = description;

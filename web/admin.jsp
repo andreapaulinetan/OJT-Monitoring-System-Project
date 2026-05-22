@@ -4,6 +4,8 @@
 <%@page import="model.ActivitySubmission"%>
 <%@page import="java.util.List"%>
 <%@page import="util.TabSessionHelper"%>
+<%@page import="util.HtmlUtil"%>
+<%@page import="util.CsrfUtil"%>
 <%
     response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     response.setHeader("Pragma", "no-cache");
@@ -119,8 +121,8 @@
                     </div>
                     <div class="user-profile">
                         <div class="profile-chip">
-                            <span><%= user.getFullName()%></span>
-                            <img src="https://ui-avatars.com/api/?name=<%= user.getFullName()%>&background=d63384&color=fff" alt="Admin">
+                            <span><%= HtmlUtil.escape(user.getFullName())%></span>
+                            <img src="https://ui-avatars.com/api/?name=<%= HtmlUtil.escape(user.getFullName())%>&background=d63384&color=fff" alt="Admin">
                         </div>
                     </div>
                 </header>
@@ -185,19 +187,19 @@
                                     <% if (internList != null && !internList.isEmpty()) {
                                             for (User u : internList) {%>
                                     <tr class="intern-row">
-                                        <td class="col-id"><%= u.getId()%></td>
+                                        <td class="col-id"><%= HtmlUtil.escape(u.getId())%></td>
                                         <td class="col-name">
                                             <div class="name-container">
-                                                <strong><%= u.getFirstName()%> <%= u.getLastName()%></strong>
-                                                <small class="text-primary"><%= u.getEmail()%></small>
+                                                <strong><%= HtmlUtil.escape(u.getFirstName())%> <%= HtmlUtil.escape(u.getLastName())%></strong>
+                                                <small class="text-primary"><%= HtmlUtil.escape(u.getEmail())%></small>
                                             </div>
                                         </td>
-                                        <td class="col-uni"><%= u.getUniversity()%></td>
-                                        <td class="col-city"><%= (u.getCity() != null) ? u.getCity() : "N/A"%></td>
-                                        <td class="col-role"><%= (u.getRole() != null) ? u.getRole() : "N/A"%></td>
-                                        <td class="col-office"><%= u.getOffice()%></td>
+                                        <td class="col-uni"><%= HtmlUtil.escape(u.getUniversity())%></td>
+                                        <td class="col-city"><%= HtmlUtil.escape((u.getCity() != null) ? u.getCity() : "N/A")%></td>
+                                        <td class="col-role"><%= HtmlUtil.escape((u.getRole() != null) ? u.getRole() : "N/A")%></td>
+                                        <td class="col-office"><%= HtmlUtil.escape(u.getOffice())%></td>
                                         <td class="col-actions">
-                                            <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId() %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;">
+                                            <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= HtmlUtil.escape(u.getId()) %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;">
                                                 <i class="fas fa-download"></i> Record
                                             </a>
                                         </td>
@@ -284,25 +286,25 @@
                                                 String internId = s.getUserId();
                                                 String internName = s.getInternName();
                                                 String dateSub = s.getDateSubmitted().toString();
-                                                String desc = s.getDescription() != null ? s.getDescription().replace("'", "\\'") : "";
+                                                String desc = (s.getDescription() != null) ? s.getDescription() : "";
                                                 String origFile = s.getOriginalFileName();
                                                 String suppFile = s.getSupportingFile();
                                                 String office = s.getAssignedOffice();
                                                 String status = (s.getStatus() != null) ? s.getStatus() : "Pending";
                                     %>
-                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= internId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= origFile%>', '<%= suppFile%>')">
-                                        <td><%= dateSub%></td>
-                                        <td><span class="sub-id-badge"><%= subId%></span></td>
-                                        <td><%= internId%></td>
-                                        <td><%= internName%></td>
+                                    <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= HtmlUtil.escapeJs(subId)%>', '<%= HtmlUtil.escapeJs(internId)%>', '<%= HtmlUtil.escapeJs(internName)%>', '<%= HtmlUtil.escapeJs(dateSub)%>', '<%= HtmlUtil.escapeJs(desc)%>', '<%= HtmlUtil.escapeJs(origFile)%>', '<%= HtmlUtil.escapeJs(suppFile)%>')">
+                                        <td><%= HtmlUtil.escape(dateSub)%></td>
+                                        <td><span class="sub-id-badge"><%= HtmlUtil.escape(subId)%></span></td>
+                                        <td><%= HtmlUtil.escape(internId)%></td>
+                                        <td><%= HtmlUtil.escape(internName)%></td>
                                         <td>
-                                            <span class="badge bg-light text-dark border file-badge-container" title="<%= origFile %>">
-                                                <i class="fas fa-paperclip me-1 text-primary"></i> <%= origFile%>
+                                            <span class="badge bg-light text-dark border file-badge-container" title="<%= HtmlUtil.escape(origFile) %>">
+                                                <i class="fas fa-paperclip me-1 text-primary"></i> <%= HtmlUtil.escape(origFile)%>
                                             </span>
                                         </td>
-                                        <td><small class="text-muted"><%= office%></small></td>
+                                        <td><small class="text-muted"><%= HtmlUtil.escape(office)%></small></td>
                                         <td onclick="event.stopPropagation();">
-                                            <select class="form-select form-select-sm status-select status-<%= status%>" onchange="updateLogStatusDatabase('<%= subId%>', this)">
+                                            <select class="form-select form-select-sm status-select status-<%= HtmlUtil.escape(status)%>" onchange="updateLogStatusDatabase('<%= HtmlUtil.escapeJs(subId)%>', this)">
                                                 <option value="Pending" <%= "Pending".equalsIgnoreCase(status) ? "selected" : ""%>>Pending</option>
                                                 <option value="Approved" <%= "Approved".equalsIgnoreCase(status) ? "selected" : ""%>>Approved</option>
                                                 <option value="Rejected" <%= "Rejected".equalsIgnoreCase(status) ? "selected" : ""%>>Rejected</option>
@@ -386,9 +388,11 @@
                                             <i class="fas fa-file-alt fa-2x mb-3" style="color: #d63384;"></i>
                                             <h6 class="fw-bold mb-2">OJT Logs Report</h6>
                                             <p class="text-muted small mb-2">Activity submissions from MySQL. Use date filters or leave blank for all records.</p>
-                                            <div class="mb-2">
+                                            <div class="mb-2 text-start">
                                                 <input type="date" id="ojtFromDate" class="form-control form-control-sm mb-1" placeholder="From">
+                                                <div class="invalid-feedback mb-1" id="ojtFromDateFeedback" style="font-size: 0.75rem;">From date is invalid.</div>
                                                 <input type="date" id="ojtToDate" class="form-control form-control-sm" placeholder="To">
+                                                <div class="invalid-feedback" id="ojtToDateFeedback" style="font-size: 0.75rem;">To date is invalid.</div>
                                             </div>
                                             <button class="btn btn-sm btn-dark w-100" onclick="downloadOjtReport()">
                                                 <i class="fas fa-download me-1"></i> Download PDF
@@ -527,6 +531,7 @@
                     </div>
                     <div class="modal-body p-4">
                         <form id="addInternForm" action="AddInternServlet" method="POST" novalidate>
+                            <input type="hidden" name="csrfToken" value="<%= CsrfUtil.getToken(session) %>"/>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-required small fw-bold">First Name</label>
@@ -715,6 +720,15 @@
         </div>
 
         <script>
+            var csrfToken = '<%= CsrfUtil.getToken(session) %>';
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                var div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
             let activeFilters = {university: "", role: "", office: "", city: ""};
             let internSortColumn = 0, internSortAsc = false;
             let logSortColumn = 0, logSortAsc = true;
@@ -735,6 +749,23 @@
                 populateDropdowns();
                 sortInternTable(0, false);
                 sortLogTable(0, false);
+
+                // Reset invalid validation styles on date inputs in real time
+                const fromInput = document.getElementById('ojtFromDate');
+                const toInput = document.getElementById('ojtToDate');
+                const fromFeedback = document.getElementById('ojtFromDateFeedback');
+                const toFeedback = document.getElementById('ojtToDateFeedback');
+                
+                if (fromInput && toInput) {
+                    fromInput.addEventListener('input', () => {
+                        fromInput.classList.remove('is-invalid');
+                        if (fromFeedback) fromFeedback.style.display = 'none';
+                    });
+                    toInput.addEventListener('input', () => {
+                        toInput.classList.remove('is-invalid');
+                        if (toFeedback) toFeedback.style.display = 'none';
+                    });
+                }
                 
                 // Server Post-Submit Success Modal Interception Control
                 const urlParams = new URLSearchParams(window.location.search);
@@ -760,12 +791,26 @@
                     showAdminToast("Date Range Error: 'From' date must be before or equal to 'To' date.", "danger");
                 } else if (err === 'malformed_dates') {
                     showAdminToast("Malformed Dates: The dates provided are invalid or empty.", "danger");
+                } else if (err === 'duplicate_email') {
+                    showAdminToast("Intern Registration Failed: Email already exists.", "danger");
+                } else if (err === 'invalid_input') {
+                    showAdminToast("Intern Registration Failed: Invalid form inputs provided.", "danger");
+                } else if (urlParams.get('status') === 'failed') {
+                    showAdminToast("Intern Registration Failed: Database transaction error.", "danger");
+                } else if (urlParams.get('status') === 'error') {
+                    showAdminToast("Intern Registration Failed: An unexpected error occurred.", "danger");
                 }
 
-                // Restore active view tab from URL parameter (e.g. log-review)
-                const targetView = urlParams.get('view');
+                // Restore active view tab from URL parameter (e.g. log-review) or session storage
+                const targetView = urlParams.get('view') || sessionStorage.getItem('adminActiveView');
                 if (targetView) {
                     switchView(targetView);
+                }
+
+                // Clear URL parameters to prevent re-triggering modals/toasts on page refresh
+                if (window.history.replaceState && window.location.search) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
                 }
             });
 
@@ -863,22 +908,40 @@
 
             function updateLogStatusDatabase(submissionId, selectElement) {
                 const newStatus = selectElement.value;
+                
+                // Pre-validate input formats
+                const idRegex = /^\d{8}-[a-zA-Z]{2,4}-\d{4,}$/;
+                const statusWhitelist = ["Pending", "Approved", "Rejected"];
+                
+                if (!idRegex.test(submissionId)) {
+                    showAdminToast("Validation Error: Invalid submission ID format.", "danger");
+                    return;
+                }
+                if (!statusWhitelist.includes(newStatus)) {
+                    showAdminToast("Validation Error: Invalid status value.", "danger");
+                    return;
+                }
+
                 selectElement.className = "form-select form-select-sm status-select status-" + newStatus;
 
                 fetch("UpdateLogStatusServlet", {
                     method: "POST",
                     headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name)
+                    body: "submissionId=" + encodeURIComponent(submissionId) + "&status=" + encodeURIComponent(newStatus) + "&tabId=" + encodeURIComponent(window.name) + "&csrfToken=" + encodeURIComponent(csrfToken)
                 })
                         .then(response => {
                             if (response.ok) {
                                 console.log("Database parameters operational flag synchronization completed.");
                                 refreshPendingCounters();
+                                showAdminToast("Status updated successfully to " + newStatus + ".", "success");
                             } else {
-                                alert("System failed to execute server parameter database save operations cycles.");
+                                showAdminToast("Failed to update status on the server.", "danger");
                             }
                         })
-                        .catch(err => console.error("Pipeline Sync Connection Interrupted Exception: ", err));
+                        .catch(err => {
+                            console.error("Pipeline Sync Connection Interrupted Exception: ", err);
+                            showAdminToast("Network connection error. Failed to sync status.", "danger");
+                        });
             }
 
             function refreshPendingCounters() {
@@ -1120,6 +1183,7 @@
             }
 
             function switchView(viewId) {
+                sessionStorage.setItem('adminActiveView', viewId);
                 document.getElementById("internSearch").value = "";
 
                 document.getElementById('dashboard-view').style.display = 'none';
@@ -1384,6 +1448,33 @@
                 }
             }
 
+            function isValidCalendarDate(monthStr, dateStr, yearStr) {
+                const day = parseInt(dateStr, 10);
+                const year = parseInt(yearStr, 10);
+                if (isNaN(day) || isNaN(year)) return false;
+                if (year < 1900 || year > 2100) return false;
+                
+                let monthVal;
+                switch (monthStr.trim().toLowerCase()) {
+                    case "january": monthVal = 0; break;
+                    case "february": monthVal = 1; break;
+                    case "march": monthVal = 2; break;
+                    case "april": monthVal = 3; break;
+                    case "may": monthVal = 4; break;
+                    case "june": monthVal = 5; break;
+                    case "july": monthVal = 6; break;
+                    case "august": monthVal = 7; break;
+                    case "september": monthVal = 8; break;
+                    case "october": monthVal = 9; break;
+                    case "november": monthVal = 10; break;
+                    case "december": monthVal = 11; break;
+                    default: return false;
+                }
+                
+                const d = new Date(year, monthVal, day);
+                return d.getFullYear() === year && d.getMonth() === monthVal && d.getDate() === day;
+            }
+
             function validateAndProcessInternForm() {
                 const errBox = document.getElementById("modalFormError");
                 errBox.style.display = "none";
@@ -1405,32 +1496,86 @@
                 const roleField = document.getElementById("intRole");
                 const passField = document.getElementById("intPassword");
 
-                if (!fNameField.value.trim()) { fNameField.classList.add('is-invalid'); errors.push("First Name is required."); }
-                if (!mNameField.value.trim()) { mNameField.classList.add('is-invalid'); errors.push("Middle Name is required."); }
-                if (!lNameField.value.trim()) { lNameField.classList.add('is-invalid'); errors.push("Last Name is required."); }
-                if (!bMonthField.value) { bMonthField.classList.add('is-invalid'); errors.push("Birth Month is required."); }
-                if (!bDateField.value) { bDateField.classList.add('is-invalid'); errors.push("Birth Date is required."); }
+                const nameRegex = /^[a-zA-Z\s.\-']{2,100}$/;
+                const uniRegex = /^[a-zA-Z0-9\s.\-()']{2,150}$/;
+                const phoneRegex = /^[+]?[0-9\s-]{10,15}$/;
+                const passRegex = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!\-_*()]).{8,100}$/;
 
-                const bYear = parseInt(bYearField.value);
-                if (isNaN(bYear) || bYearField.value.trim().length !== 4 || bYear < 1900 || bYear > 2026) {
+                const fName = fNameField.value.trim();
+                if (!fName) {
+                    fNameField.classList.add('is-invalid');
+                    errors.push("First Name is required.");
+                } else if (!nameRegex.test(fName)) {
+                    fNameField.classList.add('is-invalid');
+                    errors.push("First Name contains invalid characters or length (2-100).");
+                }
+
+                const mName = mNameField.value.trim();
+                if (mName && !nameRegex.test(mName)) {
+                    mNameField.classList.add('is-invalid');
+                    errors.push("Middle Name contains invalid characters or length (2-100).");
+                }
+
+                const lName = lNameField.value.trim();
+                if (!lName) {
+                    lNameField.classList.add('is-invalid');
+                    errors.push("Last Name is required.");
+                } else if (!nameRegex.test(lName)) {
+                    lNameField.classList.add('is-invalid');
+                    errors.push("Last Name contains invalid characters or length (2-100).");
+                }
+
+                const bMonth = bMonthField.value;
+                const bDateStr = bDateField.value;
+                const bYearStr = bYearField.value.trim();
+
+                if (!bMonth) { bMonthField.classList.add('is-invalid'); errors.push("Birth Month is required."); }
+                if (!bDateStr) { bDateField.classList.add('is-invalid'); errors.push("Birth Date is required."); }
+                
+                const bYear = parseInt(bYearStr, 10);
+                if (isNaN(bYear) || bYearStr.length !== 4 || bYear < 1900 || bYear > 2026) {
                     bYearField.classList.add('is-invalid');
                     errors.push("Provide a valid 4-digit Birth Year (1900-2026).");
                 }
+
+                if (bMonth && bDateStr && !isNaN(bYear)) {
+                    if (!isValidCalendarDate(bMonth, bDateStr, bYearStr)) {
+                        bMonthField.classList.add('is-invalid');
+                        bDateField.classList.add('is-invalid');
+                        bYearField.classList.add('is-invalid');
+                        errors.push("Provide a logically valid calendar date (e.g., check leap years).");
+                    }
+                }
+
                 if (!cityField.value) { cityField.classList.add('is-invalid'); errors.push("City Selection is required."); }
-                if (!uniField.value.trim()) { uniField.classList.add('is-invalid'); errors.push("University Name is required."); }
+
+                const uni = uniField.value.trim();
+                if (!uni) {
+                    uniField.classList.add('is-invalid');
+                    errors.push("University Name is required.");
+                } else if (!uniRegex.test(uni)) {
+                    uniField.classList.add('is-invalid');
+                    errors.push("University Name contains invalid characters or length.");
+                }
+
                 if (!roleField.value) { roleField.classList.add('is-invalid'); errors.push("Technical Intern Role is required."); }
 
-                const digitsRegex = /^[0-9]+$/;
                 const phoneNum = phoneField.value.trim();
-                if (!phoneNum) { phoneField.classList.add('is-invalid'); errors.push("Contact Number is required."); }
-                else if (!digitsRegex.test(phoneNum)) { phoneField.classList.add('is-invalid'); errors.push("Contact Number must contain numbers only."); }
-                else if (phoneNum.length !== 10 || !phoneNum.startsWith("9")) { phoneField.classList.add('is-invalid'); errors.push("PH Mobile Number must be exactly 10 digits starting with 9."); }
+                if (!phoneNum) {
+                    phoneField.classList.add('is-invalid');
+                    errors.push("Contact Number is required.");
+                } else if (!phoneRegex.test(phoneNum)) {
+                    phoneField.classList.add('is-invalid');
+                    errors.push("Contact Number must be a valid phone number (10-15 digits, optionally starting with +).");
+                }
 
                 const pass = passField.value;
-                if (!pass) { passField.classList.add('is-invalid'); errors.push("Access Security Password is required."); }
-                else {
-                    if (pass.length < 8 || pass.length > 30) { passField.classList.add('is-invalid'); errors.push("Password must be between 8 and 30 characters."); }
-                    if (!/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass)) { passField.classList.add('is-invalid'); errors.push("Password criteria verification failed."); }
+                if (!pass) {
+                    passField.classList.add('is-invalid');
+                    errors.push("Access Security Password is required.");
+                } else if (!passRegex.test(pass)) {
+                    passField.classList.add('is-invalid');
+                    errors.push("Password must be 8-100 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
                 }
 
                 if (errors.length > 0) {
@@ -1489,14 +1634,58 @@
             }
 
             function downloadOjtReport() {
-                const from = document.getElementById('ojtFromDate').value;
-                const to = document.getElementById('ojtToDate').value;
+                const fromInput = document.getElementById('ojtFromDate');
+                const toInput = document.getElementById('ojtToDate');
+                const fromFeedback = document.getElementById('ojtFromDateFeedback');
+                const toFeedback = document.getElementById('ojtToDateFeedback');
+
+                // Clear previous validation states
+                fromInput.classList.remove('is-invalid');
+                toInput.classList.remove('is-invalid');
+                if (fromFeedback) fromFeedback.style.display = 'none';
+                if (toFeedback) toFeedback.style.display = 'none';
+
+                const from = fromInput.value;
+                const to = toInput.value;
+
+                let isValid = true;
+
+                if (from || to) {
+                    if (!from) {
+                        fromInput.classList.add('is-invalid');
+                        if (fromFeedback) {
+                            fromFeedback.textContent = 'From date is required when To date is specified.';
+                            fromFeedback.style.display = 'block';
+                        }
+                        isValid = false;
+                    }
+                    if (!to) {
+                        toInput.classList.add('is-invalid');
+                        if (toFeedback) {
+                            toFeedback.textContent = 'To date is required when From date is specified.';
+                            toFeedback.style.display = 'block';
+                        }
+                        isValid = false;
+                    }
+
+                    if (from && to && from > to) {
+                        fromInput.classList.add('is-invalid');
+                        toInput.classList.add('is-invalid');
+                        if (fromFeedback) {
+                            fromFeedback.textContent = '"From" date must be before or equal to the "To" date.';
+                            fromFeedback.style.display = 'block';
+                        }
+                        isValid = false;
+                    }
+                }
+
+                if (!isValid) {
+                    showAdminToast("Date Range Error: Please correct the highlighted errors.", "danger");
+                    return;
+                }
+
                 let url = 'ReportServlet?type=OJTLOGS&tabId=' + encodeURIComponent(window.name || sessionStorage.getItem("tabId") || "");
                 if (from && to) {
-                    if (from > to) {
-                        alert('"From" date must be before or equal to the "To" date.');
-                        return;
-                    }
                     url += '&from=' + from + '&to=' + to;
                 }
                 window.location.href = url;
@@ -1557,16 +1746,17 @@
 
                     // Action badge color
                     let actionBadge = '';
-                    if (log.action === 'LOGIN') actionBadge = '<span class="badge bg-success">' + log.action + '</span>';
-                    else if (log.action === 'LOGOUT') actionBadge = '<span class="badge bg-secondary">' + log.action + '</span>';
-                    else actionBadge = '<span class="badge bg-primary">' + log.action + '</span>';
+                    const escapedAction = escapeHtml(log.action);
+                    if (log.action === 'LOGIN') actionBadge = '<span class="badge bg-success">' + escapedAction + '</span>';
+                    else if (log.action === 'LOGOUT') actionBadge = '<span class="badge bg-secondary">' + escapedAction + '</span>';
+                    else actionBadge = '<span class="badge bg-primary">' + escapedAction + '</span>';
 
-                    tr.innerHTML = '<td>' + log.created_at + '</td>' +
-                        '<td><span style="font-family: monospace; font-size: 12px;">' + log.user_id + '</span></td>' +
-                        '<td>' + log.username + '</td>' +
+                    tr.innerHTML = '<td>' + escapeHtml(log.created_at) + '</td>' +
+                        '<td><span style="font-family: monospace; font-size: 12px;">' + escapeHtml(log.user_id) + '</span></td>' +
+                        '<td>' + escapeHtml(log.username) + '</td>' +
                         '<td>' + actionBadge + '</td>' +
-                        '<td><small class="text-muted">' + log.details + '</small></td>' +
-                        '<td><small>' + log.ip_address + '</small></td>';
+                        '<td><small class="text-muted">' + escapeHtml(log.details) + '</small></td>' +
+                        '<td><small>' + escapeHtml(log.ip_address) + '</small></td>';
                     tbody.appendChild(tr);
                 }
 

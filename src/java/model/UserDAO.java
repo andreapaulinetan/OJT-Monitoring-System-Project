@@ -12,17 +12,18 @@ import util.DBConnection;
 public class UserDAO {
 
     /**
-     * VALIDATE USER: Checks both Admin and Intern tables (DBMS 1 - Apache Derby).
+     * VALIDATE USER: Fetches user by email from both Admin and Intern tables (DBMS 1 - Apache Derby).
+     * Returns the User object (including stored password hash) so the caller can verify
+     * the password via CryptoUtil.verifyPassword(). Returns null if no matching email found.
      */
-    public static User validateUser(String email, String hashedPassword, ServletContext context) {
+    public static User findUserByEmail(String email, ServletContext context) {
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return null;
 
             // 1. Check ADMIN Table
-            String adminSql = "SELECT * FROM ADMIN WHERE EMAIL = ? AND PASSWORD = ?";
+            String adminSql = "SELECT * FROM ADMIN WHERE EMAIL = ?";
             try (PreparedStatement ps = conn.prepareStatement(adminSql)) {
                 ps.setString(1, email);
-                ps.setString(2, hashedPassword);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         return mapResultSetToUser(rs, "Admin", context);
@@ -31,10 +32,9 @@ public class UserDAO {
             }
 
             // 2. Check INTERN Table
-            String internSql = "SELECT * FROM INTERN WHERE EMAIL = ? AND PASSWORD = ?";
+            String internSql = "SELECT * FROM INTERN WHERE EMAIL = ?";
             try (PreparedStatement ps = conn.prepareStatement(internSql)) {
                 ps.setString(1, email);
-                ps.setString(2, hashedPassword);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         return mapResultSetToUser(rs, rs.getString("ROLE"), context);
@@ -42,7 +42,7 @@ public class UserDAO {
                 }
             }
         } catch (SQLException e) {
-            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to validate user credentials for email: " + email, e, null, context);
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to look up user by email: " + email, e, null, context);
             e.printStackTrace();
         }
         return null;
@@ -84,33 +84,38 @@ public class UserDAO {
         }
 
         String sql = "SELECT * FROM ACTIVITY_SUBMISSIONS";
-        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
+            if (conn == null) {
+                System.err.println("CRITICAL: MySQL connection failed inside getAllSubmissions!");
+                return list;
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
 
-            while (rs.next()) {
-                ActivitySubmission sub = new ActivitySubmission();
-                String userId = rs.getString("USER_ID");
-                
-                sub.setSubmissionId(rs.getString("SUBMISSION_ID"));
-                sub.setUserId(userId);
-                sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
-                sub.setDescription(rs.getString("DESCRIPTION"));
-                sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
-                sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
-                sub.setStatus(rs.getString("STATUS"));
+                while (rs.next()) {
+                    ActivitySubmission sub = new ActivitySubmission();
+                    String userId = rs.getString("USER_ID");
+                    
+                    sub.setSubmissionId(rs.getString("SUBMISSION_ID"));
+                    sub.setUserId(userId);
+                    sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
+                    sub.setDescription(rs.getString("DESCRIPTION"));
+                    sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
+                    sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
+                    sub.setStatus(rs.getString("STATUS"));
 
-                // Map cross-database reference data dynamically
-                String mappedId = mapToDerbyInternId(userId);
-                User profile = internMap.get(mappedId);
-                if (profile != null) {
-                    sub.setInternName(profile.getFullName());
-                    sub.setAssignedOffice(profile.getOffice());
-                } else {
-                    sub.setInternName("System Admin Profile");
-                    sub.setAssignedOffice("Main Administration Office");
+                    // Map cross-database reference data dynamically
+                    String mappedId = mapToDerbyInternId(userId);
+                    User profile = internMap.get(mappedId);
+                    if (profile != null) {
+                        sub.setInternName(profile.getFullName());
+                        sub.setAssignedOffice(profile.getOffice());
+                    } else {
+                        sub.setInternName("System Admin Profile");
+                        sub.setAssignedOffice("Main Administration Office");
+                    }
+                    list.add(sub);
                 }
-                list.add(sub);
             }
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to fetch all activity submissions", e, null, context);
@@ -223,44 +228,49 @@ public class UserDAO {
         User profile = getInternById(userId, context);
 
         String sql = "SELECT * FROM ACTIVITY_SUBMISSIONS WHERE USER_ID = ? OR USER_ID LIKE ? ORDER BY DATE_SUBMITTED DESC";
-        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, userId);
-            
-            String likePattern = "";
-            try {
-                int seq = Integer.parseInt(userId);
-                likePattern = "%-%" + String.format("%04d", seq);
-            } catch (NumberFormatException e) {
-                String mappedId = mapToDerbyInternId(userId);
-                try {
-                    int seq = Integer.parseInt(mappedId);
-                    likePattern = "%-%" + String.format("%04d", seq);
-                } catch (NumberFormatException ex) {
-                    likePattern = userId;
-                }
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
+            if (conn == null) {
+                System.err.println("CRITICAL: MySQL connection failed inside getSubmissionsByUserId!");
+                return list;
             }
-            ps.setString(2, likePattern);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ActivitySubmission sub = new ActivitySubmission();
-                    sub.setSubmissionId(rs.getString("SUBMISSION_ID"));
-                    sub.setUserId(userId);
-                    sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
-                    sub.setDescription(rs.getString("DESCRIPTION"));
-                    sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
-                    sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
-                    sub.setStatus(rs.getString("STATUS"));
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-                    if (profile != null) {
-                        sub.setInternName(profile.getFullName());
-                        sub.setAssignedOffice(profile.getOffice());
-                    } else {
-                        sub.setInternName("Intern Profile");
-                        sub.setAssignedOffice("Main Administration Office");
+                ps.setString(1, userId);
+                
+                String likePattern = "";
+                try {
+                    int seq = Integer.parseInt(userId);
+                    likePattern = "%-%" + String.format("%04d", seq);
+                } catch (NumberFormatException e) {
+                    String mappedId = mapToDerbyInternId(userId);
+                    try {
+                        int seq = Integer.parseInt(mappedId);
+                        likePattern = "%-%" + String.format("%04d", seq);
+                    } catch (NumberFormatException ex) {
+                        likePattern = userId;
                     }
-                    list.add(sub);
+                }
+                ps.setString(2, likePattern);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        ActivitySubmission sub = new ActivitySubmission();
+                        sub.setSubmissionId(rs.getString("SUBMISSION_ID"));
+                        sub.setUserId(userId);
+                        sub.setDateSubmitted(rs.getDate("DATE_SUBMITTED"));
+                        sub.setDescription(rs.getString("DESCRIPTION"));
+                        sub.setSupportingFile(rs.getString("SUPPORTING_FILE"));
+                        sub.setOriginalFileName(rs.getString("ORIGINAL_FILE_NAME"));
+                        sub.setStatus(rs.getString("STATUS"));
+
+                        if (profile != null) {
+                            sub.setInternName(profile.getFullName());
+                            sub.setAssignedOffice(profile.getOffice());
+                        } else {
+                            sub.setInternName("Intern Profile");
+                            sub.setAssignedOffice("Main Administration Office");
+                        }
+                        list.add(sub);
+                    }
                 }
             }
         } catch (Exception e) {

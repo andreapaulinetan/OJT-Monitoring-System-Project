@@ -12,7 +12,7 @@
     </context-param>
     <context-param>
         <param-name>derby.url</param-name>
-        <param-value>jdbc:derby://localhost:1527/ojt_AuthenticationDB</param-value>
+        <param-value>jdbc:derby://localhost:1527/C:/Users/Sean/OneDrive/Documents/NetBeansProjects/OJT-Monitoring-System-Project/database/ojt_AuthenticationDB</param-value>
     </context-param>
     <context-param>
         <param-name>derby.username</param-name>
@@ -70,6 +70,15 @@
     </context-param>
 
     <!-- Security Filters -->
+    <filter>
+        <filter-name>SecurityFilter</filter-name>
+        <filter-class>util.SecurityFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>SecurityFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
     <filter>
         <filter-name>AuthFilter</filter-name>
         <filter-class>controller.AuthFilter</filter-class>
@@ -160,5 +169,5 @@
         <error-code>500</error-code>
         <location>/error_500.jsp</location>
     </error-page>
-    <!-- Force webapp reload after whitelisting error pages in AuthFilter: 2026-05-22T06:19:00 -->
+    <!-- Force webapp reload after fixing DB SSL connection parameter: 2026-05-22T12:44:35 -->
 </web-app>

@@ -87,7 +87,17 @@ public class ReportServlet extends HttpServlet {
                     String toDate = request.getParameter("to");
                     
                     // Server-side Date Validation (NFR-ERR-002: Date validation for time-bound reports)
-                    if (fromDate != null && !fromDate.trim().isEmpty() && toDate != null && !toDate.trim().isEmpty()) {
+                    boolean hasFrom = fromDate != null && !fromDate.trim().isEmpty();
+                    boolean hasTo = toDate != null && !toDate.trim().isEmpty();
+                    
+                    if (hasFrom || hasTo) {
+                        if (!hasFrom || !hasTo) {
+                            util.ErrorLogger.logError("INPUT VALIDATION ERROR", 
+                                "Date range validation failed: Only one date parameter was provided. From: '" + fromDate + "', To: '" + toDate + "'", 
+                                null, session, ctx);
+                            response.sendRedirect("admin.jsp?tabId=" + tabId + "&err=malformed_dates");
+                            return;
+                        }
                         try {
                             Date fromVal = Date.valueOf(fromDate.trim());
                             Date toVal = Date.valueOf(toDate.trim());
