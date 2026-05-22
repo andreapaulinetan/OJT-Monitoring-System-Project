@@ -12,17 +12,43 @@
     response.setDateHeader("Expires", 0);
 
     String tabId = TabSessionHelper.getTabId(request);
-    User user = TabSessionHelper.getUser(session, tabId);
+    User user = null;
+    if (session != null) {
+        user = TabSessionHelper.getUser(session, tabId);
+        if (user == null) {
+            Object rawUser = session.getAttribute("user");
+            if (rawUser instanceof User) {
+                user = (User) rawUser;
+            }
+        }
+    }
+    
     if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
         response.sendRedirect("login.jsp?err=unauthorized");
         return;
     }
 
-    List<User> internList = UserDAO.getAllInterns(getServletContext());
-    List<ActivitySubmission> submissionList = UserDAO.getAllSubmissions(getServletContext());
+    List<User> internList = null;
+    List<ActivitySubmission> submissionList = null;
+    try {
+        internList = UserDAO.getAllInterns(getServletContext());
+    } catch (Exception e) {
+        util.ErrorLogger.logError("JSP INITIALIZATION ERROR", "Failed to retrieve interns", e, session, getServletContext());
+    }
+
+    try {
+        submissionList = UserDAO.getAllSubmissions(getServletContext());
+    } catch (Exception e) {
+        util.ErrorLogger.logError("JSP INITIALIZATION ERROR", "Failed to retrieve submissions", e, session, getServletContext());
+    }
 
     int totalInterns = (internList != null) ? internList.size() : 0;
-    int pendingLogs = UserDAO.getPendingLogsCount(getServletContext());
+    int pendingLogs = 0;
+    try {
+        pendingLogs = UserDAO.getPendingLogsCount(getServletContext());
+    } catch (Exception e) {
+        util.ErrorLogger.logError("JSP INITIALIZATION ERROR", "Failed to retrieve pending logs count", e, session, getServletContext());
+    }
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -121,19 +147,89 @@
                     </div>
                     <div class="user-profile">
                         <div class="profile-chip">
-                            <span><%= HtmlUtil.escape(user.getFullName())%></span>
-                            <img src="https://ui-avatars.com/api/?name=<%= HtmlUtil.escape(user.getFullName())%>&background=d63384&color=fff" alt="Admin">
+                            <span>Welcome, <%= HtmlUtil.escape(user != null && user.getFullName() != null ? user.getFullName() : "Admin")%></span>
+                            <img src="https://ui-avatars.com/api/?name=<%= HtmlUtil.escape(user != null && user.getFullName() != null ? user.getFullName() : "Admin")%>&background=d63384&color=fff" alt="Admin">
                         </div>
                     </div>
                 </header>
 
+                <%
+                    String statusParam = request.getParameter("status");
+                    String errParam = request.getParameter("err");
+                    String messageParam = request.getParameter("message");
+                    String alertType = null;
+                    String alertMessage = null;
+
+                    if (statusParam != null) {
+                        if ("success".equalsIgnoreCase(statusParam)) {
+                            alertType = "success";
+                            alertMessage = "Action completed successfully!";
+                        } else if ("failed".equalsIgnoreCase(statusParam)) {
+                            alertType = "danger";
+                            alertMessage = "Action failed. Please try again.";
+                        } else if ("error".equalsIgnoreCase(statusParam)) {
+                            alertType = "danger";
+                            alertMessage = "An unexpected server-side database transaction error occurred.";
+                        }
+                    }
+
+                    if (errParam != null) {
+                        alertType = "danger";
+                        if ("unauthorized".equalsIgnoreCase(errParam)) {
+                            alertMessage = "Unauthorized access attempt blocked.";
+                        } else if ("invalid_date_range".equalsIgnoreCase(errParam)) {
+                            alertMessage = "Date Range Error: 'From' date must be before or equal to 'To' date.";
+                        } else if ("malformed_dates".equalsIgnoreCase(errParam)) {
+                            alertMessage = "Malformed Dates: The dates provided are invalid or empty.";
+                        } else if ("duplicate_email".equalsIgnoreCase(errParam)) {
+                            alertMessage = "Registration Failed: Corporate email already exists in the system database.";
+                        } else if ("invalid_input".equalsIgnoreCase(errParam)) {
+                            alertMessage = "Registration Failed: Invalid form input parameters submitted.";
+                        } else {
+                            alertMessage = "Error occurred: " + HtmlUtil.escape(errParam);
+                        }
+                    }
+
+                    if (messageParam != null) {
+                        if ("validation_error".equalsIgnoreCase(messageParam)) {
+                            alertType = "warning";
+                            alertMessage = "Validation Error: Please review and correct the highlighted fields.";
+                        } else {
+                            alertType = "info";
+                            alertMessage = HtmlUtil.escape(messageParam);
+                        }
+                    }
+
+                    if (alertType != null && alertMessage != null) {
+                %>
+                <div class="alert alert-<%= alertType %> alert-dismissible fade show shadow-sm border-0 mb-4 mx-4 mt-2" role="alert" style="border-radius: 12px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas <%= "success".equals(alertType) ? "fa-check-circle text-success" : ("danger".equals(alertType) ? "fa-circle-exclamation text-danger" : "fa-circle-info text-info") %> me-2 fs-5"></i>
+                        <div>
+                            <strong>System Alert:</strong> <%= alertMessage %>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <%
+                    }
+                %>
+
                 <div id="dashboard-view" class="view-section">
-                    <section class="stats-row mb-4">
-                        <div class="stat-card yellow"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
-                        <div class="stat-card pink"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
-                        <div class="stat-card green"><span class="label">Completion Rate</span><h1 class="value">68%</h1></div>
-                        <div class="stat-card blue"><span class="label">Quick Reports</span><button class="btn-report mt-2 w-100 btn btn-sm btn-dark">Generate All</button></div>
-                    </section>
+                    <div class="row g-3 mb-4 mx-0">
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <div class="stat-card yellow h-100"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <div class="stat-card pink h-100"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <div class="stat-card green h-100"><span class="label">Completion Rate</span><h1 class="value">68%</h1></div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <div class="stat-card blue h-100 d-flex flex-column justify-content-between"><span class="label">Quick Reports</span><button class="btn-report mt-2 w-100 btn btn-sm btn-dark" onclick="switchView('report-center')">Generate All</button></div>
+                        </div>
+                    </div>
                     <div class="p-4 text-muted text-center" style="margin-top: 50px;">
                         <i class="fas fa-chart-pie fa-3x mb-3"></i>
                         <p>Dashboard analytics, performance metrics, and system data visualizations render engine container.</p>
@@ -205,7 +301,13 @@
                                         </td>
                                     </tr>
                                     <% }
-                                        } %>
+                                        } else { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-1"></i> No intern records found in Derby registry.
+                                        </td>
+                                    </tr>
+                                    <% } %>
                                 </tbody>
                             </table>
                         </div>
@@ -312,7 +414,13 @@
                                         </td>
                                     </tr>
                                     <% }
-                                        } %>
+                                        } else { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-1"></i> No activity submissions found in MySQL queue.
+                                        </td>
+                                    </tr>
+                                    <% } %>
                                 </tbody>
                             </table>
                         </div>
@@ -515,8 +623,14 @@
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal">Close Window Details</button>
+                    <div class="modal-footer border-0 d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-success flex-grow-1" id="modalApproveBtn" onclick="updateStatusFromModal('Approved')">
+                            <i class="fas fa-check-circle me-1"></i> Approve
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger flex-grow-1" id="modalRejectBtn" onclick="updateStatusFromModal('Rejected')">
+                            <i class="fas fa-times-circle me-1"></i> Reject
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
@@ -892,6 +1006,7 @@
             }
 
             function openLogDetailsModal(subId, internId, identity, dateSub, desc, origFile, suppFile) {
+                window.currentModalSubId = subId;
                 document.getElementById("modalSubId").innerText = "#" + subId;
                 document.getElementById("modalInternId").innerText = "ID: #" + internId;
                 document.getElementById("modalInternIdentity").innerText = identity;
@@ -904,6 +1019,25 @@
                     detailsModalObj = new bootstrap.Modal(document.getElementById('logDetailsModal'));
                 }
                 detailsModalObj.show();
+            }
+
+            function updateStatusFromModal(newStatus) {
+                const subId = window.currentModalSubId;
+                if (!subId) return;
+
+                const selectElement = document.querySelector(`select[onchange*="${subId}"]`) || document.querySelector(`.status-select[onchange*="${subId}"]`);
+                if (selectElement) {
+                    selectElement.value = newStatus;
+                    updateLogStatusDatabase(subId, selectElement);
+                } else {
+                    const tempSelect = document.createElement("select");
+                    tempSelect.value = newStatus;
+                    updateLogStatusDatabase(subId, tempSelect);
+                }
+
+                if (detailsModalObj) {
+                    detailsModalObj.hide();
+                }
             }
 
             function updateLogStatusDatabase(submissionId, selectElement) {
