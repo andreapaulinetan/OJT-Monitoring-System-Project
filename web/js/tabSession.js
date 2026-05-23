@@ -1,7 +1,11 @@
 (function() {
     // 1. Identify context path and page name
     const path = window.location.pathname.toLowerCase();
-    const isLoginPage = path.endsWith("login.jsp") || path.endsWith("login.jsp/") || path.endsWith("ojt-monitoring-system-project") || path.endsWith("ojt-monitoring-system-project/");
+    const secondSlashIndex = window.location.pathname.indexOf('/', 1);
+    const contextPath = secondSlashIndex !== -1 ? window.location.pathname.substring(0, secondSlashIndex).toLowerCase() : "";
+    const isRootPath = path === contextPath || path === (contextPath + "/") || path === "/" || path === "";
+    
+    const isLoginPage = path.endsWith("login.jsp") || path.endsWith("login.jsp/") || isRootPath;
     const isPublicPage = isLoginPage || path.includes("captchaservlet") || path.endsWith(".css") || path.endsWith(".js") || path.includes("/css/") || path.includes("/images/");
 
     // 2. Validate window.name tabId

@@ -111,9 +111,18 @@
                     }
                 }
             } else {
-                // Intern can only contact Admins
+                // Intern can contact Admins and other Interns
                 List<User> admins = UserDAO.getAllAdmins(getServletContext());
                 if (admins != null) contacts.addAll(admins);
+                
+                List<User> interns = UserDAO.getAllInterns(getServletContext());
+                if (interns != null) {
+                    for (User intern : interns) {
+                        if (!intern.getId().equals(user.getId())) {
+                            contacts.add(intern);
+                        }
+                    }
+                }
             }
 
             StringBuilder sb = new StringBuilder();
@@ -133,7 +142,7 @@
                 sb.append("\"name\":\"").append(ju.escape(fullName)).append("\",");
                 sb.append("\"role\":\"").append(ju.escape(role)).append("\",");
                 sb.append("\"office\":\"").append(ju.escape(office)).append("\",");
-                sb.append("\"avatarPath\":\"").append(ju.escape(c.getAvatarPath() != null ? c.getAvatarPath() : "")).append("\",");
+                sb.append("\"avatarPath\":\"").append("").append("\",");
                 sb.append("\"unreadCount\":").append(unread).append(",");
                 sb.append("\"lastMessageTime\":\"").append(ju.escape(lastTimeStr)).append("\"");
                 sb.append("}");

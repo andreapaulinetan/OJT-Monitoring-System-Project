@@ -411,9 +411,13 @@ public class UserDAO {
     }
 
     public static boolean addIntern(User internUser, String birthMonth, int birthDate, int birthYear, int age, String contactNum, ServletContext context) {
-        String sql = "INSERT INTO APP.INTERN (FIRST_NAME, MIDDLE_NAME, LAST_NAME, BIRTH_MONTH, BIRTH_DATE, BIRTH_YEAR, AGE, CITY, CONTACT_NUM, UNIVERSITY, ROLE, ROLE_CODE, OFFICE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO APP.INTERN (INTERN_ID, FIRST_NAME, MIDDLE_NAME, LAST_NAME, BIRTH_MONTH, BIRTH_DATE, BIRTH_YEAR, AGE, CITY, CONTACT_NUM, UNIVERSITY, ROLE, ROLE_CODE, OFFICE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return false;
+            
+            // Generate next smart Intern ID
+            String nextId = generateInternId(conn);
+            internUser.setId(nextId);
             
             // Safeguard password encryption
             String rawPassword = internUser.getPassword();
@@ -421,33 +425,25 @@ public class UserDAO {
                 internUser.setPassword(util.CryptoUtil.hashPassword(rawPassword));
             }
             
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, internUser.getFirstName());
-                ps.setString(2, internUser.getMiddleName());
-                ps.setString(3, internUser.getLastName());
-                ps.setString(4, birthMonth);
-                ps.setInt(5, birthDate);
-                ps.setInt(6, birthYear);
-                ps.setInt(7, age);
-                ps.setString(8, internUser.getCity());
-                ps.setString(9, contactNum);
-                ps.setString(10, internUser.getUniversity());
-                ps.setString(11, internUser.getRole());
-                ps.setString(12, internUser.getRoleCode());
-                ps.setString(13, internUser.getOffice());
-                ps.setString(14, internUser.getEmail());
-                ps.setString(15, internUser.getPassword());
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, nextId);
+                ps.setString(2, internUser.getFirstName());
+                ps.setString(3, internUser.getMiddleName());
+                ps.setString(4, internUser.getLastName());
+                ps.setString(5, birthMonth);
+                ps.setInt(6, birthDate);
+                ps.setInt(7, birthYear);
+                ps.setInt(8, age);
+                ps.setString(9, internUser.getCity());
+                ps.setString(10, contactNum);
+                ps.setString(11, internUser.getUniversity());
+                ps.setString(12, internUser.getRole());
+                ps.setString(13, internUser.getRoleCode());
+                ps.setString(14, internUser.getOffice());
+                ps.setString(15, internUser.getEmail());
+                ps.setString(16, internUser.getPassword());
                 
-                boolean success = ps.executeUpdate() > 0;
-                if (success) {
-                    try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            int generatedId = rs.getInt(1);
-                            internUser.setId(String.valueOf(generatedId));
-                        }
-                    }
-                }
-                return success;
+                return ps.executeUpdate() > 0;
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Intern profile: " + internUser.getEmail(), e, null, context);
@@ -457,9 +453,13 @@ public class UserDAO {
     }
 
     public static boolean addAdmin(User adminUser, ServletContext context) {
-        String sql = "INSERT INTO APP.ADMIN (FIRST_NAME, MIDDLE_NAME, LAST_NAME, ROLE_CODE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO APP.ADMIN (ADMIN_ID, FIRST_NAME, MIDDLE_NAME, LAST_NAME, ROLE_CODE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return false;
+            
+            // Generate next smart Admin ID
+            String nextId = generateAdminId(conn);
+            adminUser.setId(nextId);
             
             // Safeguard password encryption
             String rawPassword = adminUser.getPassword();
@@ -467,24 +467,16 @@ public class UserDAO {
                 adminUser.setPassword(util.CryptoUtil.hashPassword(rawPassword));
             }
             
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, adminUser.getFirstName());
-                ps.setString(2, adminUser.getMiddleName());
-                ps.setString(3, adminUser.getLastName());
-                ps.setString(4, "admin");
-                ps.setString(5, adminUser.getEmail());
-                ps.setString(6, adminUser.getPassword());
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, nextId);
+                ps.setString(2, adminUser.getFirstName());
+                ps.setString(3, adminUser.getMiddleName());
+                ps.setString(4, adminUser.getLastName());
+                ps.setString(5, "admin");
+                ps.setString(6, adminUser.getEmail());
+                ps.setString(7, adminUser.getPassword());
                 
-                boolean success = ps.executeUpdate() > 0;
-                if (success) {
-                    try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            int generatedId = rs.getInt(1);
-                            adminUser.setId(String.valueOf(generatedId));
-                        }
-                    }
-                }
-                return success;
+                return ps.executeUpdate() > 0;
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Admin profile: " + adminUser.getEmail(), e, null, context);
@@ -1257,22 +1249,6 @@ public class UserDAO {
             return ps.executeUpdate() >= 0;
         } catch (Exception e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to mark messages as read", e, null, context);
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public static boolean updateAvatarPath(String userId, String path, ServletContext context) {
-        String sql = "UPDATE APP.INTERN SET AVATAR_PATH = ? WHERE INTERN_ID = ?";
-        try (Connection conn = DBConnection.getDerbyConnection(context)) {
-            if (conn == null) return false;
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, path);
-                ps.setString(2, userId);
-                return ps.executeUpdate() > 0;
-            }
-        } catch (Exception e) {
-            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update avatar path for user " + userId, e, null, context);
             e.printStackTrace();
             return false;
         }

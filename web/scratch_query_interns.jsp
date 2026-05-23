@@ -17,6 +17,7 @@
                 <th>CITY</th>
                 <th>ROLE</th>
                 <th>OFFICE</th>
+                <th>AVATAR_PATH</th>
             </tr>
         </thead>
         <tbody>
@@ -25,7 +26,7 @@
                 Connection conn = DBConnection.getDerbyConnection(getServletContext());
                 if (conn != null) {
                     Statement stmt = conn.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT INTERN_ID, FIRST_NAME, LAST_NAME, EMAIL, CITY, ROLE, OFFICE FROM APP.INTERN");
+                    ResultSet rs = stmt.executeQuery("SELECT INTERN_ID, FIRST_NAME, LAST_NAME, EMAIL, CITY, ROLE, OFFICE, AVATAR_PATH FROM APP.INTERN");
                     while (rs.next()) {
                         %>
                         <tr>
@@ -36,6 +37,7 @@
                             <td><%= rs.getString("CITY") %></td>
                             <td><%= rs.getString("ROLE") %></td>
                             <td><%= rs.getString("OFFICE") %></td>
+                            <td><%= rs.getString("AVATAR_PATH") %></td>
                         </tr>
                         <%
                     }

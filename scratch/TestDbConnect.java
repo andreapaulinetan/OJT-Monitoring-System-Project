@@ -52,7 +52,7 @@ public class TestDbConnect {
             Class.forName("org.postgresql.Driver");
             String url = "jdbc:postgresql://localhost:5432/ojt_auditdb";
             System.out.println("\nConnecting to PostgreSQL at " + url + "...");
-            try (Connection conn = DriverManager.getConnection(url, "postgres", "110705")) {
+            try (Connection conn = DriverManager.getConnection(url, "postgres", "app")) {
                 System.out.println("SUCCESS: Connected to PostgreSQL successfully!");
                 System.out.println("Database Product Name: " + conn.getMetaData().getDatabaseProductName());
                 System.out.println("Database Product Version: " + conn.getMetaData().getDatabaseProductVersion());

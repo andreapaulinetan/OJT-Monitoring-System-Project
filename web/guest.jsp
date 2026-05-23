@@ -144,7 +144,7 @@
                     <div class="user-profile">
                         <div class="profile-chip" onclick="switchTab('coordinator-view', 'nav-coordinator')" style="cursor: pointer;">
                             <span><%= displayName %></span>
-                            <img src="<%= (loggedInUser.getAvatarPath() != null && !loggedInUser.getAvatarPath().isEmpty()) ? request.getContextPath() + loggedInUser.getAvatarPath() : "https://ui-avatars.com/api/?name=" + java.net.URLEncoder.encode(fullName, "UTF-8") + "&background=d63384&color=fff" %>" alt="Intern" style="object-fit: cover;">
+                            <img src="https://ui-avatars.com/api/?name=<%= java.net.URLEncoder.encode(fullName, "UTF-8") %>&background=d63384&color=fff" alt="Intern" style="object-fit: cover;">
                         </div>
                     </div>
                 </header>
@@ -471,22 +471,6 @@
                                 </div>
                             </div>
 
-                            <div class="config-card card-ui-pink">
-                                <h3 class="card-title-custom">Profile Picture</h3>
-                                <div class="w-100 text-center mb-3">
-                                    <img id="profilePreviewImage" src="<%= (loggedInUser.getAvatarPath() != null && !loggedInUser.getAvatarPath().isEmpty()) ? request.getContextPath() + loggedInUser.getAvatarPath() : "https://ui-avatars.com/api/?name=" + java.net.URLEncoder.encode(fullName, "UTF-8") + "&background=d63384&color=fff" %>" class="rounded-circle border mb-2 shadow-sm" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--accent-pink) !important;" alt="Profile Picture">
-                                    <div class="mt-2">
-                                        <form action="UploadAvatarServlet" method="POST" enctype="multipart/form-data">
-                                            <input type="hidden" name="tabId" value="<%= tabId %>">
-                                            <div class="mb-2">
-                                                <input type="file" name="avatarFile" id="avatarFileInput" class="form-control form-control-sm" accept="image/png, image/jpeg, image/jpg" required>
-                                            </div>
-                                            <button type="submit" class="btn btn-sm btn-pink text-white w-100 fw-bold" style="border-radius: 6px; background-color: var(--accent-pink); border: none; height: 32px;">Upload Photo</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-4">
@@ -566,6 +550,21 @@
                 checkSubmissionNotifications();
                 loadAnnouncementsSilent();
                 pollUnreadMessagesCount();
+
+                // Auto-route to specific view if specified in URL query params
+                const urlParams = new URLSearchParams(window.location.search);
+                const viewParam = urlParams.get('view');
+                if (viewParam) {
+                    if (viewParam === 'coordinator') {
+                        switchTab('coordinator-view', 'nav-coordinator');
+                    } else if (viewParam === 'messages') {
+                        switchTab('messages-view', 'nav-messages');
+                    } else if (viewParam === 'announcements') {
+                        switchTab('announcements-view', 'nav-announcements');
+                    } else if (viewParam === 'dashboard') {
+                        switchTab('dashboard-view', 'nav-dashboard');
+                    }
+                }
 
                 // Set up input listeners to clear invalid states dynamically
                 const hoursField = document.getElementById('sandboxLogHours');
@@ -1445,7 +1444,7 @@
                     .then(data => renderContactsList(data))
                     .catch(e => {
                         if (listContainer) {
-                            listContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load coordinators.</div>';
+                            listContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load contacts.</div>';
                         }
                     });
             }
@@ -1477,7 +1476,7 @@
                 });
 
                 if (filteredData.length === 0) {
-                    listContainer.innerHTML = '<div class="text-center py-4 text-muted">No coordinators found.</div>';
+                    listContainer.innerHTML = '<div class="text-center py-4 text-muted">No contacts found.</div>';
                     let totalUnread = 0;
                     allContactsData.forEach(c => {
                         let unread = c.id === activeContactId ? 0 : c.unreadCount;
@@ -1518,8 +1517,8 @@
                     let unread = c.id === activeContactId ? 0 : c.unreadCount;
                     const isActive = c.id === activeContactId ? "active" : "";
                     const badgeClass = unread > 0 ? "" : "d-none";
-                    const avatarUrl = c.avatarPath ? ('${pageContext.request.contextPath}' + c.avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff');
-                    html += '<div class="contact-item ' + isActive + '" data-id="' + c.id + '" onclick="selectContact(\'' + c.id + '\', \'' + c.name.replace(/'/g, "\\'") + '\', \'' + c.role + '\', \'' + (c.avatarPath || '') + '\')">' +
+                    const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff';
+                    html += '<div class="contact-item ' + isActive + '" data-id="' + c.id + '" onclick="selectContact(\'' + c.id + '\', \'' + c.name.replace(/'/g, "\\'") + '\', \'' + c.role + '\', \'\')">' +
                         '<img src="' + avatarUrl + '" class="contact-avatar" alt="Avatar" style="object-fit: cover;">' +
                         '<div class="contact-details">' +
                             '<div class="contact-name-row">' +
@@ -1571,7 +1570,7 @@
                 document.getElementById("activeContactName").textContent = contactName;
                 document.getElementById("activeContactRole").textContent = contactRole;
                 
-                const avatarUrl = avatarPath ? ('${pageContext.request.contextPath}' + avatarPath) : ("https://ui-avatars.com/api/?name=" + encodeURIComponent(contactName) + "&background=d63384&color=fff");
+                const avatarUrl = "https://ui-avatars.com/api/?name=" + encodeURIComponent(contactName) + "&background=d63384&color=fff";
                 document.getElementById("activeContactAvatar").src = avatarUrl;
 
                 const msgsContainer = document.getElementById("chatMessagesContainer");

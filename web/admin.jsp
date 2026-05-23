@@ -502,7 +502,6 @@
                                         data-createdat="<%= formattedCreatedAt%>"
                                         data-latestfile="<%= latestFile %>"
                                         data-latestfileorig="<%= latestFileOrig %>"
-                                        data-avatarpath="<%= u.getAvatarPath() != null ? u.getAvatarPath() : "" %>"
                                         onclick="openInternDetailsModal(this)">
                                         <td class="col-select" style="text-align: center;" onclick="event.stopPropagation();"><input type="checkbox" class="intern-select-chk" value="<%= u.getId()%>"></td>
                                         <td class="col-id"><%= dispId%></td>
@@ -1790,17 +1789,12 @@
                 const createdAt = rowElement.getAttribute("data-createdat") || "N/A";
                 const latestFile = rowElement.getAttribute("data-latestfile") || "";
                 const latestFileOrig = rowElement.getAttribute("data-latestfileorig") || "";
-                const avatarpath = rowElement.getAttribute("data-avatarpath") || "";
 
                 const fullName = ((firstName ? firstName + " " : "") + (middleName ? middleName + " " : "") + lastName).trim();
 
                 const avatarImg = document.getElementById("internModalAvatar");
                 if (avatarImg) {
-                    if (avatarpath) {
-                        avatarImg.src = "${pageContext.request.contextPath}" + avatarpath;
-                    } else {
-                        avatarImg.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(fullName) + "&background=d63384&color=fff";
-                    }
+                    avatarImg.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(fullName) + "&background=d63384&color=fff";
                 }
 
                 // Populate file preview if exists
@@ -3094,7 +3088,7 @@
                     let unread = c.id === activeContactId ? 0 : c.unreadCount;
                     const isActive = c.id === activeContactId ? "active" : "";
                     const badgeClass = unread > 0 ? "" : "d-none";
-                    const avatarUrl = c.avatarPath ? ('${pageContext.request.contextPath}' + c.avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff');
+                    const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff';
                     html += '<div class="contact-item ' + isActive + '" data-id="' + c.id + '" onclick="selectContact(\'' + c.id + '\', \'' + c.name.replace(/'/g, "\\'") + '\')">' +
                         '<img src="' + avatarUrl + '" class="contact-avatar" alt="Avatar" style="object-fit: cover;">' +
                         '<div class="contact-details">' +
@@ -3148,8 +3142,7 @@
 
                 renderContactsList();
 
-                const avatarPath = contact ? (contact.avatarPath || "") : "";
-                const avatarUrl = avatarPath ? ('${pageContext.request.contextPath}' + avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(contactName) + '&background=d63384&color=fff');
+                const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(contactName) + '&background=d63384&color=fff';
 
                 const conversationArea = document.getElementById("chatConversationArea");
                 conversationArea.innerHTML = `
