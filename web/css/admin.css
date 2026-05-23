@@ -655,44 +655,33 @@ body {
 }
 
 /* Messaging Tab Layout (Contacts + Conversation) */
+/* Messaging Tab Layout (Contacts + Conversation) */
 .chat-layout {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    grid-template-rows: 1fr;
+    display: flex;
     background: white;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.04);
     border: 1px solid #ebeef2;
     overflow: hidden;
-    height: calc(100vh - 320px);
-    min-height: 500px;
-    max-height: 700px;
+    height: calc(100vh - 240px); /* Perfect height to fit page comfortably without cropping */
+    min-height: 520px;
     margin-top: 20px;
 }
 @media (max-width: 768px) {
     .chat-layout {
-        grid-template-columns: 1fr;
-        height: 650px;
-    }
-    .chat-conversation-area {
-        display: none !important;
-    }
-    body.chat-active-convo .chat-contacts-list {
-        display: none !important;
-    }
-    body.chat-active-convo .chat-conversation-area {
-        display: flex !important;
-    }
-    .chat-back-btn {
-        display: block !important;
+        flex-direction: column;
+        height: auto;
+        min-height: 600px;
     }
 }
 .chat-contacts-list {
+    width: 300px;
     border-right: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
     height: 100%;
     background-color: #f8fafc;
+    flex-shrink: 0;
 }
 .chat-contacts-header {
     padding: 18px;
@@ -703,9 +692,11 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    background-color: #ffffff;
 }
 .chat-contacts-container {
-    flex-grow: 1;
+    flex: 1 1 0%;
+    min-height: 0;
     overflow-y: auto;
 }
 .contact-item {
@@ -745,6 +736,12 @@ body {
     flex-grow: 1;
     min-width: 0;
 }
+.contact-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
 .contact-name {
     font-weight: 600;
     font-size: 0.92rem;
@@ -752,7 +749,6 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
 }
 .contact-sub {
     font-size: 0.75rem;
@@ -772,10 +768,13 @@ body {
 }
 
 .chat-conversation-area {
+    flex: 1 1 0%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 0;
+    background-color: #ffffff;
+    position: relative;
     overflow: hidden;
 }
 .chat-header {
@@ -821,7 +820,7 @@ body {
     margin-right: 12px;
 }
 .chat-messages-container {
-    flex: 1 1 0;
+    flex: 1 1 0%;
     min-height: 0;
     padding: 20px;
     overflow-y: auto;
@@ -876,13 +875,12 @@ body {
 }
 
 .chat-templates {
-    padding: 10px 24px;
+    padding: 12px 24px;
     background-color: #f8fafc;
     border-top: 1px solid #e2e8f0;
     display: flex;
+    flex-wrap: wrap; /* Wrap buttons beautifully instead of clipping them */
     gap: 8px;
-    overflow-x: auto;
-    white-space: nowrap;
     flex-shrink: 0;
 }
 
@@ -896,11 +894,15 @@ body {
     border: 1px solid #cbd5e1;
     color: #475569;
     transition: all 0.2s ease;
+    white-space: normal;
+    display: inline-flex;
+    align-items: center;
 }
 
 .template-btn:hover {
-    background-color: #e2e8f0;
-    color: #1e293b;
+    background-color: var(--accent-pink, #d63384);
+    color: white !important;
+    border-color: var(--accent-pink, #d63384);
 }
 
 .chat-input-bar {
@@ -910,6 +912,7 @@ body {
     gap: 12px;
     flex-shrink: 0;
     background-color: #ffffff;
+    align-items: center;
 }
 
 .chat-input-bar input {
@@ -920,6 +923,7 @@ body {
     font-size: 0.92rem;
     outline: none;
     transition: border-color 0.2s ease;
+    min-width: 0;
 }
 
 .chat-input-bar input:focus {
@@ -932,6 +936,7 @@ body {
     border: none;
     cursor: pointer;
     transition: transform 0.1s ease;
+    flex-shrink: 0;
 }
 
 .chat-input-bar button:active {
@@ -946,7 +951,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    flex: 1 1 0%;
     color: var(--text-muted);
     text-align: center;
     padding: 40px;
@@ -955,8 +960,20 @@ body {
 .chat-empty-state i {
     color: #cbd5e1;
     margin-bottom: 16px;
+    font-size: 3.5rem;
 }
 .chat-empty-state p {
     font-size: 0.95rem;
     max-width: 320px;
+}
+@media (max-width: 768px) {
+    .chat-contacts-list {
+        width: 100%;
+        max-height: 220px;
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .chat-conversation-area {
+        height: 450px;
+    }
 }

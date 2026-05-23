@@ -3166,9 +3166,9 @@
                         <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading messages...</div>
                     </div>
                     <div class="chat-templates" style="flex-shrink:0;">
-                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Please submit your outstanding log reflection as soon as possible.')">Reminder: Log Submission</button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Great work on your weekly OJT tasks! Your logs are approved.')">Approve Logs</button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Please upload the correct supporting document for your recent submission.')">Ref Reflection correction</button>
+                        <button type="button" class="template-btn" onclick="useTemplate('Please submit your outstanding log reflection as soon as possible.')">Reminder: Log Submission</button>
+                        <button type="button" class="template-btn" onclick="useTemplate('Great work on your weekly OJT tasks! Your logs are approved.')">Approve Logs</button>
+                        <button type="button" class="template-btn" onclick="useTemplate('Please upload the correct supporting document for your recent submission.')">Ref Reflection correction</button>
                     </div>
                     <form class="chat-input-bar" onsubmit="submitChatMessage(event)" style="flex-shrink:0;display:flex;gap:12px;padding:16px 24px;border-top:1px solid #e2e8f0;background:#fff;">
                         <input type="text" id="chatMessageText" placeholder="Type a message..." required autocomplete="off" style="flex-grow:1;border:1px solid #cbd5e1;border-radius:8px;padding:10px 16px;font-size:0.92rem;outline:none;min-width:0;">
