@@ -502,7 +502,7 @@
         </div>
         <script>
             // --- Global State Variables ---
-            const currentUserId = "<%= loggedInUser != null ? loggedInUser.getId() : "" %>";
+            const currentUserId = "INT_<%= loggedInUser != null ? loggedInUser.getId() : "" %>";
             const renderedHoursKey = 'renderedHours_' + currentUserId;
             
             <%

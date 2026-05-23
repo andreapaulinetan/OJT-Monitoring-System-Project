@@ -59,8 +59,9 @@
                 return;
             }
 
+            String prefSelfId = ("Admin".equalsIgnoreCase(user.getRole()) ? "ADM_" : "INT_") + user.getId();
             Message msg = new Message();
-            msg.setSenderId(user.getId());
+            msg.setSenderId(prefSelfId);
             msg.setReceiverId(receiverId.trim());
             msg.setMessageText(messageText.trim());
 
@@ -78,8 +79,9 @@
                 out.print("{\"error\":\"Missing contact ID.\"}");
                 return;
             }
+            String prefSelfId = ("Admin".equalsIgnoreCase(user.getRole()) ? "ADM_" : "INT_") + user.getId();
             // Mark all messages sent from contactId to current user as read
-            UserDAO.markMessagesAsRead(contactId.trim(), user.getId(), getServletContext());
+            UserDAO.markMessagesAsRead(contactId.trim(), prefSelfId, getServletContext());
             out.print("{\"success\":true}");
         } else {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -90,8 +92,9 @@
         String action = request.getParameter("action");
         if ("contacts".equalsIgnoreCase(action)) {
             // Fetch contacts list, unread counts, and last message times
-            Map<String, Integer> unreadCounts = UserDAO.getUnreadCounts(user.getId(), getServletContext());
-            Map<String, java.sql.Timestamp> lastTimes = UserDAO.getLastMessageTimes(user.getId(), getServletContext());
+            String prefSelfId = ("Admin".equalsIgnoreCase(user.getRole()) ? "ADM_" : "INT_") + user.getId();
+            Map<String, Integer> unreadCounts = UserDAO.getUnreadCounts(prefSelfId, getServletContext());
+            Map<String, java.sql.Timestamp> lastTimes = UserDAO.getLastMessageTimes(prefSelfId, getServletContext());
             List<User> contacts = new ArrayList<User>();
 
             if ("Admin".equalsIgnoreCase(user.getRole())) {
@@ -117,15 +120,16 @@
             sb.append("[");
             for (int i = 0; i < contacts.size(); i++) {
                 User c = contacts.get(i);
-                int unread = unreadCounts.containsKey(c.getId()) ? unreadCounts.get(c.getId()) : 0;
+                String prefContactId = ("Admin".equalsIgnoreCase(c.getRole()) ? "ADM_" : "INT_") + c.getId();
+                int unread = unreadCounts.containsKey(prefContactId) ? unreadCounts.get(prefContactId) : 0;
                 String fullName = c.getFirstName() + " " + c.getLastName();
                 String role = c.getRole();
                 String office = c.getOffice() != null ? c.getOffice() : "Main Administration Office";
-                java.sql.Timestamp lastTime = lastTimes.get(c.getId());
+                java.sql.Timestamp lastTime = lastTimes.get(prefContactId);
                 String lastTimeStr = lastTime != null ? lastTime.toString() : "";
 
                 sb.append("{");
-                sb.append("\"id\":\"").append(ju.escape(c.getId())).append("\",");
+                sb.append("\"id\":\"").append(ju.escape(prefContactId)).append("\",");
                 sb.append("\"name\":\"").append(ju.escape(fullName)).append("\",");
                 sb.append("\"role\":\"").append(ju.escape(role)).append("\",");
                 sb.append("\"office\":\"").append(ju.escape(office)).append("\",");
@@ -149,10 +153,11 @@
                 return;
             }
 
+            String prefSelfId = ("Admin".equalsIgnoreCase(user.getRole()) ? "ADM_" : "INT_") + user.getId();
             // Mark these messages as read since the history is being loaded
-            UserDAO.markMessagesAsRead(contactId.trim(), user.getId(), getServletContext());
+            UserDAO.markMessagesAsRead(contactId.trim(), prefSelfId, getServletContext());
 
-            List<Message> history = UserDAO.getMessageHistory(user.getId(), contactId.trim(), getServletContext());
+            List<Message> history = UserDAO.getMessageHistory(prefSelfId, contactId.trim(), getServletContext());
             StringBuilder sb = new StringBuilder();
             sb.append("[");
             for (int i = 0; i < history.size(); i++) {

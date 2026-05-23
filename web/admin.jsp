@@ -1375,7 +1375,7 @@
         </div>
 
         <script>
-            var activeUserId = '<%= user.getId() %>';
+            var activeUserId = 'ADM_<%= user.getId() %>';
 
             function toggleSidebar() {
                 if (window.innerWidth >= 992) {
