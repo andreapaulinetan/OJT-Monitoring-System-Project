@@ -48,7 +48,7 @@
     </context-param>
     <context-param>
         <param-name>pgsql.url</param-name>
-        <param-value>jdbc:postgresql://localhost:5432/auditdb</param-value>
+        <param-value>jdbc:postgresql://localhost:5432/ojt_auditdb</param-value>
     </context-param>
     <context-param>
         <param-name>pgsql.username</param-name>
@@ -56,7 +56,7 @@
     </context-param>
     <context-param>
         <param-name>pgsql.password</param-name>
-        <param-value>110705</param-value>
+        <param-value>app</param-value>
     </context-param>
 
     <!-- Reporting Engine Branding Strings -->
@@ -169,5 +169,5 @@
         <error-code>500</error-code>
         <location>/error_500.jsp</location>
     </error-page>
-    <!-- Force webapp reload: 2026-05-22T19:18:00 -->
+    <!-- Force webapp reload: 2026-05-23T06:25:00 -->
 </web-app>

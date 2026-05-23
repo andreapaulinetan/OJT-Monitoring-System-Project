@@ -70,6 +70,7 @@ public class UpdateInternServlet extends HttpServlet {
             String role = request.getParameter("role");
             String email = request.getParameter("email");
             String plainPassword = request.getParameter("password");
+            String oldPassword = request.getParameter("oldPassword");
 
             // 2. Map the technical role choices down to structural codes and office mapping parameters
             String roleCode = "";
@@ -113,8 +114,34 @@ public class UpdateInternServlet extends HttpServlet {
             internUser.setEmail(email);
 
             if (changePassword) {
+                // Verify old password is provided
+                if (oldPassword == null || oldPassword.trim().isEmpty()) {
+                    response.sendRedirect("admin.jsp?view=intern-management&err=missing_old_password&tabId=" + (tabId != null ? tabId : ""));
+                    return;
+                }
+                
+                // Fetch the existing user details from Derby using their ID
+                User existingUser = UserDAO.getInternById(internId, getServletContext());
+                if (existingUser == null) {
+                    response.sendRedirect("admin.jsp?view=intern-management&err=user_not_found&tabId=" + (tabId != null ? tabId : ""));
+                    return;
+                }
+                
+                // Verify old password
+                if (!CryptoUtil.verifyPassword(oldPassword, existingUser.getPassword())) {
+                    response.sendRedirect("admin.jsp?view=intern-management&err=incorrect_old_password&tabId=" + (tabId != null ? tabId : ""));
+                    return;
+                }
+                
+                // Validate complexity check (8-30 chars, uppercase, lowercase, special char, digit)
+                String trimmedPwd = plainPassword.trim();
+                if (trimmedPwd.length() < 8 || trimmedPwd.length() > 30 || !util.InputValidator.isValidPassword(trimmedPwd)) {
+                    response.sendRedirect("admin.jsp?view=intern-management&err=invalid_new_password&tabId=" + (tabId != null ? tabId : ""));
+                    return;
+                }
+                
                 // Fire utility routine class password hashing algorithms
-                String encryptedPassword = CryptoUtil.hashPassword(plainPassword.trim());
+                String encryptedPassword = CryptoUtil.hashPassword(trimmedPwd);
                 internUser.setPassword(encryptedPassword);
             }
 

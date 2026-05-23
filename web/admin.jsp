@@ -23,6 +23,72 @@
     int totalInterns = (internList != null) ? internList.size() : 0;
     int pendingLogs = UserDAO.getPendingLogsCount(getServletContext());
 
+    // Calculate actual completion hours and rates
+    double avgCompletionRate = 0.0;
+    java.util.Map<String, Double> internHoursMap = new java.util.HashMap<String, Double>();
+    if (internList != null) {
+        for (User u : internList) {
+            internHoursMap.put(u.getId(), u.getBaselineHours());
+        }
+    }
+    if (submissionList != null) {
+        for (ActivitySubmission sub : submissionList) {
+            if ("Approved".equalsIgnoreCase(sub.getStatus())) {
+                String internId = sub.getUserId();
+                if (internHoursMap.containsKey(internId)) {
+                    double hrs = util.PdfReportHelper.extractHoursFromDescription(sub.getDescription());
+                    internHoursMap.put(internId, internHoursMap.get(internId) + hrs);
+                }
+            }
+        }
+    }
+
+    java.util.Map<String, List<Double>> officeRates = new java.util.HashMap<String, List<Double>>();
+    java.util.Map<String, List<Double>> roleRates = new java.util.HashMap<String, List<Double>>();
+    if (internList != null && !internList.isEmpty()) {
+        double totalSum = 0.0;
+        for (User u : internList) {
+            String office = u.getOffice();
+            if (office == null || office.trim().isEmpty()) {
+                office = "Unassigned Office";
+            }
+            String role = u.getRole();
+            if (role == null || role.trim().isEmpty()) {
+                role = "Unassigned Role";
+            }
+            
+            double hours = internHoursMap.containsKey(u.getId()) ? internHoursMap.get(u.getId()) : 0.0;
+            double rate = (hours / 400.0) * 100.0;
+            if (rate > 100.0) rate = 100.0;
+            totalSum += rate;
+            
+            if (!officeRates.containsKey(office)) {
+                officeRates.put(office, new java.util.ArrayList<Double>());
+            }
+            officeRates.get(office).add(rate);
+            
+            if (!roleRates.containsKey(role)) {
+                roleRates.put(role, new java.util.ArrayList<Double>());
+            }
+            roleRates.get(role).add(rate);
+        }
+        avgCompletionRate = totalSum / internList.size();
+    }
+
+    java.util.Map<String, Double> avgOfficeRates = new java.util.TreeMap<String, Double>();
+    for (java.util.Map.Entry<String, List<Double>> entry : officeRates.entrySet()) {
+        double sum = 0;
+        for (double r : entry.getValue()) sum += r;
+        avgOfficeRates.put(entry.getKey(), sum / entry.getValue().size());
+    }
+
+    java.util.Map<String, Double> avgRoleRates = new java.util.TreeMap<String, Double>();
+    for (java.util.Map.Entry<String, List<Double>> entry : roleRates.entrySet()) {
+        double sum = 0;
+        for (double r : entry.getValue()) sum += r;
+        avgRoleRates.put(entry.getKey(), sum / entry.getValue().size());
+    }
+
     String reqView = request.getParameter("view");
     if (reqView == null || reqView.trim().isEmpty()) {
         reqView = "dashboard";
@@ -40,6 +106,13 @@
         <link rel="stylesheet" type="text/css" href="${pageContext.request.contextPath}/css/admin.css">
 
         <style>
+            /* Hide select column unless table has active class */
+            #internTable .col-select {
+                display: none !important;
+            }
+            #internTable.delete-mode-active .col-select {
+                display: table-cell !important;
+            }
             /* Layout Correction Engine for Gorgeous Tables */
             .data-table tbody tr {
                 border-bottom: 1px solid #ebeef2 !important; /* Soft lines between records */
@@ -55,7 +128,7 @@
                 font-size: 14px;
             }
             /* Normalized Intern ID & Tracker Typography Size Constraints */
-            .col-id, .intern-row td:first-child, #logReviewTable tbody td:nth-child(3) {
+            .col-id, .intern-row td:first-child {
                 font-size: 13px !important;
                 font-weight: 600 !important;
                 color: #4a5568 !important;
@@ -91,6 +164,49 @@
                 font-weight: 700;
                 padding-bottom: 12px !important;
             }
+            .intern-row {
+                cursor: pointer;
+            }
+            #modalFilePreview:hover {
+                transform: scale(1.02);
+            }
+
+            /* Force chat input visibility - high specificity overrides */
+            #chatConversationArea {
+                display: flex !important;
+                flex-direction: column !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
+            #chatConversationArea .chat-messages-container {
+                flex: 1 1 0 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+            }
+            #chatConversationArea .chat-input-bar {
+                flex-shrink: 0 !important;
+                display: flex !important;
+                padding: 16px 24px !important;
+                gap: 12px !important;
+                border-top: 1px solid #e2e8f0 !important;
+                background-color: #ffffff !important;
+            }
+            #chatConversationArea .chat-input-bar input {
+                flex-grow: 1 !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                padding: 10px 16px !important;
+                font-size: 0.92rem !important;
+                outline: none !important;
+                min-width: 0 !important;
+            }
+            #chatConversationArea .chat-templates {
+                flex-shrink: 0 !important;
+            }
+            #chatConversationArea .chat-header {
+                flex-shrink: 0 !important;
+            }
         </style>
     </head>
     <body>
@@ -99,7 +215,7 @@
                 <div class="sidebar-header"><h4 class="brand-name">Active Learning</h4></div>
                 <nav class="sidebar-nav">
                     <a href="#" id="nav-dashboard" class="nav-item <%= "dashboard".equals(reqView) ? "active" : "" %>" onclick="switchView('dashboard')">
-                        <i class="fas fa-th-large"></i> Dashboard
+                        <i class="fas fa-th-large"></i> Dashboard <span class="badge bg-danger ms-2 d-none" id="sidebarDashboardUnreadBadge">0</span>
                     </a>
                     <a href="#" id="nav-interns" class="nav-item <%= "intern-management".equals(reqView) ? "active" : "" %>" onclick="switchView('intern-management')">
                         <i class="fas fa-users"></i> Intern Management
@@ -118,17 +234,23 @@
                     <a href="LogoutServlet" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                 </div>
             </aside>
+            <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
             <main class="main-content">
                 <header class="top-bar">
-                    <h2 class="page-title" id="mainPageTitle">Coordinator's Dashboard</h2>
-                    <div class="search-container">
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="button" id="sidebarToggle" class="btn btn-outline-secondary" onclick="toggleSidebar()">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h2 class="page-title" id="mainPageTitle">Coordinator's Dashboard</h2>
+                    </div>
+                    <div class="search-container" style="display: <%= "dashboard".equals(reqView) ? "none" : "block" %>;">
                         <input type="text" id="internSearch" class="search-input" placeholder="Search across columns..." onkeyup="resetToFirstPageAndFilter()">
                     </div>
                     <div class="user-profile">
                         <div class="profile-chip">
-                            <span><%= user.getFullName()%></span>
-                            <img src="https://ui-avatars.com/api/?name=<%= user.getFullName()%>&background=d63384&color=fff" alt="Admin">
+                            <span><%= user.getDisplayName()%></span>
+                            <img src="https://ui-avatars.com/api/?name=<%= user.getDisplayName()%>&background=d63384&color=fff" alt="Admin">
                         </div>
                     </div>
                 </header>
@@ -137,11 +259,164 @@
                     <section class="stats-row mb-4">
                         <div class="stat-card yellow"><span class="label">Total Interns</span><h1 class="value"><%= totalInterns%></h1></div>
                         <div class="stat-card pink"><span class="label">Pending Logs</span><h1 class="value" id="dashboardPendingCount"><%= pendingLogs%></h1></div>
-                        <div class="stat-card green"><span class="label">Completion Rate</span><h1 class="value">68%</h1></div>
+                        <div class="stat-card green"><span class="label">Completion Rate</span><h1 class="value"><%= String.format("%.1f", avgCompletionRate) %>%</h1></div>
                     </section>
-                    <div class="p-4 text-muted text-center" style="margin-top: 50px;">
-                        <i class="fas fa-chart-pie fa-3x mb-3"></i>
-                        <p>Dashboard analytics, performance metrics, and system data visualizations render engine container.</p>
+
+                    <!-- Sub-tabs for Dashboard -->
+                    <div class="dashboard-sub-nav mb-4">
+                        <button type="button" class="sub-tab-btn active" id="btn-sub-overview" onclick="switchSubDashboard('sub-overview')">
+                            <i class="fas fa-chart-line me-1"></i> Overview & Stats
+                        </button>
+                        <button type="button" class="sub-tab-btn" id="btn-sub-announcements" onclick="switchSubDashboard('sub-announcements')">
+                            <i class="fas fa-bullhorn me-1"></i> Announcements
+                        </button>
+                        <button type="button" class="sub-tab-btn" id="btn-sub-messaging" onclick="switchSubDashboard('sub-messaging')">
+                            <i class="fas fa-comments me-1"></i> Direct Messaging <span class="badge bg-danger ms-1 d-none" id="dashboardUnreadBadge">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Sub-view: Overview & Stats -->
+                    <div id="sub-overview" class="sub-dashboard-panel">
+                        <div class="overview-stats-grid">
+                            <div class="stat-bar-card">
+                                <h4 class="stat-bar-title"><i class="fas fa-building text-primary"></i> Office Completion Rates</h4>
+                                <%
+                                    if (avgOfficeRates.isEmpty()) {
+                                %>
+                                <p class="text-muted text-center py-3">No office stats available yet.</p>
+                                <%
+                                    } else {
+                                        for (java.util.Map.Entry<String, Double> entry : avgOfficeRates.entrySet()) {
+                                            String officeName = entry.getKey();
+                                            double pct = entry.getValue();
+                                            String formattedPct = String.format("%.1f", pct);
+                                %>
+                                <div class="stat-bar-item">
+                                    <div class="stat-bar-info">
+                                        <span class="stat-bar-name"><%= officeName %></span>
+                                        <span class="stat-bar-percent"><%= formattedPct %>%</span>
+                                    </div>
+                                    <div class="stat-bar-progress">
+                                        <div class="stat-bar-fill" style="width: <%= formattedPct %>%;"></div>
+                                    </div>
+                                </div>
+                                <%
+                                        }
+                                    }
+                                %>
+                            </div>
+                            <div class="stat-bar-card">
+                                <h4 class="stat-bar-title"><i class="fas fa-user-tag text-primary"></i> Role Completion Rates</h4>
+                                <%
+                                    if (avgRoleRates.isEmpty()) {
+                                %>
+                                <p class="text-muted text-center py-3">No role stats available yet.</p>
+                                <%
+                                    } else {
+                                        for (java.util.Map.Entry<String, Double> entry : avgRoleRates.entrySet()) {
+                                            String roleName = entry.getKey();
+                                            double pct = entry.getValue();
+                                            String formattedPct = String.format("%.1f", pct);
+                                %>
+                                <div class="stat-bar-item">
+                                    <div class="stat-bar-info">
+                                        <span class="stat-bar-name"><%= roleName %></span>
+                                        <span class="stat-bar-percent"><%= formattedPct %>%</span>
+                                    </div>
+                                    <div class="stat-bar-progress">
+                                        <div class="stat-bar-fill" style="width: <%= formattedPct %>%;"></div>
+                                    </div>
+                                </div>
+                                <%
+                                        }
+                                    }
+                                %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sub-view: Announcements -->
+                    <div id="sub-announcements" class="sub-dashboard-panel" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="announcement-composer-card">
+                                    <h4 class="mb-3" style="font-weight: 700; color: #1e293b;"><i class="fas fa-bullhorn text-pink me-2"></i>Compose Announcement</h4>
+                                    <form id="announcementForm" onsubmit="submitAnnouncement(event)">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-muted">Title</label>
+                                            <input type="text" id="annTitle" class="form-control" placeholder="E.g., System Maintenance Schedule" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-muted">Message Content</label>
+                                            <textarea id="annContent" class="form-control" rows="4" placeholder="Write your message details here..." required></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-muted">Target Audience</label>
+                                            <select id="annTargetType" class="form-select" onchange="handleTargetTypeChange()" required>
+                                                <option value="ALL">All Interns</option>
+                                                <option value="OFFICE">Specific Office</option>
+                                                <option value="ROLE">Specific Role</option>
+                                                <option value="CITY">Specific City</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3 d-none" id="annTargetValueGroup">
+                                            <label class="form-label fw-bold small text-muted" id="annTargetValueLabel">Target Value</label>
+                                            <select id="annTargetValue" class="form-select"></select>
+                                        </div>
+                                        <button type="submit" class="btn text-white w-100 fw-bold" style="background-color: var(--accent-pink); height: 44px; border-radius: 8px;"><i class="fas fa-paper-plane me-1"></i>Publish Announcement</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="announcement-history-card">
+                                    <h4 class="mb-3" style="font-weight: 700; color: #1e293b;"><i class="fas fa-history text-muted me-2"></i>Announcement History</h4>
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-hover align-middle" style="font-size: 0.88rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Target</th>
+                                                    <th>Title</th>
+                                                    <th class="text-end">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="announcementHistoryBody">
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-4 text-muted">Loading announcements...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sub-view: Direct Messaging -->
+                    <div id="sub-messaging" class="sub-dashboard-panel" style="display: none;">
+                        <div class="chat-layout">
+                            <div class="chat-contacts-list">
+                                <div class="chat-contacts-header">
+                                    <i class="fas fa-address-book text-muted"></i> Contacts
+                                </div>
+                                <div class="chat-search-container" style="padding: 12px; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+                                    <div class="position-relative">
+                                        <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                                        <input type="text" id="chatSearchInput" class="form-control form-control-sm" placeholder="Search contacts..." onkeyup="filterContacts()" style="padding-left: 32px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.85rem; box-shadow: none;">
+                                    </div>
+                                </div>
+                                <div class="chat-contacts-container" id="chatContactsList">
+                                    <div class="text-center py-4 text-muted">Loading contacts...</div>
+                                </div>
+                            </div>
+                            <div class="chat-conversation-area" id="chatConversationArea">
+                                <div class="chat-empty-state">
+                                    <i class="fas fa-comments fa-3x"></i>
+                                    <h5>Select a Contact</h5>
+                                    <p>Choose an intern or another coordinator from the contact list to start chatting in real-time.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -151,7 +426,7 @@
                             <h3>Master Intern Accounts Registry (DBMS 1)</h3>
                             <div class="header-btns">
                                 <button class="btn-add" onclick="openAddInternModal()">Add New Intern</button>
-                                <button class="btn-import">Import Batch</button>
+                                <button class="btn-import" id="btnDeleteSelected" onclick="handleDeleteModeClick()" style="background-color: #6c757d; border-color: #6c757d; color: white;"><i class="fas fa-trash-alt me-1"></i> Delete Intern</button>
                             </div>
                         </div>
 
@@ -159,8 +434,9 @@
                             <table class="data-table" id="internTable">
                                 <thead>
                                     <tr>
-                                        <th class="col-id" onclick="sortInternTable(0)" style="cursor:pointer;">Intern ID <i class="fas fa-sort"></i></th>
-                                        <th class="col-name" onclick="sortInternTable(1)" style="cursor:pointer;">Intern Profile <i class="fas fa-sort"></i></th>
+                                        <th class="col-select" style="width: 45px; text-align: center;"><input type="checkbox" id="selectAllInterns" onclick="toggleSelectAllInterns(this)"></th>
+                                        <th class="col-id" onclick="sortInternTable(1)" style="cursor:pointer;">Intern ID <i class="fas fa-sort"></i></th>
+                                        <th class="col-name" onclick="sortInternTable(2)" style="cursor:pointer;">Intern Profile <i class="fas fa-sort"></i></th>
                                         <th class="col-uni">
                                             <div class="filter-dropdown">
                                                 <div class="filter-trigger" id="uniLabel"><span>University</span> <i class="fas fa-university"></i></div>
@@ -192,20 +468,28 @@
                                     <% if (internList != null && !internList.isEmpty()) {
                                             for (User u : internList) {
                                                 String dispId = u.getId();
-                                                String uFullName = (u.getFirstName() != null ? u.getFirstName() : "") + " " + (u.getLastName() != null ? u.getLastName() : "");
-                                                uFullName = uFullName.trim();
-                                                  if ("James Smith".equalsIgnoreCase(uFullName) || "System Admin Profile".equalsIgnoreCase(uFullName) || (dispId != null && dispId.startsWith("ADM")) || "ADM2020-0001".equals(dispId) || "ADM2026-0001".equals(dispId)) {
-                                                      if (dispId == null || !dispId.startsWith("ADM")) {
-                                                          dispId = "ADM2020-0001";
-                                                      }
-                                                  } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName) && !"System Admin Profile".equalsIgnoreCase(uFullName))) {
-                                                      dispId = "INT2026-70001";
-                                                  } else if (dispId != null && dispId.matches("\\d+")) {
-                                                      dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
-                                                  }
+                                                   if (dispId != null && dispId.matches("\\d+")) {
+                                                       dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
+                                                   }
+                                                   String formattedCreatedAt = "N/A";
+                                                   if (u.getCreatedAt() != null) {
+                                                       java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMMM dd, yyyy — hh:mm:ss a");
+                                                       formattedCreatedAt = sdf.format(u.getCreatedAt());
+                                                   }
+                                                   String latestFile = "";
+                                                   String latestFileOrig = "";
+                                                   if (submissionList != null) {
+                                                       for (ActivitySubmission sub : submissionList) {
+                                                           if (sub.getUserId().equals(u.getId())) {
+                                                               latestFile = sub.getSupportingFile() != null ? sub.getSupportingFile().replace("\"", "&quot;") : "";
+                                                               latestFileOrig = sub.getOriginalFileName() != null ? sub.getOriginalFileName().replace("\"", "&quot;") : "";
+                                                           }
+                                                       }
+                                                   }
                                     %>
                                     <tr class="intern-row"
                                         data-id="<%= u.getId()%>"
+                                        data-dispid="<%= dispId%>"
                                         data-firstname="<%= u.getFirstName()%>"
                                         data-middlename="<%= u.getMiddleName() != null ? u.getMiddleName() : ""%>"
                                         data-lastname="<%= u.getLastName()%>"
@@ -214,7 +498,13 @@
                                         data-city="<%= (u.getCity() != null) ? u.getCity() : ""%>"
                                         data-role="<%= (u.getRole() != null) ? u.getRole() : ""%>"
                                         data-rolecode="<%= (u.getRoleCode() != null) ? u.getRoleCode() : ""%>"
-                                        data-office="<%= u.getOffice()%>">
+                                        data-office="<%= u.getOffice()%>"
+                                        data-createdat="<%= formattedCreatedAt%>"
+                                        data-latestfile="<%= latestFile %>"
+                                        data-latestfileorig="<%= latestFileOrig %>"
+                                        data-avatarpath="<%= u.getAvatarPath() != null ? u.getAvatarPath() : "" %>"
+                                        onclick="openInternDetailsModal(this)">
+                                        <td class="col-select" style="text-align: center;" onclick="event.stopPropagation();"><input type="checkbox" class="intern-select-chk" value="<%= u.getId()%>"></td>
                                         <td class="col-id"><%= dispId%></td>
                                         <td class="col-name">
                                             <div class="name-container">
@@ -226,7 +516,7 @@
                                         <td class="col-city"><%= (u.getCity() != null) ? u.getCity() : "N/A"%></td>
                                         <td class="col-role"><%= (u.getRole() != null) ? u.getRole() : "N/A"%></td>
                                         <td class="col-office"><%= u.getOffice()%></td>
-                                        <td class="col-actions">
+                                        <td class="col-actions" onclick="event.stopPropagation();">
                                             <div class="d-flex gap-1 flex-nowrap">
                                                 <a href="${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=<%= u.getId()%>&tabId=<%= tabId %>" class="btn btn-sm" style="border-radius: 8px; font-size: 0.75rem; padding: 4px 8px; display: inline-flex; align-items: center; gap: 3px; text-decoration: none; background-color: var(--brand-pink, #d63384); color: white; border: none;" title="Download Record">
                                                     <i class="fas fa-download"></i>
@@ -300,8 +590,7 @@
                                     <tr>
                                         <th onclick="sortLogTable(0)" style="cursor:pointer;">Submitted on <i class="fas fa-sort"></i></th>
                                         <th onclick="sortLogTable(1)" style="cursor:pointer;">Submission ID <i class="fas fa-sort"></i></th>
-                                        <th onclick="sortLogTable(2)" style="cursor:pointer;">Intern ID <i class="fas fa-sort"></i></th>
-                                        <th onclick="sortLogTable(3)" style="cursor:pointer;">Intern Name <i class="fas fa-sort"></i></th>
+                                        <th onclick="sortLogTable(2)" style="cursor:pointer;">Intern Name <i class="fas fa-sort"></i></th>
                                         <th>Attached Files</th>
                                         <th class="col-office">
                                             <div class="filter-dropdown">
@@ -311,7 +600,7 @@
                                         </th>
                                         <th class="col-status">
                                             <div class="filter-dropdown">
-                                                <div class="filter-trigger" id="statusLabel" onclick="sortLogTable(6)" style="cursor:pointer;">
+                                                <div class="filter-trigger" id="statusLabel" onclick="sortLogTable(5)" style="cursor:pointer;">
                                                     <span>Status</span> <i class="fas fa-sort"></i>
                                                 </div>
                                                 <div class="filter-content" onclick="event.stopPropagation();">
@@ -332,15 +621,7 @@
                                                 String internName = s.getInternName();
                                                 String dispInternId = internId;
                                                 String mappedId = model.UserDAO.mapToDerbyInternId(internId);
-                                                 if ("James Smith".equalsIgnoreCase(internName) || "System Admin Profile".equalsIgnoreCase(internName) || (internId != null && internId.startsWith("ADM")) || "ADM2020-0001".equals(internId) || "ADM2026-0001".equals(internId)) {
-                                                     if (internId == null || !internId.startsWith("ADM")) {
-                                                         dispInternId = "ADM2020-0001";
-                                                     } else {
-                                                         dispInternId = internId;
-                                                     }
-                                                 } else if ("Juan Cruz".equalsIgnoreCase(internName) || "INT2020-10001".equals(internId) || "INT2024-50001".equals(internId) || "INT2026-70001".equals(internId) || "1".equals(mappedId) || ("1".equals(internId) && !"James Smith".equalsIgnoreCase(internName) && !"System Admin Profile".equalsIgnoreCase(internName))) {
-                                                     dispInternId = "INT2026-70001";
-                                                 } else if (mappedId != null && mappedId.matches("\\d+")) {
+                                                 if (mappedId != null && mappedId.matches("\\d+")) {
                                                      dispInternId = "INT2026-7" + String.format("%04d", Integer.parseInt(mappedId));
                                                  }
                                                 String dateSub = s.getDateSubmitted().toString();
@@ -354,7 +635,6 @@
                                     <tr class="log-row log-row-clickable" onclick="openLogDetailsModal('<%= subId%>', '<%= dispInternId%>', '<%= internName%>', '<%= dateSub%>', '<%= desc%>', '<%= learnRef%>', '<%= origFile%>', '<%= suppFile%>')">
                                         <td><%= dateSub%></td>
                                         <td><span class="sub-id-badge"><%= subId%></span></td>
-                                        <td><%= dispInternId%></td>
                                         <td><%= internName%></td>
                                         <td>
                                             <span class="badge bg-light text-dark border file-badge-container" title="<%= origFile%>">
@@ -481,7 +761,7 @@
                         <div class="section-header p-4 pb-2 d-flex justify-content-between align-items-center">
                             <div>
                                 <h3>System Security Audit Trail (DBMS 3 — PostgreSQL)</h3>
-                                <p class="text-muted small">Real-time authentication cycles, report generation events, and session tracking from the auditdb database.</p>
+                                <p class="text-muted small">Real-time authentication cycles, report generation events, and session tracking from the ojt_auditdb database.</p>
                             </div>
                             <button class="btn btn-sm btn-outline-dark" onclick="loadAuditTrail()">
                                 <i class="fas fa-sync-alt me-1"></i> Refresh
@@ -564,8 +844,7 @@
                         <div class="mb-3 p-3 bg-light rounded border" style="border-left: 4px solid #d63384 !important;">
                             <small class="text-brand-pink d-block fw-bold mb-1" style="font-size:11px; color: #d63384;">What I Learned Today</small>
                             <p id="modalLearningReflection" class="mb-0 text-dark small style-prose" style="line-height:1.5; font-style: italic;"></p>
-                        </div>
-                        <div>
+                        </div>                        <div>
                             <small class="text-muted d-block fw-bold mb-1" style="font-size:11px;">Attached Cryptographic Files</small>
                             <div class="d-flex align-items-center gap-2 p-2 border rounded bg-white small mb-2">
                                 <i class="fas fa-file-pdf text-danger fa-lg"></i>
@@ -575,6 +854,10 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="modalFilePreviewContainer" style="display: none;" class="mt-2 text-center">
+                            <small class="text-muted d-block fw-bold mb-1 text-start" style="font-size:11px;">Image Proof Preview</small>
+                            <img id="modalFilePreview" class="img-fluid rounded border shadow-sm" style="max-height: 220px; object-fit: contain; cursor: pointer; transition: transform 0.2s ease;" onclick="window.open(this.src, '_blank')" alt="Supporting proof preview" />
+                        </div>
                     </div>
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal">Close Window Details</button>
@@ -583,7 +866,91 @@
             </div>
         </div>
 
-        <div class="modal fade" id="addInternModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="internDetailsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content style-form-card" style="border-radius:12px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold text-dark"><i class="fas fa-id-card me-2 text-primary"></i>Intern Profile Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="text-center mb-4">
+                            <img id="internModalAvatar" src="" class="rounded-circle mb-3 shadow-sm" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--brand-pink, #d63384) !important;" alt="Avatar">
+                            <h4 id="internModalName" class="fw-bold text-dark mb-1"></h4>
+                            <span id="internModalRole" class="badge bg-primary px-3 py-2 rounded-pill" style="font-size: 0.85rem; background-color: #007bff !important;"></span>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">Intern ID</small>
+                                <span id="internModalId" class="fw-bold text-dark font-monospace" style="font-size: 13px;"></span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">Email Address</small>
+                                <span id="internModalEmail" class="fw-semibold text-dark text-truncate d-block" style="font-size: 13px;"></span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">University</small>
+                                <span id="internModalUniversity" class="fw-semibold text-dark" style="font-size: 13px;"></span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">Assigned Office</small>
+                                <span id="internModalOffice" class="fw-semibold text-dark" style="font-size: 13px;"></span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">Home City</small>
+                                <span id="internModalCity" class="fw-semibold text-dark" style="font-size: 13px;"></span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block fw-bold" style="font-size:11px; text-transform: uppercase;">Registered On</small>
+                                <span id="internModalRegistered" class="fw-semibold text-dark" style="font-size: 13px;"></span>
+                            </div>
+                        </div>
+
+                        <div id="internModalFilePreviewContainer" style="display: none;" class="mb-4">
+                            <small class="text-muted d-block fw-bold mb-2" style="font-size:11px; text-transform: uppercase;">Latest Attendance Proof</small>
+                            <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
+                                <i class="fas fa-file-image text-primary fa-lg"></i>
+                                <div class="overflow-hidden">
+                                    <strong id="internModalOriginalFile" class="d-block text-truncate small" style="max-width: 320px;"></strong>
+                                    <small id="internModalSupportingFile" class="text-muted text-truncate d-block" style="font-size:11px; max-width: 320px;"></small>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <img id="internModalFilePreview" class="img-fluid rounded border shadow-sm" style="max-height: 180px; object-fit: contain; cursor: pointer; transition: transform 0.2s ease;" onclick="window.open(this.src, '_blank')" alt="Latest proof preview" />
+                            </div>
+                        </div>
+
+                        <div class="border-top pt-4">
+                            <small class="text-muted d-block fw-bold mb-3" style="font-size:11px; text-transform: uppercase;">Management Actions</small>
+                            <div class="d-grid gap-2">
+                                <a id="internModalDownloadBtn" href="#" class="btn btn-primary d-flex align-items-center justify-content-center gap-2 py-2 shadow-sm" style="background-color: var(--brand-pink, #d63384); border: none; border-radius: 8px;">
+                                    <i class="fas fa-download"></i> <strong>Download Performance Report</strong>
+                                </a>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <button id="internModalEditBtn" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="border-radius: 8px;">
+                                            <i class="fas fa-pen"></i> <span>Edit Profile</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button id="internModalResetBtn" class="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="border-radius: 8px;">
+                                            <i class="fas fa-history"></i> <span>Reset Hours</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button id="internModalDeleteBtn" class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 py-2 mt-1" style="border-radius: 8px;">
+                                    <i class="fas fa-trash-alt"></i> <span>Delete Profile</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal" style="border-radius: 8px;">Close Window Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>        <div class="modal fade" id="addInternModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content style-form-card">
                     <div class="modal-header">
@@ -903,7 +1270,26 @@
                             <!-- Optional Password Change -->
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">New Password <span class="text-muted fw-normal">(leave blank to keep current)</span></label>
-                                <input type="password" id="editPassword" name="password" class="form-control shadow-none" maxlength="30" placeholder="Enter new password only if changing">
+                                <input type="password" id="editPassword" name="password" class="form-control shadow-none" maxlength="30" placeholder="Enter new password only if changing" oninput="handleEditPasswordInput(this); clearInvalidState(this);">
+                            </div>
+
+                            <!-- Old Password Container (Dynamic) -->
+                            <div class="mb-3" id="editOldPasswordContainer" style="display: none;">
+                                <label class="form-label form-label-required small fw-bold">Old Password</label>
+                                <input type="password" id="editOldPassword" name="oldPassword" class="form-control shadow-none" maxlength="30" placeholder="Enter current password to verify" oninput="clearInvalidState(this);">
+                            </div>
+
+                            <!-- New Password Complexity Policies -->
+                            <div class="mb-3" id="edit-password-policies" style="display: none;">
+                                <div class="password-policies-wrapper mt-2 p-3 bg-light rounded" style="font-size: 12px; border: 1px solid #e9ecef;">
+                                    <div class="row g-2">
+                                        <div class="col-6 col-md-4 d-flex align-items-center gap-2" id="edit-rule-upper"><i class="far fa-circle text-muted"></i> <span>Uppercase Letter</span></div>
+                                        <div class="col-6 col-md-4 d-flex align-items-center gap-2" id="edit-rule-lower"><i class="far fa-circle text-muted"></i> <span>Lowercase Letter</span></div>
+                                        <div class="col-6 col-md-4 d-flex align-items-center gap-2" id="edit-rule-number"><i class="far fa-circle text-muted"></i> <span>Numerical Digit</span></div>
+                                        <div class="col-6 col-md-4 d-flex align-items-center gap-2" id="edit-rule-special"><i class="far fa-circle text-muted"></i> <span>Special Symbol</span></div>
+                                        <div class="col-6 col-md-4 d-flex align-items-center gap-2" id="edit-rule-length"><i class="far fa-circle text-muted"></i> <span>8 to 30 Characters</span></div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div id="editFormError" class="alert alert-danger py-2 small" style="display: none;"></div>
@@ -989,8 +1375,18 @@
         </div>
 
         <script>
+            var activeUserId = '<%= user.getId() %>';
+
+            function toggleSidebar() {
+                if (window.innerWidth >= 992) {
+                    document.body.classList.toggle("sidebar-collapsed");
+                } else {
+                    document.body.classList.toggle("show-sidebar");
+                }
+            }
+
             let activeFilters = {university: "", role: "", office: "", city: ""};
-            let internSortColumn = 0, internSortAsc = false;
+            let internSortColumn = 1, internSortAsc = false;
             let logSortColumn = 0, logSortAsc = true;
             let logStatusFilter = "";
             let logOfficeFilter = "";
@@ -1007,7 +1403,7 @@
 
             document.addEventListener("DOMContentLoaded", () => {
                 populateDropdowns();
-                sortInternTable(0, false);
+                sortInternTable(1, false);
                 sortLogTable(0, false);
 
                 // Server Post-Submit Success Modal Interception Control
@@ -1048,6 +1444,8 @@
                     showAdminToast('Intern profile has been updated successfully!', 'success');
                 } else if (status === 'deleted') {
                     showAdminToast('Intern record has been permanently deleted.', 'success');
+                } else if (status === 'deleted_batch') {
+                    showAdminToast('Successfully deleted ' + urlParams.get('count') + ' intern record(s).', 'success');
                 } else if (status === 'hours_reset') {
                     showAdminToast('Intern simulated hours have been successfully queued for reset!', 'success');
                 }
@@ -1059,7 +1457,16 @@
                     showAdminToast('You cannot delete your own admin account.', 'danger');
                 } else if (err === 'hours_reset_failed') {
                     showAdminToast('Failed to queue simulated hours reset. Please try again.', 'danger');
+                } else if (err === 'missing_old_password') {
+                    showAdminToast('Old Password is required when updating to a new password.', 'danger');
+                } else if (err === 'incorrect_old_password') {
+                    showAdminToast('Incorrect Old Password. Password update rejected.', 'danger');
+                } else if (err === 'invalid_new_password') {
+                    showAdminToast('New password does not meet complexity requirements.', 'danger');
+                } else if (err === 'user_not_found') {
+                    showAdminToast('User account not found.', 'danger');
                 }
+                pollUnreadMessagesCount();
             });
 
             function showAdminToast(message, type = "success") {
@@ -1168,8 +1575,6 @@
                     } else {
                         displayId = "ADM2020-0001";
                     }
-                } else if (fullName.toLowerCase() === 'juan cruz' || id === 'INT2020-10001' || id === 'INT2024-50001' || id === 'INT2026-70001' || (id === '1' && fullName.toLowerCase() !== 'james smith' && fullName.toLowerCase() !== 'system admin profile')) {
-                    displayId = "INT2026-70001";
                 } else if (/^\d+$/.test(id)) {
                     displayId = "INT2026-7" + String(id).padStart(4, "0");
                 }
@@ -1181,6 +1586,17 @@
                 document.getElementById("editEmailDisplay").value = email;
                 document.getElementById("editUniversity").value = university;
                 document.getElementById("editPassword").value = "";
+                document.getElementById("editOldPassword").value = "";
+                document.getElementById("editOldPasswordContainer").style.display = "none";
+                document.getElementById("editOldPassword").removeAttribute("required");
+                document.getElementById("edit-password-policies").style.display = "none";
+                
+                // Clear rule indicators
+                updateRuleIndicator("edit-rule-upper", false);
+                updateRuleIndicator("edit-rule-lower", false);
+                updateRuleIndicator("edit-rule-number", false);
+                updateRuleIndicator("edit-rule-special", false);
+                updateRuleIndicator("edit-rule-length", false);
 
                 // Set city dropdown value
                 const citySelect = document.getElementById("editCity");
@@ -1250,6 +1666,31 @@
                 if (!city.value) { city.classList.add('is-invalid'); errors.push('City selection is required.'); }
                 if (!role.value) { role.classList.add('is-invalid'); errors.push('Role selection is required.'); }
 
+                // Password Validation logic for edits
+                const editPwd = document.getElementById("editPassword");
+                const editOldPwd = document.getElementById("editOldPassword");
+                if (editPwd.value.length > 0) {
+                    if (!editOldPwd.value.trim()) {
+                        editOldPwd.classList.add('is-invalid');
+                        errors.push('Old Password is required when setting a new password.');
+                    }
+                    const val = editPwd.value;
+                    const hasUpper = /[A-Z]/.test(val);
+                    const hasLower = /[a-z]/.test(val);
+                    const hasNumber = /[0-9]/.test(val);
+                    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val);
+                    const hasLength = val.length >= 8 && val.length <= 30;
+
+                    if (!hasLength) {
+                        editPwd.classList.add('is-invalid');
+                        errors.push('New Password must be between 8 and 30 characters.');
+                    }
+                    if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+                        editPwd.classList.add('is-invalid');
+                        errors.push('New Password criteria verification failed (must contain uppercase, lowercase, digit, and special symbol).');
+                    }
+                }
+
                 if (errors.length > 0) {
                     errBox.innerHTML = errors.map(e => '<i class="fas fa-exclamation-circle me-1"></i>' + e).join('<br>');
                     errBox.style.display = "block";
@@ -1303,6 +1744,9 @@
                 resetModal.show();
             }
 
+            let internDetailsModalObj = null;
+            let currentDetailsRow = null;
+
             function openLogDetailsModal(subId, internId, identity, dateSub, desc, learnRef, origFile, suppFile) {
                 document.getElementById("modalSubId").innerText = "#" + subId;
                 document.getElementById("modalInternId").innerText = "ID: #" + internId;
@@ -1313,10 +1757,118 @@
                 document.getElementById("modalOriginalFile").innerText = origFile;
                 document.getElementById("modalSupportingFile").innerText = "Storage path reference: " + suppFile;
 
+                const previewContainer = document.getElementById("modalFilePreviewContainer");
+                const previewImg = document.getElementById("modalFilePreview");
+                if (suppFile && suppFile !== "stopwatch_sync_timestamp" && (suppFile.toLowerCase().endsWith(".png") || suppFile.toLowerCase().endsWith(".jpg") || suppFile.toLowerCase().endsWith(".jpeg"))) {
+                    previewImg.src = "${pageContext.request.contextPath}/uploads/" + encodeURIComponent(suppFile);
+                    previewContainer.style.display = "block";
+                } else {
+                    previewImg.src = "";
+                    previewContainer.style.display = "none";
+                }
+
                 if (!detailsModalObj) {
                     detailsModalObj = new bootstrap.Modal(document.getElementById('logDetailsModal'));
                 }
                 detailsModalObj.show();
+            }
+
+            function openInternDetailsModal(rowElement) {
+                currentDetailsRow = rowElement;
+
+                // Extract fields from custom HTML5 data- attributes
+                const id = rowElement.getAttribute("data-id");
+                const dispid = rowElement.getAttribute("data-dispid") || id;
+                const firstName = rowElement.getAttribute("data-firstname") || "";
+                const middleName = rowElement.getAttribute("data-middlename") || "";
+                const lastName = rowElement.getAttribute("data-lastname") || "";
+                const email = rowElement.getAttribute("data-email") || "";
+                const university = rowElement.getAttribute("data-university") || "";
+                const city = rowElement.getAttribute("data-city") || "";
+                const role = rowElement.getAttribute("data-role") || "";
+                const office = rowElement.getAttribute("data-office") || "";
+                const createdAt = rowElement.getAttribute("data-createdat") || "N/A";
+                const latestFile = rowElement.getAttribute("data-latestfile") || "";
+                const latestFileOrig = rowElement.getAttribute("data-latestfileorig") || "";
+                const avatarpath = rowElement.getAttribute("data-avatarpath") || "";
+
+                const fullName = ((firstName ? firstName + " " : "") + (middleName ? middleName + " " : "") + lastName).trim();
+
+                const avatarImg = document.getElementById("internModalAvatar");
+                if (avatarImg) {
+                    if (avatarpath) {
+                        avatarImg.src = "${pageContext.request.contextPath}" + avatarpath;
+                    } else {
+                        avatarImg.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(fullName) + "&background=d63384&color=fff";
+                    }
+                }
+
+                // Populate file preview if exists
+                const previewContainer = document.getElementById("internModalFilePreviewContainer");
+                const previewImg = document.getElementById("internModalFilePreview");
+                const previewOrigFile = document.getElementById("internModalOriginalFile");
+                const previewSuppFile = document.getElementById("internModalSupportingFile");
+
+                if (latestFile && latestFile !== "stopwatch_sync_timestamp" && (latestFile.toLowerCase().endsWith(".png") || latestFile.toLowerCase().endsWith(".jpg") || latestFile.toLowerCase().endsWith(".jpeg"))) {
+                    previewImg.src = "${pageContext.request.contextPath}/uploads/" + encodeURIComponent(latestFile);
+                    previewOrigFile.innerText = latestFileOrig;
+                    previewSuppFile.innerText = "Storage path reference: " + latestFile;
+                    previewContainer.style.display = "block";
+                } else {
+                    previewImg.src = "";
+                    previewOrigFile.innerText = "";
+                    previewSuppFile.innerText = "";
+                    previewContainer.style.display = "none";
+                }
+
+                // Populate elements in modal
+                document.getElementById("internModalId").innerText = dispid;
+                document.getElementById("internModalName").innerText = fullName;
+                document.getElementById("internModalEmail").innerText = email;
+                document.getElementById("internModalUniversity").innerText = university || "N/A";
+                document.getElementById("internModalCity").innerText = city || "N/A";
+                document.getElementById("internModalRole").innerText = role || "N/A";
+                document.getElementById("internModalOffice").innerText = office || "N/A";
+                document.getElementById("internModalRegistered").innerText = createdAt;
+
+                // Configure buttons in modal
+                const downloadBtn = document.getElementById("internModalDownloadBtn");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                downloadBtn.href = "${pageContext.request.contextPath}/ReportServlet?type=INTERN_RECORD&internId=" + encodeURIComponent(id) + "&tabId=" + encodeURIComponent(tabId);
+
+                // Configure Edit button
+                const editBtn = document.getElementById("internModalEditBtn");
+                editBtn.onclick = function() {
+                    internDetailsModalObj.hide();
+                    openEditInternModal(currentDetailsRow);
+                };
+
+                // Configure Reset button
+                const resetBtn = document.getElementById("internModalResetBtn");
+                resetBtn.onclick = function() {
+                    internDetailsModalObj.hide();
+                    confirmResetHours(id, firstName + " " + lastName);
+                };
+
+                // Configure Delete button
+                const deleteBtn = document.getElementById("internModalDeleteBtn");
+                const currentAdminId = "<%= user.getId() %>";
+                if (id && id.toLowerCase() === currentAdminId.toLowerCase()) {
+                    deleteBtn.disabled = true;
+                    deleteBtn.innerText = "Cannot Delete Self";
+                } else {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> <span>Delete Profile</span>';
+                    deleteBtn.onclick = function() {
+                        internDetailsModalObj.hide();
+                        openDeleteInternModal(id, firstName + " " + lastName);
+                    };
+                }
+
+                if (!internDetailsModalObj) {
+                    internDetailsModalObj = new bootstrap.Modal(document.getElementById('internDetailsModal'));
+                }
+                internDetailsModalObj.show();
             }
 
             function updateLogStatusDatabase(submissionId, selectElement) {
@@ -1357,7 +1909,7 @@
             }
 
             function sortLogTable(columnIndex, toggle = true) {
-                if (columnIndex === 4)
+                if (columnIndex === 3)
                     return;
                 const tbody = document.getElementById("logReviewTableBody");
                 const rows = Array.from(document.querySelectorAll(".log-row"));
@@ -1373,7 +1925,7 @@
                 rows.sort((a, b) => {
                     let vA, vB;
 
-                    if (columnIndex === 6) {
+                    if (columnIndex === 5) {
                         const selectA = a.cells[columnIndex].querySelector("select");
                         const selectB = b.cells[columnIndex].querySelector("select");
                         vA = selectA ? selectA.value.toUpperCase() : "";
@@ -1415,6 +1967,64 @@
                 resetToFirstPageAndFilter();
             }
 
+            function toggleSelectAllInterns(headerChk) {
+                const rows = Array.from(document.querySelectorAll(".intern-row"));
+                rows.forEach(row => {
+                    if (row.style.display !== "none") {
+                        const chk = row.querySelector(".intern-select-chk");
+                        if (chk) chk.checked = headerChk.checked;
+                    }
+                });
+            }
+
+            function deleteSelectedInterns() {
+                const selectedChks = document.querySelectorAll(".intern-select-chk:checked");
+                if (selectedChks.length === 0) {
+                    showAdminToast("Please select at least one intern to delete.", "danger");
+                    return;
+                }
+                const ids = Array.from(selectedChks).map(chk => chk.value);
+                if (!confirm(`Are you sure you want to delete the ${ids.length} selected intern(s)?`)) return;
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                const form = document.createElement("form");
+                form.method = "POST"; form.action = "DeleteInternServlet";
+                const idsInput = document.createElement("input");
+                idsInput.type = "hidden"; idsInput.name = "internIds"; idsInput.value = ids.join(",");
+                const tabInput = document.createElement("input");
+                tabInput.type = "hidden"; tabInput.name = "tabId"; tabInput.value = tabId;
+                form.appendChild(idsInput); form.appendChild(tabInput);
+                document.body.appendChild(form); form.submit();
+            }
+
+            function handleDeleteModeClick() {
+                const table = document.getElementById("internTable");
+                const btn = document.getElementById("btnDeleteSelected");
+                
+                if (!table.classList.contains("delete-mode-active")) {
+                    // Turn mode ON
+                    table.classList.add("delete-mode-active");
+                    btn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Delete Selected';
+                    btn.style.backgroundColor = '#dc3545';
+                    btn.style.borderColor = '#dc3545';
+                } else {
+                    // Mode is already ON, so trigger deletion or cancel if nothing checked
+                    const selectedChks = document.querySelectorAll(".intern-select-chk:checked");
+                    if (selectedChks.length === 0) {
+                        // Nothing checked, turn mode OFF
+                        table.classList.remove("delete-mode-active");
+                        btn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Delete Intern';
+                        btn.style.backgroundColor = '#6c757d';
+                        btn.style.borderColor = '#6c757d';
+                        // Also clear Select All checkbox
+                        const selectAll = document.getElementById("selectAllInterns");
+                        if (selectAll) selectAll.checked = false;
+                    } else {
+                        // Trigger batch deletion
+                        deleteSelectedInterns();
+                    }
+                }
+            }
+
             function sortInternTable(columnIndex, toggle = true) {
                 const tbody = document.getElementById("internTableBody");
                 const rows = Array.from(document.querySelectorAll(".intern-row"));
@@ -1422,7 +2032,7 @@
                     if (internSortColumn === columnIndex)
                         internSortAsc = !internSortAsc;
                     else
-                        internSortAsc = (columnIndex !== 0);
+                        internSortAsc = (columnIndex !== 1);
                 }
                 internSortColumn = columnIndex;
                 rows.sort((a, b) => {
@@ -1438,6 +2048,13 @@
             function filterTable() {
                 const searchVal = document.getElementById("internSearch").value.trim().toUpperCase();
 
+                // Clear select all checkboxes and uncheck row checkboxes when filtering
+                const selectAll = document.getElementById("selectAllInterns");
+                if (selectAll) {
+                    selectAll.checked = false;
+                }
+                document.querySelectorAll(".intern-select-chk").forEach(chk => chk.checked = false);
+
                 // 1. Process Intern Management Registry Table Chunk Logic
                 const internRows = Array.from(document.querySelectorAll(".intern-row"));
                 if (internRows.length > 0) {
@@ -1445,10 +2062,10 @@
                     internRows.forEach(row => {
                         const rId = row.querySelector(".col-id").innerText.toUpperCase().trim();
                         const rName = row.querySelector(".col-name").innerText.toUpperCase().trim();
-                        const rUni = row.cells[2].innerText.toUpperCase().trim();
-                        const rCity = row.cells[3].innerText.toUpperCase().trim();
-                        const rRole = row.cells[4].innerText.toUpperCase().trim();
-                        const rOffice = row.cells[5].innerText.toUpperCase().trim();
+                        const rUni = row.querySelector(".col-uni").innerText.toUpperCase().trim();
+                        const rCity = row.querySelector(".col-city").innerText.toUpperCase().trim();
+                        const rRole = row.querySelector(".col-role").innerText.toUpperCase().trim();
+                        const rOffice = row.querySelector(".col-office").innerText.toUpperCase().trim();
 
                         const matchesSearch = searchVal === "" || rId.includes(searchVal) || rName.includes(searchVal) || rUni.includes(searchVal) || rCity.includes(searchVal) || rRole.includes(searchVal) || rOffice.includes(searchVal);
                         const matchesFilters = (activeFilters.university === "" || rUni === activeFilters.university) &&
@@ -1489,7 +2106,7 @@
                     logRows.forEach(row => {
                         const selectEl = row.querySelector("select");
                         const selectVal = selectEl ? selectEl.value.toUpperCase() : "";
-                        const rOffice = row.cells[5].innerText.toUpperCase().trim();
+                        const rOffice = row.cells[4].innerText.toUpperCase().trim();
                         const textContent = row.innerText.toUpperCase() + " " + selectVal;
 
                         const matchesSearch = searchVal === "" || textContent.includes(searchVal);
@@ -1585,6 +2202,16 @@
 
             function switchView(viewId) {
                 document.getElementById("internSearch").value = "";
+                stopMessagingPolling();
+
+                const searchContainer = document.querySelector(".search-container");
+                if (searchContainer) {
+                    if (viewId === 'dashboard' || viewId === 'report-center' || viewId === 'audit-trail') {
+                        searchContainer.style.display = 'none';
+                    } else {
+                        searchContainer.style.display = 'block';
+                    }
+                }
 
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('intern-management-view').style.display = 'none';
@@ -1602,6 +2229,11 @@
                     document.getElementById('dashboard-view').style.display = 'block';
                     document.getElementById('nav-dashboard').classList.add('active');
                     document.getElementById('mainPageTitle').innerText = "Coordinator's Dashboard";
+                    const messagingPanel = document.getElementById("sub-messaging");
+                    if (messagingPanel && messagingPanel.style.display === "block") {
+                        startMessagingPolling();
+                        loadContacts();
+                    }
                 } else if (viewId === 'intern-management') {
                     document.getElementById('intern-management-view').style.display = 'block';
                     document.getElementById('nav-interns').classList.add('active');
@@ -1626,16 +2258,21 @@
                     document.getElementById(viewId + '-view').style.display = 'block';
                     document.getElementById('nav-' + viewId.split('-')[0]).classList.add('active');
                 }
+                document.body.classList.remove("show-sidebar");
             }
 
             function populateDropdowns() {
                 const rows = Array.from(document.querySelectorAll(".intern-row"));
                 const data = {uni: new Set(), role: new Set(), office: new Set(), city: new Set()};
                 rows.forEach(row => {
-                    data.uni.add(row.cells[2].innerText.trim());
-                    data.city.add(row.cells[3].innerText.trim());
-                    data.role.add(row.cells[4].innerText.trim());
-                    data.office.add(row.cells[5].innerText.trim());
+                    const colUni = row.querySelector(".col-uni");
+                    const colCity = row.querySelector(".col-city");
+                    const colRole = row.querySelector(".col-role");
+                    const colOffice = row.querySelector(".col-office");
+                    if (colUni) data.uni.add(colUni.innerText.trim());
+                    if (colCity) data.city.add(colCity.innerText.trim());
+                    if (colRole) data.role.add(colRole.innerText.trim());
+                    if (colOffice) data.office.add(colOffice.innerText.trim());
                 });
                 renderMenu("uniOptions", "university", "University", data.uni, "fa-university");
                 renderMenu("cityOptions", "city", "City", data.city, "fa-map-marker-alt");
@@ -1645,7 +2282,7 @@
                 const logRows = Array.from(document.querySelectorAll(".log-row"));
                 const logOffices = new Set();
                 logRows.forEach(row => {
-                    logOffices.add(row.cells[5].innerText.trim());
+                    logOffices.add(row.cells[4].innerText.trim());
                 });
                 renderLogOfficeMenu("logOfficeOptions", "Office", logOffices, "fa-building");
             }
@@ -1794,6 +2431,36 @@
                 updateRuleIndicator("rule-number", hasNumber);
                 updateRuleIndicator("rule-special", hasSpecial);
                 updateRuleIndicator("rule-length", hasLength);
+            }
+
+            function handleEditPasswordInput(element) {
+                const val = element.value;
+                const oldContainer = document.getElementById("editOldPasswordContainer");
+                const oldInput = document.getElementById("editOldPassword");
+                const policyWrapper = document.getElementById("edit-password-policies");
+
+                if (val.length > 0) {
+                    oldContainer.style.display = "block";
+                    oldInput.setAttribute("required", "required");
+                    policyWrapper.style.display = "block";
+                } else {
+                    oldContainer.style.display = "none";
+                    oldInput.removeAttribute("required");
+                    oldInput.value = "";
+                    policyWrapper.style.display = "none";
+                }
+
+                const hasUpper = /[A-Z]/.test(val);
+                const hasLower = /[a-z]/.test(val);
+                const hasNumber = /[0-9]/.test(val);
+                const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val);
+                const hasLength = val.length >= 8 && val.length <= 30;
+
+                updateRuleIndicator("edit-rule-upper", hasUpper);
+                updateRuleIndicator("edit-rule-lower", hasLower);
+                updateRuleIndicator("edit-rule-number", hasNumber);
+                updateRuleIndicator("edit-rule-special", hasSpecial);
+                updateRuleIndicator("edit-rule-length", hasLength);
             }
 
             function updateRuleIndicator(id, isMet) {
@@ -1979,7 +2646,7 @@
                     if (!msg) {
                         msg = document.createElement("tr");
                         msg.id = "logFilterNoData";
-                        msg.innerHTML = '<td colspan="7" style="text-align:center; padding:40px; color:#888;">No matching records found.</td>';
+                        msg.innerHTML = '<td colspan="6" style="text-align:center; padding:40px; color:#888;">No matching records found.</td>';
                         tbody.appendChild(msg);
                     }
                 } else if (msg)
@@ -2091,8 +2758,8 @@
                         } else {
                             dispUserId = 'ADM2020-0001';
                         }
-                    } else if (log.username === 'Juan Cruz' || dispUserId === 'INT2020-10001' || dispUserId === 'INT2024-50001' || dispUserId === 'INT2026-70001' || (dispUserId === '1' && log.username !== 'James Smith' && log.username !== 'System Administrator')) {
-                        dispUserId = 'INT2026-70001';
+                    } else if (dispUserId && /^\d+$/.test(dispUserId)) {
+                        dispUserId = 'INT2026-7' + String(dispUserId).padStart(4, '0');
                     }
 
                     tr.innerHTML = '<td>' + log.created_at + '</td>' +
@@ -2158,6 +2825,523 @@
                 auditCurrentPage = 1;
                 renderAuditTable();
             }
+
+            // Dashboard Sub-tabs & Features
+            let messagingPollingInterval = null;
+            let activeContactId = null;
+            let activeContactName = "";
+            let chatPollInterval = null;
+            let contactPollInterval = null;
+
+            function switchSubDashboard(tabId) {
+                document.querySelectorAll('.sub-dashboard-panel').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.sub-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+                document.getElementById(tabId).style.display = 'block';
+                if (tabId === 'sub-overview') {
+                    document.getElementById('btn-sub-overview').classList.add('active');
+                    stopMessagingPolling();
+                } else if (tabId === 'sub-announcements') {
+                    document.getElementById('btn-sub-announcements').classList.add('active');
+                    stopMessagingPolling();
+                    loadAnnouncements();
+                } else if (tabId === 'sub-messaging') {
+                    document.getElementById('btn-sub-messaging').classList.add('active');
+                    loadContacts();
+                    startMessagingPolling();
+                }
+            }
+
+            function handleTargetTypeChange() {
+                const targetType = document.getElementById("annTargetType").value;
+                const valueGroup = document.getElementById("annTargetValueGroup");
+                const valueLabel = document.getElementById("annTargetValueLabel");
+                const valueSelect = document.getElementById("annTargetValue");
+
+                if (targetType === "ALL") {
+                    valueGroup.classList.add("d-none");
+                    valueSelect.removeAttribute("required");
+                } else {
+                    valueGroup.classList.remove("d-none");
+                    valueSelect.setAttribute("required", "required");
+                    valueSelect.innerHTML = "";
+
+                    if (targetType === "OFFICE") {
+                        valueLabel.innerText = "Target Office";
+                    } else if (targetType === "ROLE") {
+                        valueLabel.innerText = "Target Role";
+                    } else if (targetType === "CITY") {
+                        valueLabel.innerText = "Target City";
+                    }
+
+                    const rows = Array.from(document.querySelectorAll(".intern-row"));
+                    const values = new Set();
+                    rows.forEach(row => {
+                        if (targetType === "OFFICE") {
+                            const col = row.querySelector(".col-office");
+                            if (col) values.add(col.innerText.trim());
+                        } else if (targetType === "ROLE") {
+                            const col = row.querySelector(".col-role");
+                            if (col) values.add(col.innerText.trim());
+                        } else if (targetType === "CITY") {
+                            const col = row.querySelector(".col-city");
+                            if (col) values.add(col.innerText.trim());
+                        }
+                    });
+
+                    Array.from(values).sort().forEach(val => {
+                        if (val && val !== "N/A" && val !== "") {
+                            const opt = document.createElement("option");
+                            opt.value = val;
+                            opt.innerText = val;
+                            valueSelect.appendChild(opt);
+                        }
+                    });
+                }
+            }
+
+            function loadAnnouncements() {
+                const tbody = document.getElementById("announcementHistoryBody");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("announcements_api.jsp?tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No announcements posted yet.</td></tr>';
+                            return;
+                        }
+
+                        let html = "";
+                        data.forEach(ann => {
+                            const targetDisp = ann.targetType === "ALL" 
+                                ? "All Interns" 
+                                : ann.targetType + ": " + ann.targetValue;
+                            
+                            html += '<tr>' +
+                                '<td><small class="text-muted">' + ann.createdAt + '</small></td>' +
+                                '<td><span class="badge bg-light text-dark border">' + targetDisp + '</span></td>' +
+                                '<td><strong>' + escapeHtml(ann.title) + '</strong><div class="text-muted small">' + escapeHtml(ann.content) + '</div></td>' +
+                                '<td class="text-end">' +
+                                    '<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement(' + ann.id + ')">' +
+                                        '<i class="fas fa-trash-alt"></i>' +
+                                    '</button>' +
+                                '</td>' +
+                            '</tr>';
+                        });
+                        tbody.innerHTML = html;
+                    })
+                    .catch(e => {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Failed to load announcement history.</td></tr>';
+                    });
+            }
+
+            function submitAnnouncement(event) {
+                event.preventDefault();
+                const title = document.getElementById("annTitle").value.trim();
+                const content = document.getElementById("annContent").value.trim();
+                const targetType = document.getElementById("annTargetType").value;
+                const targetValue = document.getElementById("annTargetValue") ? document.getElementById("annTargetValue").value : "";
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+
+                const params = new URLSearchParams();
+                params.append("action", "add");
+                params.append("title", title);
+                params.append("content", content);
+                params.append("targetType", targetType);
+                params.append("targetValue", targetValue);
+                params.append("tabId", tabId);
+
+                fetch("announcements_api.jsp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params.toString()
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showAdminToast("Announcement published successfully!", "success");
+                        document.getElementById("announcementForm").reset();
+                        handleTargetTypeChange();
+                        loadAnnouncements();
+                    } else {
+                        showAdminToast("Failed to publish: " + (res.error || ""), "danger");
+                    }
+                })
+                .catch(e => showAdminToast("Error publishing announcement", "danger"));
+            }
+
+            function deleteAnnouncement(id) {
+                if (!confirm("Are you sure you want to permanently delete this announcement?")) return;
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+
+                const params = new URLSearchParams();
+                params.append("action", "delete");
+                params.append("id", id);
+                params.append("tabId", tabId);
+
+                fetch("announcements_api.jsp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params.toString()
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showAdminToast("Announcement deleted.", "success");
+                        loadAnnouncements();
+                    } else {
+                        showAdminToast("Failed to delete announcement: " + (res.error || ""), "danger");
+                    }
+                })
+                .catch(e => showAdminToast("Error deleting announcement", "danger"));
+            }
+
+            function startMessagingPolling() {
+                if (chatPollInterval) clearInterval(chatPollInterval);
+                if (contactPollInterval) clearInterval(contactPollInterval);
+
+                contactPollInterval = setInterval(loadContactsSilent, 4000);
+                chatPollInterval = setInterval(() => {
+                    if (activeContactId) {
+                        loadChatSilent(activeContactId);
+                    }
+                }, 3000);
+            }
+
+            function stopMessagingPolling() {
+                if (chatPollInterval) clearInterval(chatPollInterval);
+                if (contactPollInterval) clearInterval(contactPollInterval);
+                chatPollInterval = null;
+                contactPollInterval = null;
+            }
+
+            function loadContacts() {
+                const listContainer = document.getElementById("chatContactsList");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => renderContactsList(data))
+                    .catch(e => {
+                        listContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load contacts.</div>';
+                    });
+            }
+
+            function loadContactsSilent() {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => renderContactsList(data))
+                    .catch(e => console.error("Contacts refresh failed", e));
+            }
+
+            let allContactsData = [];
+            function renderContactsList(data) {
+                if (data) {
+                    allContactsData = data;
+                }
+                const listContainer = document.getElementById("chatContactsList");
+                if (!listContainer) return;
+
+                const searchInput = document.getElementById("chatSearchInput");
+                const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+                const filteredData = allContactsData.filter(c => {
+                    return c.name.toLowerCase().includes(query) || 
+                           c.id.toLowerCase().includes(query) ||
+                           (c.role && c.role.toLowerCase().includes(query)) ||
+                           (c.office && c.office.toLowerCase().includes(query));
+                });
+
+                if (filteredData.length === 0) {
+                    listContainer.innerHTML = '<div class="text-center py-4 text-muted">No contacts found.</div>';
+                    let totalUnread = 0;
+                    allContactsData.forEach(c => {
+                        let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                        totalUnread += unread;
+                    });
+                    updateUnreadBadgeCount(totalUnread);
+                    return;
+                }
+
+                let html = "";
+                let totalUnread = 0;
+
+                allContactsData.forEach(c => {
+                    let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                    totalUnread += unread;
+                });
+
+                // Sort filtered data: unread count > 0 at the top, then by last message time descending, then alphabetically by name
+                const sortedData = filteredData.sort((a, b) => {
+                    const unreadA = a.id === activeContactId ? 0 : a.unreadCount;
+                    const unreadB = b.id === activeContactId ? 0 : b.unreadCount;
+                    
+                    if ((unreadA > 0) !== (unreadB > 0)) {
+                        return unreadB > 0 ? 1 : -1;
+                    }
+                    
+                    const timeA = a.lastMessageTime ? new Date(a.lastMessageTime.replace(/-/g, "/")).getTime() : 0;
+                    const timeB = b.lastMessageTime ? new Date(b.lastMessageTime.replace(/-/g, "/")).getTime() : 0;
+                    
+                    if (timeA !== timeB) {
+                        return timeB - timeA;
+                    }
+                    
+                    return a.name.localeCompare(b.name);
+                });
+
+                sortedData.forEach(c => {
+                    let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                    const isActive = c.id === activeContactId ? "active" : "";
+                    const badgeClass = unread > 0 ? "" : "d-none";
+                    const avatarUrl = c.avatarPath ? ('${pageContext.request.contextPath}' + c.avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff');
+                    html += '<div class="contact-item ' + isActive + '" data-id="' + c.id + '" onclick="selectContact(\'' + c.id + '\', \'' + c.name.replace(/'/g, "\\'") + '\')">' +
+                        '<img src="' + avatarUrl + '" class="contact-avatar" alt="Avatar" style="object-fit: cover;">' +
+                        '<div class="contact-details">' +
+                            '<div class="contact-name-row">' +
+                                '<span class="contact-name">' + c.name + '</span>' +
+                                '<span class="badge bg-danger ' + badgeClass + '">' + unread + '</span>' +
+                            '</div>' +
+                            '<div class="contact-sub">' + c.role + ' — ' + c.office + '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+                listContainer.innerHTML = html;
+
+                updateUnreadBadgeCount(totalUnread);
+            }
+
+            function updateUnreadBadgeCount(totalUnread) {
+                const unreadBadge = document.getElementById("dashboardUnreadBadge");
+                if (unreadBadge) {
+                    unreadBadge.innerText = totalUnread;
+                    if (totalUnread > 0) {
+                        unreadBadge.classList.remove("d-none");
+                    } else {
+                        unreadBadge.classList.add("d-none");
+                    }
+                }
+                const sidebarBadge = document.getElementById("sidebarDashboardUnreadBadge");
+                if (sidebarBadge) {
+                    sidebarBadge.innerText = totalUnread;
+                    if (totalUnread > 0) {
+                        sidebarBadge.classList.remove("d-none");
+                    } else {
+                        sidebarBadge.classList.add("d-none");
+                    }
+                }
+            }
+
+            function filterContacts() {
+                renderContactsList();
+            }
+
+            function selectContact(contactId, contactName) {
+                activeContactId = contactId;
+                activeContactName = contactName;
+
+                // Mark as read in client-side cache immediately
+                const contact = allContactsData.find(c => c.id === contactId);
+                if (contact) {
+                    contact.unreadCount = 0;
+                }
+
+                renderContactsList();
+
+                const avatarPath = contact ? (contact.avatarPath || "") : "";
+                const avatarUrl = avatarPath ? ('${pageContext.request.contextPath}' + avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(contactName) + '&background=d63384&color=fff');
+
+                const conversationArea = document.getElementById("chatConversationArea");
+                conversationArea.innerHTML = `
+                    <div class="chat-header" style="flex-shrink:0;">
+                        <div class="chat-header-info" style="display:flex;flex-direction:row;align-items:center;gap:12px;">
+                            <img src="\${avatarUrl}" class="chat-avatar" alt="Avatar" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                            <div>
+                                <h6 class="mb-0 fw-bold">\${contactName}</h6>
+                                <small class="text-muted">\${contactId}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-messages-container" id="chatMessagesList" style="flex:1 1 0;min-height:0;overflow-y:auto;">
+                        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading messages...</div>
+                    </div>
+                    <div class="chat-templates" style="flex-shrink:0;">
+                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Please submit your outstanding log reflection as soon as possible.')">Reminder: Log Submission</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Great work on your weekly OJT tasks! Your logs are approved.')">Approve Logs</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary template-btn" onclick="useTemplate('Please upload the correct supporting document for your recent submission.')">Ref Reflection correction</button>
+                    </div>
+                    <form class="chat-input-bar" onsubmit="submitChatMessage(event)" style="flex-shrink:0;display:flex;gap:12px;padding:16px 24px;border-top:1px solid #e2e8f0;background:#fff;">
+                        <input type="text" id="chatMessageText" placeholder="Type a message..." required autocomplete="off" style="flex-grow:1;border:1px solid #cbd5e1;border-radius:8px;padding:10px 16px;font-size:0.92rem;outline:none;min-width:0;">
+                        <button type="submit" class="btn btn-pink text-white fw-bold" style="padding:10px 20px;border-radius:8px;border:none;"><i class="fas fa-paper-plane"></i></button>
+                    </form>
+                `;
+
+                loadChat(contactId);
+            }
+
+            function useTemplate(text) {
+                const input = document.getElementById("chatMessageText");
+                if (input) {
+                    input.value = text;
+                    input.focus();
+                }
+            }
+
+            function loadChat(contactId) {
+                const msgsContainer = document.getElementById("chatMessagesList");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=history&contactId=" + encodeURIComponent(contactId) + "&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        renderChatMessages(data);
+                        scrollToBottom("chatMessagesList");
+                    })
+                    .catch(e => {
+                        msgsContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load chat history.</div>';
+                    });
+            }
+
+            function loadChatSilent(contactId) {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=history&contactId=" + encodeURIComponent(contactId) + "&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        const msgsContainer = document.getElementById("chatMessagesList");
+                        if (msgsContainer) {
+                            const currentHtml = msgsContainer.innerHTML;
+                            renderChatMessages(data);
+                            if (msgsContainer.innerHTML !== currentHtml) {
+                                scrollToBottom("chatMessagesList");
+                            }
+                        }
+                    })
+                    .catch(e => console.error("Chat polling failed", e));
+            }
+
+            function renderChatMessages(data) {
+                const msgsContainer = document.getElementById("chatMessagesList");
+                if (!msgsContainer) return;
+                if (data.length === 0) {
+                    msgsContainer.innerHTML = '<div class="text-center py-4 text-muted">No messages yet. Send a message to start the conversation!</div>';
+                    return;
+                }
+
+                let html = "";
+                data.forEach(m => {
+                    const isSelf = m.senderId === activeUserId;
+                    const msgClass = isSelf ? "outgoing" : "incoming";
+                    const formattedDate = formatMessageTime(m.createdAt);
+                    html += '<div class="message-bubble-wrapper ' + msgClass + '">' +
+                        '<div class="message-bubble">' +
+                            '<div class="message-text">' + escapeHtml(m.messageText) + '</div>' +
+                            '<div class="message-time">' + formattedDate + '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+                msgsContainer.innerHTML = html;
+            }
+
+            function formatMessageTime(dateStr) {
+                if (!dateStr) return "";
+                try {
+                    const parts = dateStr.split(" ");
+                    if (parts.length >= 2) {
+                        const timeParts = parts[1].split(":");
+                        if (timeParts.length >= 2) {
+                            let hour = parseInt(timeParts[0]);
+                            const minute = timeParts[1];
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            hour = hour % 12;
+                            hour = hour ? hour : 12;
+                            return hour + ":" + minute + " " + ampm;
+                        }
+                    }
+                    return dateStr;
+                } catch(e) {
+                    return dateStr;
+                }
+            }
+
+            function escapeHtml(text) {
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function scrollToBottom(containerId) {
+                const el = document.getElementById(containerId);
+                if (el) {
+                    el.scrollTop = el.scrollHeight;
+                }
+            }
+
+            function submitChatMessage(event) {
+                event.preventDefault();
+                const input = document.getElementById("chatMessageText");
+                if (!input || !activeContactId) return;
+
+                const text = input.value.trim();
+                if (text === "") return;
+
+                input.value = "";
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+
+                const params = new URLSearchParams();
+                params.append("action", "send");
+                params.append("receiverId", activeContactId);
+                params.append("messageText", text);
+                params.append("tabId", tabId);
+
+                fetch("messages_api.jsp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params.toString()
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        loadChat(activeContactId);
+                    } else {
+                        showAdminToast("Failed to send message: " + (res.error || ""), "danger");
+                    }
+                })
+                .catch(e => showAdminToast("Error sending message", "danger"));
+            }
+
+            function pollUnreadMessagesCount() {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        let totalUnread = 0;
+                        const dashboardView = document.getElementById("dashboard-view");
+                        const messagingPanel = document.getElementById("sub-messaging");
+                        const isMessagingActive = dashboardView && dashboardView.style.display === "block" &&
+                                                 messagingPanel && messagingPanel.style.display === "block";
+                        data.forEach(c => {
+                            let unread = (isMessagingActive && c.id === activeContactId) ? 0 : c.unreadCount;
+                            totalUnread += unread;
+                        });
+                        updateUnreadBadgeCount(totalUnread);
+                    })
+                    .catch(e => console.log("Background badge poll failed", e));
+            }
+
+            // Silent background badge poll when not on messaging tab
+            setInterval(() => {
+                const dashboardView = document.getElementById("dashboard-view");
+                const messagingPanel = document.getElementById("sub-messaging");
+                const isMessagingActive = dashboardView && dashboardView.style.display === "block" &&
+                                         messagingPanel && messagingPanel.style.display === "block";
+                if (!isMessagingActive) {
+                    pollUnreadMessagesCount();
+                }
+            }, 8000);
+
+
         </script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>

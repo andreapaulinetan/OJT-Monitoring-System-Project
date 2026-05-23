@@ -1,8 +1,8 @@
 -- ============================================================
 -- DBMS 3 — PostgreSQL Audit Log Database
--- Database: auditdb
+-- Database: ojt_auditdb
 -- Run this AFTER creating the database:
---   CREATE DATABASE auditdb;
+--   CREATE DATABASE ojt_auditdb;
 -- ============================================================
 
 -- Drop table if exists for clean re-seeding

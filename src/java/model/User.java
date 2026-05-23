@@ -20,6 +20,7 @@ public class User implements Serializable {
     private String middleName; // Added to match database columns
     private String lastName;
     private String city; 
+    private String avatarPath; // Relative path to custom profile picture
 
     // --- INTERN SPECIFIC INFORMATION ---
     private String university;
@@ -27,6 +28,7 @@ public class User implements Serializable {
     private String logStatus;
     private boolean resetHours;
     private double baselineHours = 148.5;
+    private java.sql.Timestamp createdAt;
 
     // Default Constructor
     public User() {
@@ -108,6 +110,14 @@ public class User implements Serializable {
         this.city = city;
     }
 
+    public String getAvatarPath() {
+        return avatarPath;
+    }
+
+    public void setAvatarPath(String avatarPath) {
+        this.avatarPath = avatarPath;
+    }
+
     public String getUniversity() {
         return university;
     }
@@ -165,11 +175,43 @@ public class User implements Serializable {
         return fullName.toString().trim();
     }
 
+    /**
+     * Formats name to initialize the middle name (e.g. James Alexander Smith -> James A. Smith)
+     */
+    public String getDisplayName() {
+        StringBuilder name = new StringBuilder();
+        
+        if (firstName != null && !firstName.trim().isEmpty()) {
+            name.append(firstName.trim()).append(" ");
+        }
+        
+        if (middleName != null && !middleName.trim().isEmpty()) {
+            String mid = middleName.trim();
+            if (mid.length() > 0) {
+                name.append(mid.substring(0, 1).toUpperCase()).append(". ");
+            }
+        }
+        
+        if (lastName != null && !lastName.trim().isEmpty()) {
+            name.append(lastName.trim());
+        }
+        
+        return name.toString().trim();
+    }
+
     public boolean isResetHours() {
         return resetHours;
     }
 
     public void setResetHours(boolean resetHours) {
         this.resetHours = resetHours;
+    }
+
+    public java.sql.Timestamp getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(java.sql.Timestamp createdAt) {
+        this.createdAt = createdAt;
     }
 }

@@ -10,7 +10,7 @@ import util.DBConnection;
 
 /**
  * Data Access Object for DBMS 3 — PostgreSQL Audit Logs.
- * Handles all CRUD operations against the audit_logs table in the auditdb database.
+ * Handles all CRUD operations against the audit_logs table in the ojt_auditdb database.
  */
 public class PostgreSQLDAO {
 

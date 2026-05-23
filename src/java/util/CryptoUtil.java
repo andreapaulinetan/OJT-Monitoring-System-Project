@@ -3,97 +3,129 @@ package util;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Utility class for secure password hashing using PBKDF2WithHmacSHA256.
+ * Utility class for secure password encryption and decryption using AES.
  * 
- * Passwords are stored in the format:  iterations:salt:hash
- * where salt and hash are Base64-encoded.
+ * Passwords are stored in the database with the format: enc:Base64_Ciphertext
  * 
- * A legacy SHA-256 verification method is also provided for migrating
- * existing password hashes.
+ * A legacy plaintext and SHA-256 verification method is also provided for
+ * compatibility and migrating existing database passwords.
  */
 public class CryptoUtil {
 
-    private static final int ITERATIONS = 65536;
-    private static final int KEY_LENGTH = 256;       // bits
-    private static final int SALT_LENGTH = 16;       // bytes
-    private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String ALGORITHM = "AES";
+    private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
+    private static final String SECRET_KEY = "1234567890123456"; // 16-byte (128-bit) secret key
 
     private CryptoUtil() {
         // Utility class — not instantiable
     }
 
     /**
-     * Hashes a plaintext password using PBKDF2 with a random salt.
+     * Encrypts a string using AES.
      *
-     * @param password the plaintext password
-     * @return the hashed password in "iterations:salt:hash" format
+     * @param plaintext the unencrypted text
+     * @return the Base64-encoded encrypted text
      */
-    public static String hashPassword(String password) {
-        byte[] salt = new byte[SALT_LENGTH];
-        SECURE_RANDOM.nextBytes(salt);
-
-        byte[] hash = pbkdf2(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
-
-        String saltBase64 = Base64.getEncoder().encodeToString(salt);
-        String hashBase64 = Base64.getEncoder().encodeToString(hash);
-
-        return ITERATIONS + ":" + saltBase64 + ":" + hashBase64;
+    public static String encrypt(String plaintext) {
+        if (plaintext == null) {
+            return null;
+        }
+        try {
+            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            byte[] encryptedBytes = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("AES encryption failed", e);
+        }
     }
 
     /**
-     * Verifies a plaintext password against a stored PBKDF2 hash.
+     * Decrypts a Base64-encoded AES ciphertext.
      *
-     * @param password   the plaintext password to verify
-     * @param storedHash the stored hash in "iterations:salt:hash" format
-     * @return true if the password matches the stored hash
+     * @param ciphertext the Base64-encoded encrypted text
+     * @return the decrypted plaintext
      */
-    public static boolean verifyPassword(String password, String storedHash) {
-        if (password == null || storedHash == null) {
-            return false;
+    public static String decrypt(String ciphertext) {
+        if (ciphertext == null) {
+            return null;
         }
-
-        // Support legacy SHA-256 hashes (64 hex chars, no colons) or plaintext passwords
-        if (!storedHash.contains(":")) {
-            if (storedHash.length() == 64 && verifyLegacySHA256(password, storedHash)) {
-                return true;
-            }
-            return storedHash.equals(password);
-        }
-
-        String[] parts = storedHash.split(":");
-        if (parts.length != 3) {
-            return false;
-        }
-
         try {
-            int iterations = Integer.parseInt(parts[0]);
-            byte[] salt = Base64.getDecoder().decode(parts[1]);
-            byte[] expectedHash = Base64.getDecoder().decode(parts[2]);
-            byte[] actualHash = pbkdf2(password.toCharArray(), salt, iterations, KEY_LENGTH);
+            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(ciphertext));
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("AES decryption failed", e);
+        }
+    }
 
-            return constantTimeEquals(expectedHash, actualHash);
-        } catch (IllegalArgumentException e) {
+    /**
+     * Encrypts a password and returns it with the "enc:" prefix.
+     * Keeps the original name to match the application's servlet calls.
+     *
+     * @param password the plaintext password
+     * @return the encrypted password prefixed with "enc:"
+     */
+    public static String hashPassword(String password) {
+        if (password == null) {
+            return null;
+        }
+        return "enc:" + encrypt(password);
+    }
+
+    /**
+     * Verifies a plaintext password against a stored password.
+     * Decrypts the stored password if it starts with "enc:".
+     *
+     * @param password       the plaintext password to verify
+     * @param storedPassword the stored password (either encrypted with "enc:" prefix, legacy SHA-256, or plaintext)
+     * @return true if the password matches
+     */
+    public static boolean verifyPassword(String password, String storedPassword) {
+        if (password == null || storedPassword == null) {
             return false;
         }
+
+        // If the password starts with "enc:", it is encrypted with AES
+        if (storedPassword.startsWith("enc:")) {
+            try {
+                String decrypted = decrypt(storedPassword.substring(4));
+                return decrypted.equals(password);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        // Support legacy SHA-256 hashes (64 hex chars) or plaintext passwords
+        if (storedPassword.length() == 64 && !storedPassword.contains(":")) {
+            return verifyLegacySHA256(password, storedPassword);
+        }
+
+        // Support legacy PBKDF2 hashes (contains iterations:salt:hash)
+        if (storedPassword.contains(":")) {
+            return verifyLegacyPBKDF2(password, storedPassword);
+        }
+
+        // Direct plaintext comparison
+        return storedPassword.equals(password);
     }
 
     /**
      * Verifies a password against a legacy unsalted SHA-256 hex hash.
-     * Used during migration from the old hashing scheme.
      *
      * @param password   the plaintext password
      * @param legacyHash the SHA-256 hex hash (64 chars)
      * @return true if the password matches
      */
-    public static boolean verifyLegacySHA256(String password, String legacyHash) {
+    private static boolean verifyLegacySHA256(String password, String legacyHash) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
@@ -113,15 +145,27 @@ public class CryptoUtil {
     }
 
     /**
-     * Performs PBKDF2 key derivation.
+     * Verifies a password against legacy PBKDF2 hash (iterations:salt:hash) format.
      */
-    private static byte[] pbkdf2(char[] password, byte[] salt, int iterations, int keyLength) {
+    private static boolean verifyLegacyPBKDF2(String password, String storedHash) {
+        String[] parts = storedHash.split(":");
+        if (parts.length != 3) {
+            return false;
+        }
         try {
-            PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, keyLength);
-            SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
-            return factory.generateSecret(spec).getEncoded();
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("PBKDF2 hashing failed", e);
+            int iterations = Integer.parseInt(parts[0]);
+            byte[] salt = Base64.getDecoder().decode(parts[1]);
+            byte[] expectedHash = Base64.getDecoder().decode(parts[2]);
+            
+            // PBKDF2 parameters from the old implementation
+            char[] passwordChars = password.toCharArray();
+            javax.crypto.spec.PBEKeySpec spec = new javax.crypto.spec.PBEKeySpec(passwordChars, salt, iterations, 256);
+            javax.crypto.SecretKeyFactory factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            byte[] actualHash = factory.generateSecret(spec).getEncoded();
+
+            return constantTimeEquals(expectedHash, actualHash);
+        } catch (Exception e) {
+            return false;
         }
     }
 

@@ -30,7 +30,8 @@
         }
     }
     
-    String fullName = loggedInUser.getFirstName() + " " + loggedInUser.getLastName();
+    String fullName = loggedInUser.getFullName();
+    String displayName = loggedInUser.getDisplayName();
 
     // Build initials from name (e.g. "Juan Cruz" -> "JC")
     String initials = "";
@@ -112,6 +113,12 @@
                     <button type="button" class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard-view', 'nav-dashboard')">
                         <i class="fa-solid fa-chart-pie"></i> Dashboard
                     </button>
+                    <button type="button" class="nav-item" id="nav-announcements" onclick="switchTab('announcements-view', 'nav-announcements')">
+                        <i class="fa-solid fa-bullhorn"></i> Announcements <span id="announcementsBadge" class="badge bg-danger ms-1 d-none">0</span>
+                    </button>
+                    <button type="button" class="nav-item" id="nav-messages" onclick="switchTab('messages-view', 'nav-messages')">
+                        <i class="fa-solid fa-comments"></i> Messages <span id="messagesBadge" class="badge bg-danger ms-1 d-none">0</span>
+                    </button>
                     <button type="button" class="nav-item" id="nav-coordinator" onclick="switchTab('coordinator-view', 'nav-coordinator')">
                         <i class="fa-solid fa-sliders"></i> Configuration
                     </button>
@@ -123,15 +130,21 @@
                     </a>
                 </div>
             </aside>
+            <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
             <main class="main-content">
 
                 <header class="top-bar">
-                    <h2 class="page-title" id="mainPageTitle">Intern's Dashboard</h2>
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="button" id="sidebarToggle" class="btn btn-outline-secondary" onclick="toggleSidebar()">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <h2 class="page-title" id="mainPageTitle">Intern's Dashboard</h2>
+                    </div>
                     <div class="user-profile">
-                        <div class="profile-chip">
-                            <span><%= fullName %></span>
-                            <img src="https://ui-avatars.com/api/?name=<%= fullName %>&background=d63384&color=fff" alt="Intern">
+                        <div class="profile-chip" onclick="switchTab('coordinator-view', 'nav-coordinator')" style="cursor: pointer;">
+                            <span><%= displayName %></span>
+                            <img src="<%= (loggedInUser.getAvatarPath() != null && !loggedInUser.getAvatarPath().isEmpty()) ? request.getContextPath() + loggedInUser.getAvatarPath() : "https://ui-avatars.com/api/?name=" + java.net.URLEncoder.encode(fullName, "UTF-8") + "&background=d63384&color=fff" %>" alt="Intern" style="object-fit: cover;">
                         </div>
                     </div>
                 </header>
@@ -146,6 +159,16 @@
                 <input type="hidden" id="dbSubmissionStatusField" value="<%= statusParam != null ? statusParam : ""%>">
 
                 <div id="dashboard-view" class="view-panel active-view">
+
+                    <div id="latestAnnouncementBanner" class="latest-announcement-banner d-none mb-3" onclick="switchTab('announcements-view', 'nav-announcements')">
+                        <div class="banner-icon"><i class="fa-solid fa-bullhorn text-pink"></i></div>
+                        <div class="banner-content">
+                            <span class="banner-badge">LATEST ANNOUNCEMENT</span>
+                            <h5 id="latestAnnTitle" class="mb-1 fw-bold">Title</h5>
+                            <p id="latestAnnExcerpt" class="mb-0 text-muted small">Excerpt...</p>
+                        </div>
+                        <div class="banner-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                    </div>
 
                     <div class="projection-alert-box">
                         <div class="projection-icon-wrap">
@@ -295,6 +318,73 @@
 
                 </div>
 
+                <div id="announcements-view" class="view-panel">
+                    <div class="section-header mb-4">
+                        <p class="welcome-text m-0" style="margin-left: 0 !important;">View targeted announcements and news published by your coordinators.</p>
+                    </div>
+                    <div id="announcementsFeedContainer" class="d-flex flex-column gap-3">
+                        <div class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-bullhorn fa-3x mb-3 text-muted" style="opacity: 0.5;"></i>
+                            <p class="mb-0">No announcements published yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="messages-view" class="view-panel">
+                    <div class="chat-layout">
+                        <!-- Contacts Sidebar -->
+                        <div class="chat-contacts-list">
+                            <div class="chat-contacts-header">
+                                <i class="fa-solid fa-address-book"></i> Coordinators
+                            </div>
+                            <div class="chat-search-container" style="padding: 12px; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
+                                <div class="position-relative">
+                                    <i class="fa-solid fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                                    <input type="text" id="chatSearchInput" class="form-control form-control-sm" placeholder="Search contacts..." onkeyup="filterContacts()" style="padding-left: 32px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.85rem; box-shadow: none;">
+                                </div>
+                            </div>
+                            <div class="chat-contacts-container" id="chatContactsContainer">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Conversation Area -->
+                        <div class="chat-conversation-area">
+                            <div id="chatEmptyState" class="chat-empty-state">
+                                <i class="fa-solid fa-comments fa-4x text-muted" style="opacity: 0.5;"></i>
+                                <h5>Your Messages</h5>
+                                <p class="text-muted small">Select a coordinator from the sidebar to begin direct messaging.</p>
+                            </div>
+                            <div id="chatActiveArea" class="flex-column h-100" style="display: none;">
+                                <div class="chat-header">
+                                    <div class="chat-header-info">
+                                        <img id="activeContactAvatar" src="https://ui-avatars.com/api/?name=Admin&background=d63384&color=fff" class="contact-avatar" alt="Avatar">
+                                        <div>
+                                            <div class="contact-name" id="activeContactName">Admin Name</div>
+                                            <div class="contact-sub" id="activeContactRole">Coordinator</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chat-messages-container" id="chatMessagesContainer">
+                                    <!-- Messages dynamic -->
+                                </div>
+                                <div class="chat-templates">
+                                    <button type="button" class="template-btn" onclick="useTemplate('Hello! I would like to ask about my logs status.')">Logs Inquiry</button>
+                                    <button type="button" class="template-btn" onclick="useTemplate('Good day. I experienced an issue with the time tracker.')">Tracker Issue</button>
+                                    <button type="button" class="template-btn" onclick="useTemplate('I have uploaded my missing proof of attendance, please review.')">Proof Re-upload</button>
+                                    <button type="button" class="template-btn" onclick="useTemplate('Thank you so much!')">Thank You</button>
+                                </div>
+                                <form id="chatMessageForm" class="chat-input-bar" onsubmit="submitChatMessage(event)">
+                                    <input type="text" id="chatInputMessage" placeholder="Type your message here..." required autocomplete="off">
+                                    <button type="submit" class="btn btn-primary btn-pink text-white">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="coordinator-view" class="view-panel">
                     <div class="section-header d-flex justify-content-between align-items-center mb-4">
                         <p class="welcome-text m-0" style="margin-left: 0 !important;">Customize your target goals and weekly work shifts to update your live progress matrix.</p>
@@ -381,6 +471,22 @@
                                 </div>
                             </div>
 
+                            <div class="config-card card-ui-pink">
+                                <h3 class="card-title-custom">Profile Picture</h3>
+                                <div class="w-100 text-center mb-3">
+                                    <img id="profilePreviewImage" src="<%= (loggedInUser.getAvatarPath() != null && !loggedInUser.getAvatarPath().isEmpty()) ? request.getContextPath() + loggedInUser.getAvatarPath() : "https://ui-avatars.com/api/?name=" + java.net.URLEncoder.encode(fullName, "UTF-8") + "&background=d63384&color=fff" %>" class="rounded-circle border mb-2 shadow-sm" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--accent-pink) !important;" alt="Profile Picture">
+                                    <div class="mt-2">
+                                        <form action="UploadAvatarServlet" method="POST" enctype="multipart/form-data">
+                                            <input type="hidden" name="tabId" value="<%= tabId %>">
+                                            <div class="mb-2">
+                                                <input type="file" name="avatarFile" id="avatarFileInput" class="form-control form-control-sm" accept="image/png, image/jpeg, image/jpg" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-sm btn-pink text-white w-100 fw-bold" style="border-radius: 6px; background-color: var(--accent-pink); border: none; height: 32px;">Upload Photo</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-4">
@@ -458,6 +564,8 @@
                 restoreTimerSessionOnLoad();
                 recalculateProgressEngine();
                 checkSubmissionNotifications();
+                loadAnnouncementsSilent();
+                pollUnreadMessagesCount();
 
                 // Set up input listeners to clear invalid states dynamically
                 const hoursField = document.getElementById('sandboxLogHours');
@@ -622,14 +730,28 @@
                 document.getElementById(tabId).classList.add('active-view');
                 document.getElementById(navId).classList.add('active');
 
+                // Auto-close sidebar on mobile after choosing a tab
+                document.body.classList.remove("show-sidebar");
+
                 // Dynamic persistent top bar title sync
                 const mainPageTitle = document.getElementById('mainPageTitle');
                 if (mainPageTitle) {
                     if (tabId === 'dashboard-view') {
                         mainPageTitle.textContent = "Intern's Dashboard";
+                    } else if (tabId === 'announcements-view') {
+                        mainPageTitle.textContent = "Announcements Feed";
+                        loadAnnouncements();
+                    } else if (tabId === 'messages-view') {
+                        mainPageTitle.textContent = "Direct Messaging";
+                        loadContacts();
+                        startMessagingPolling();
                     } else if (tabId === 'coordinator-view') {
                         mainPageTitle.textContent = "Internship Setup Configuration";
                     }
+                }
+
+                if (tabId !== 'messages-view') {
+                    stopMessagingPolling();
                 }
             }
 
@@ -1160,6 +1282,467 @@
                         showCustomToast("Configuration attributes reset to factory defaults.", "success");
                         recalculateProgressEngine();
                     }
+
+            // --- Custom Announcements & Messaging Features ---
+            let activeContactId = null;
+            let activeContactName = null;
+            let chatPollInterval = null;
+            let contactPollInterval = null;
+
+            function toggleSidebar() {
+                if (window.innerWidth >= 992) {
+                    document.body.classList.toggle("sidebar-collapsed");
+                } else {
+                    document.body.classList.toggle("show-sidebar");
+                }
+            }
+
+            function loadAnnouncements() {
+                const container = document.getElementById("announcementsFeedContainer");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("announcements_api.jsp?tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        renderAnnouncements(data);
+                    })
+                    .catch(e => {
+                        if (container) {
+                            container.innerHTML = '<div class="text-center py-4 text-danger">Failed to load announcements feed.</div>';
+                        }
+                    });
+            }
+
+            function loadAnnouncementsSilent() {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("announcements_api.jsp?tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        updateAnnouncementWidgets(data);
+                    })
+                    .catch(e => console.error("Silent announcements poll failed", e));
+            }
+
+            function renderAnnouncements(data) {
+                const container = document.getElementById("announcementsFeedContainer");
+                if (!container) return;
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-bullhorn fa-3x mb-3 text-muted" style="opacity: 0.5;"></i>
+                            <p class="mb-0">No announcements published yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                let html = "";
+                data.forEach(ann => {
+                    const formattedDate = formatAnnouncementTime(ann.createdAt);
+                    html += `
+                        <div class="announcement-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold mb-0 text-dark">\${escapeHtml(ann.title)}</h5>
+                                <span class="badge bg-secondary small">\${escapeHtml(ann.targetType)} Target</span>
+                            </div>
+                            <p class="mb-3 text-muted" style="font-size: 0.92rem; white-space: pre-wrap;">\${escapeHtml(ann.content)}</p>
+                            <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.78rem;">
+                                <span>Published by: <strong>\${escapeHtml(ann.senderName)}</strong></span>
+                                <span>\${formattedDate}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                updateAnnouncementWidgets(data);
+            }
+
+            function formatAnnouncementTime(dateStr) {
+                if (!dateStr) return "";
+                try {
+                    const parts = dateStr.split(" ");
+                    if (parts.length >= 2) {
+                        const timeParts = parts[1].split(":");
+                        if (timeParts.length >= 2) {
+                            let hour = parseInt(timeParts[0]);
+                            const minute = timeParts[1];
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            hour = hour % 12;
+                            hour = hour ? hour : 12;
+                            return parts[0] + " " + hour + ":" + minute + " " + ampm;
+                        }
+                    }
+                    return dateStr;
+                } catch(e) {
+                    return dateStr;
+                }
+            }
+
+            function updateAnnouncementWidgets(data) {
+                // 1. Update Badge
+                const badge = document.getElementById("announcementsBadge");
+                if (badge) {
+                    if (data.length > 0) {
+                        badge.textContent = data.length;
+                        badge.classList.remove("d-none");
+                    } else {
+                        badge.classList.add("d-none");
+                    }
+                }
+
+                // 2. Update dashboard banner with the latest announcement
+                const banner = document.getElementById("latestAnnouncementBanner");
+                const titleElem = document.getElementById("latestAnnTitle");
+                const excerptElem = document.getElementById("latestAnnExcerpt");
+                if (banner && titleElem && excerptElem) {
+                    if (data.length > 0) {
+                        const latest = data[0]; // Assuming order is descending from DB (most recent first)
+                        titleElem.textContent = latest.title;
+                        let excerpt = latest.content;
+                        if (excerpt.length > 120) {
+                            excerpt = excerpt.substring(0, 117) + "...";
+                        }
+                        excerptElem.textContent = excerpt;
+                        banner.classList.remove("d-none");
+                    } else {
+                        banner.classList.add("d-none");
+                    }
+                }
+            }
+
+            function escapeHtml(text) {
+                if (!text) return "";
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function startMessagingPolling() {
+                if (chatPollInterval) clearInterval(chatPollInterval);
+                if (contactPollInterval) clearInterval(contactPollInterval);
+
+                contactPollInterval = setInterval(loadContactsSilent, 4000);
+                chatPollInterval = setInterval(() => {
+                    if (activeContactId) {
+                        loadChatSilent(activeContactId);
+                    }
+                }, 3000);
+            }
+
+            function stopMessagingPolling() {
+                if (chatPollInterval) clearInterval(chatPollInterval);
+                if (contactPollInterval) clearInterval(contactPollInterval);
+                chatPollInterval = null;
+                contactPollInterval = null;
+            }
+
+            function loadContacts() {
+                const listContainer = document.getElementById("chatContactsContainer");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => renderContactsList(data))
+                    .catch(e => {
+                        if (listContainer) {
+                            listContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load coordinators.</div>';
+                        }
+                    });
+            }
+
+            function loadContactsSilent() {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => renderContactsList(data))
+                    .catch(e => console.error("Contacts refresh failed", e));
+            }
+
+            let allContactsData = [];
+            function renderContactsList(data) {
+                if (data) {
+                    allContactsData = data;
+                }
+                const listContainer = document.getElementById("chatContactsContainer");
+                if (!listContainer) return;
+
+                const searchInput = document.getElementById("chatSearchInput");
+                const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+                const filteredData = allContactsData.filter(c => {
+                    return c.name.toLowerCase().includes(query) || 
+                           c.id.toLowerCase().includes(query) ||
+                           (c.role && c.role.toLowerCase().includes(query)) ||
+                           (c.office && c.office.toLowerCase().includes(query));
+                });
+
+                if (filteredData.length === 0) {
+                    listContainer.innerHTML = '<div class="text-center py-4 text-muted">No coordinators found.</div>';
+                    let totalUnread = 0;
+                    allContactsData.forEach(c => {
+                        let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                        totalUnread += unread;
+                    });
+                    updateMessagesBadge(totalUnread);
+                    return;
+                }
+
+                let html = "";
+                let totalUnread = 0;
+
+                allContactsData.forEach(c => {
+                    let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                    totalUnread += unread;
+                });
+
+                // Sort filtered data: unread count > 0 at the top, then by last message time descending, then alphabetically by name
+                const sortedData = filteredData.sort((a, b) => {
+                    const unreadA = a.id === activeContactId ? 0 : a.unreadCount;
+                    const unreadB = b.id === activeContactId ? 0 : b.unreadCount;
+                    
+                    if ((unreadA > 0) !== (unreadB > 0)) {
+                        return unreadB > 0 ? 1 : -1;
+                    }
+                    
+                    const timeA = a.lastMessageTime ? new Date(a.lastMessageTime.replace(/-/g, "/")).getTime() : 0;
+                    const timeB = b.lastMessageTime ? new Date(b.lastMessageTime.replace(/-/g, "/")).getTime() : 0;
+                    
+                    if (timeA !== timeB) {
+                        return timeB - timeA;
+                    }
+                    
+                    return a.name.localeCompare(b.name);
+                });
+
+                sortedData.forEach(c => {
+                    let unread = c.id === activeContactId ? 0 : c.unreadCount;
+                    const isActive = c.id === activeContactId ? "active" : "";
+                    const badgeClass = unread > 0 ? "" : "d-none";
+                    const avatarUrl = c.avatarPath ? ('${pageContext.request.contextPath}' + c.avatarPath) : ('https://ui-avatars.com/api/?name=' + encodeURIComponent(c.name) + '&background=d63384&color=fff');
+                    html += '<div class="contact-item ' + isActive + '" data-id="' + c.id + '" onclick="selectContact(\'' + c.id + '\', \'' + c.name.replace(/'/g, "\\'") + '\', \'' + c.role + '\', \'' + (c.avatarPath || '') + '\')">' +
+                        '<img src="' + avatarUrl + '" class="contact-avatar" alt="Avatar" style="object-fit: cover;">' +
+                        '<div class="contact-details">' +
+                            '<div class="contact-name-row">' +
+                                '<span class="contact-name">' + c.name + '</span>' +
+                                '<span class="badge bg-danger ' + badgeClass + '">' + unread + '</span>' +
+                            '</div>' +
+                            '<div class="contact-sub">' + c.role + ' — ' + c.office + '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+                listContainer.innerHTML = html;
+
+                updateMessagesBadge(totalUnread);
+            }
+
+            function updateMessagesBadge(totalUnread) {
+                const messagesBadge = document.getElementById("messagesBadge");
+                if (messagesBadge) {
+                    messagesBadge.innerText = totalUnread;
+                    if (totalUnread > 0) {
+                        messagesBadge.classList.remove("d-none");
+                    } else {
+                        messagesBadge.classList.add("d-none");
+                    }
+                }
+            }
+
+            function filterContacts() {
+                renderContactsList();
+            }
+
+            function selectContact(contactId, contactName, contactRole, avatarPath) {
+                activeContactId = contactId;
+                activeContactName = contactName;
+
+                // Mark as read in client-side cache immediately
+                const contact = allContactsData.find(c => c.id === contactId);
+                if (contact) {
+                    contact.unreadCount = 0;
+                }
+
+                renderContactsList();
+
+                document.getElementById("chatEmptyState").classList.add("d-none");
+                const activeArea = document.getElementById("chatActiveArea");
+                activeArea.style.display = "flex";
+                activeArea.classList.remove("d-none");
+
+                document.getElementById("activeContactName").textContent = contactName;
+                document.getElementById("activeContactRole").textContent = contactRole;
+                
+                const avatarUrl = avatarPath ? ('${pageContext.request.contextPath}' + avatarPath) : ("https://ui-avatars.com/api/?name=" + encodeURIComponent(contactName) + "&background=d63384&color=fff");
+                document.getElementById("activeContactAvatar").src = avatarUrl;
+
+                const msgsContainer = document.getElementById("chatMessagesContainer");
+                msgsContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading messages...</div>';
+
+                // Mark messages as read by requesting history
+                loadChat(contactId);
+            }
+
+            function useTemplate(text) {
+                const input = document.getElementById("chatInputMessage");
+                if (input) {
+                    input.value = text;
+                    input.focus();
+                }
+            }
+
+            function loadChat(contactId) {
+                const msgsContainer = document.getElementById("chatMessagesContainer");
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=history&contactId=" + encodeURIComponent(contactId) + "&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        renderChatMessages(data);
+                        scrollToBottom("chatMessagesContainer");
+                    })
+                    .catch(e => {
+                        if (msgsContainer) {
+                            msgsContainer.innerHTML = '<div class="text-center py-4 text-danger">Failed to load chat history.</div>';
+                        }
+                    });
+            }
+
+            function loadChatSilent(contactId) {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=history&contactId=" + encodeURIComponent(contactId) + "&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        const msgsContainer = document.getElementById("chatMessagesContainer");
+                        if (msgsContainer) {
+                            const currentHtml = msgsContainer.innerHTML;
+                            renderChatMessages(data);
+                            if (msgsContainer.innerHTML !== currentHtml) {
+                                scrollToBottom("chatMessagesContainer");
+                            }
+                        }
+                    })
+                    .catch(e => console.error("Chat polling failed", e));
+            }
+
+            function renderChatMessages(data) {
+                const msgsContainer = document.getElementById("chatMessagesContainer");
+                if (!msgsContainer) return;
+                if (data.length === 0) {
+                    msgsContainer.innerHTML = '<div class="text-center py-4 text-muted">No messages yet. Send a message to start the conversation!</div>';
+                    return;
+                }
+
+                let html = "";
+                data.forEach(m => {
+                    const isSelf = m.senderId === currentUserId;
+                    const msgClass = isSelf ? "outgoing" : "incoming";
+                    const formattedDate = formatMessageTime(m.createdAt);
+                    html += '<div class="message-bubble-wrapper ' + msgClass + '">' +
+                        '<div class="message-bubble">' +
+                            '<div class="message-text">' + escapeHtml(m.messageText) + '</div>' +
+                            '<div class="message-time">' + formattedDate + '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+                msgsContainer.innerHTML = html;
+            }
+
+            function formatMessageTime(dateStr) {
+                if (!dateStr) return "";
+                try {
+                    const parts = dateStr.split(" ");
+                    if (parts.length >= 2) {
+                        const timeParts = parts[1].split(":");
+                        if (timeParts.length >= 2) {
+                            let hour = parseInt(timeParts[0]);
+                            const minute = timeParts[1];
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            hour = hour % 12;
+                            hour = hour ? hour : 12;
+                            return hour + ":" + minute + " " + ampm;
+                        }
+                    }
+                    return dateStr;
+                } catch(e) {
+                    return dateStr;
+                }
+            }
+
+            function scrollToBottom(containerId) {
+                const el = document.getElementById(containerId);
+                if (el) {
+                    el.scrollTop = el.scrollHeight;
+                }
+            }
+
+            function submitChatMessage(event) {
+                event.preventDefault();
+                const input = document.getElementById("chatInputMessage");
+                if (!input || !activeContactId) return;
+
+                const text = input.value.trim();
+                if (text === "") return;
+
+                input.value = "";
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+
+                const params = new URLSearchParams();
+                params.append("action", "send");
+                params.append("receiverId", activeContactId);
+                params.append("messageText", text);
+                params.append("tabId", tabId);
+
+                fetch("messages_api.jsp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params.toString()
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        loadChat(activeContactId);
+                    } else {
+                        showCustomToast("Failed to send message: " + (res.error || ""), "error");
+                    }
+                })
+                .catch(e => showCustomToast("Error sending message", "error"));
+            }
+
+            function pollUnreadMessagesCount() {
+                const tabId = window.name || sessionStorage.getItem('tabId') || '';
+                fetch("messages_api.jsp?action=contacts&tabId=" + encodeURIComponent(tabId))
+                    .then(r => r.json())
+                    .then(data => {
+                        let totalUnread = 0;
+                        const messagesPanel = document.getElementById("messages-view");
+                        const isMessagingActive = messagesPanel && messagesPanel.classList.contains("active-view");
+                        data.forEach(c => {
+                            let unread = (isMessagingActive && c.id === activeContactId) ? 0 : c.unreadCount;
+                            totalUnread += unread;
+                        });
+                        const messagesBadge = document.getElementById("messagesBadge");
+                        if (messagesBadge) {
+                            messagesBadge.innerText = totalUnread;
+                            if (totalUnread > 0) messagesBadge.classList.remove("d-none");
+                            else messagesBadge.classList.add("d-none");
+                        }
+                    })
+                    .catch(e => console.log("Background badge poll failed", e));
+            }
+
+            // Background message badge poll
+            setInterval(() => {
+                const messagesPanel = document.getElementById("messages-view");
+                if (messagesPanel && !messagesPanel.classList.contains("active-view")) {
+                    pollUnreadMessagesCount();
+                }
+            }, 8000);
+
+            // Background announcements banner/badge poll
+            setInterval(() => {
+                const announcementsPanel = document.getElementById("announcements-view");
+                if (announcementsPanel && !announcementsPanel.classList.contains("active-view")) {
+                    loadAnnouncementsSilent();
+                }
+            }, 8000);
         </script>
     </body>
 </html>

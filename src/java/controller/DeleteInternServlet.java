@@ -37,6 +37,26 @@ public class DeleteInternServlet extends HttpServlet {
         }
 
         try {
+            // Check for batch delete parameter
+            String internIdsParam = request.getParameter("internIds");
+            if (internIdsParam != null && !internIdsParam.trim().isEmpty()) {
+                String[] ids = internIdsParam.split(",");
+                int successCount = 0;
+                for (String id : ids) {
+                    id = id.trim();
+                    if (id.isEmpty()) continue;
+                    if (user != null && id.equalsIgnoreCase(user.getId())) {
+                        continue; // Prevent self-deletion
+                    }
+                    boolean isDeleted = UserDAO.deleteIntern(id, getServletContext());
+                    if (isDeleted) {
+                        successCount++;
+                    }
+                }
+                response.sendRedirect("admin.jsp?view=intern-management&status=deleted_batch&count=" + successCount + "&tabId=" + (tabId != null ? tabId : ""));
+                return;
+            }
+
             // 1. Extract intern ID parameter passed from the front-end deletion modal form
             String internId = request.getParameter("internId");
             

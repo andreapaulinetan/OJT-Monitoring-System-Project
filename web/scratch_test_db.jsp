@@ -113,6 +113,67 @@
             }
         %>
     </div>
+
+    <div class="card">
+        <h2>5. Activity Submissions Diagnostic (getAllSubmissions)</h2>
+        <%
+            try {
+                int pendingLogsDirect = -1;
+                int totalLogsDirect = -1;
+                Connection conn = null;
+                PreparedStatement ps1 = null;
+                PreparedStatement ps2 = null;
+                ResultSet rs1 = null;
+                ResultSet rs2 = null;
+                try {
+                    conn = DBConnection.getMySQLMonitoringConnection(getServletContext());
+                    if (conn != null) {
+                        ps1 = conn.prepareStatement("SELECT COUNT(*) FROM ACTIVITY_SUBMISSIONS");
+                        rs1 = ps1.executeQuery();
+                        if (rs1.next()) totalLogsDirect = rs1.getInt(1);
+                        
+                        ps2 = conn.prepareStatement("SELECT COUNT(*) FROM ACTIVITY_SUBMISSIONS WHERE STATUS = 'Pending'");
+                        rs2 = ps2.executeQuery();
+                        if (rs2.next()) pendingLogsDirect = rs2.getInt(1);
+                    }
+                } finally {
+                    if (rs1 != null) try { rs1.close(); } catch(Exception e){}
+                    if (ps1 != null) try { ps1.close(); } catch(Exception e){}
+                    if (rs2 != null) try { rs2.close(); } catch(Exception e){}
+                    if (ps2 != null) try { ps2.close(); } catch(Exception e){}
+                    if (conn != null) try { conn.close(); } catch(Exception e){}
+                }
+                out.println("<p>Direct SQL count (total): <b>" + totalLogsDirect + "</b></p>");
+                out.println("<p>Direct SQL count (Pending): <b>" + pendingLogsDirect + "</b></p>");
+                
+                int pendingDAO = model.UserDAO.getPendingLogsCount(getServletContext());
+                out.println("<p>UserDAO.getPendingLogsCount: <b>" + pendingDAO + "</b></p>");
+                
+                java.util.List<model.ActivitySubmission> subs = model.UserDAO.getAllSubmissions(getServletContext());
+                if (subs == null) {
+                    out.println("<p class='failure'>FAILURE: getAllSubmissions returned null.</p>");
+                } else {
+                    out.println("<p class='success'>SUCCESS: getAllSubmissions returned a list of size: " + subs.size() + "</p>");
+                    if (!subs.isEmpty()) {
+                        out.println("<ul>");
+                        for (int i = 0; i < Math.min(subs.size(), 5); i++) {
+                            model.ActivitySubmission s = subs.get(i);
+                            out.println("<li>ID: " + s.getSubmissionId() + ", User ID: " + s.getUserId() + ", Intern Name: " + s.getInternName() + ", Status: " + s.getStatus() + "</li>");
+                        }
+                        out.println("</ul>");
+                        if (subs.size() > 5) {
+                            out.println("<p>...and " + (subs.size() - 5) + " more.</p>");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                out.println("<p class='failure'>ERROR: " + e.getMessage() + "</p>");
+                out.println("<pre>");
+                e.printStackTrace(new java.io.PrintWriter(out));
+                out.println("</pre>");
+            }
+        %>
+    </div>
 </body>
 </html>
     

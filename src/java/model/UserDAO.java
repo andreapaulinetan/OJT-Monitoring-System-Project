@@ -11,6 +11,8 @@ import util.DBConnection;
 
 public class UserDAO {
 
+    private static boolean passwordsMigrated = false;
+
     /**
      * VALIDATE USER: Fetches user by email from both Admin and Intern tables (DBMS 1 - Apache Derby).
      * Returns the User object (including stored password hash) so the caller can verify
@@ -295,16 +297,28 @@ public class UserDAO {
         
         u.setId(id);
         u.setFirstName(rs.getString("FIRST_NAME"));
+        u.setMiddleName(rs.getString("MIDDLE_NAME"));
         u.setLastName(rs.getString("LAST_NAME"));
         u.setEmail(rs.getString("EMAIL"));
         u.setPassword(rs.getString("PASSWORD"));
         u.setRole(role); 
         
         try {
+            u.setCreatedAt(rs.getTimestamp("CREATED_AT"));
+        } catch (SQLException ex) {
+            // Fallback for schema compatibility
+        }
+        
+        try {
             u.setUniversity(rs.getString("UNIVERSITY"));
             u.setOffice(rs.getString("OFFICE"));
             u.setRoleCode(rs.getString("ROLE_CODE"));
             u.setCity(rs.getString("CITY"));
+            try {
+                u.setAvatarPath(rs.getString("AVATAR_PATH"));
+            } catch (SQLException ex) {
+                // Fallback for schema compatibility or Admins
+            }
             try {
                 u.setResetHours(rs.getBoolean("RESET_HOURS"));
             } catch (SQLException ex) {
@@ -333,38 +347,103 @@ public class UserDAO {
         return userId;
     }
 
-    public static boolean addIntern(User internUser, String birthMonth, int birthDate, int birthYear, int age, String contactNum, ServletContext context) {
-        String sql = "INSERT INTO APP.INTERN (FIRST_NAME, MIDDLE_NAME, LAST_NAME, BIRTH_MONTH, BIRTH_DATE, BIRTH_YEAR, AGE, CITY, CONTACT_NUM, UNIVERSITY, ROLE, ROLE_CODE, OFFICE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DBConnection.getDerbyConnection(context)) {
-            if (conn == null) return false;
-            
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, internUser.getFirstName());
-                ps.setString(2, internUser.getMiddleName());
-                ps.setString(3, internUser.getLastName());
-                ps.setString(4, birthMonth);
-                ps.setInt(5, birthDate);
-                ps.setInt(6, birthYear);
-                ps.setInt(7, age);
-                ps.setString(8, internUser.getCity());
-                ps.setString(9, contactNum);
-                ps.setString(10, internUser.getUniversity());
-                ps.setString(11, internUser.getRole());
-                ps.setString(12, internUser.getRoleCode());
-                ps.setString(13, internUser.getOffice());
-                ps.setString(14, internUser.getEmail());
-                ps.setString(15, internUser.getPassword());
-                
-                boolean success = ps.executeUpdate() > 0;
-                if (success) {
-                    try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            int generatedId = rs.getInt(1);
-                            internUser.setId(String.valueOf(generatedId));
+    public static String generateInternId(Connection conn) throws SQLException {
+        int currentYear = java.time.Year.now().getValue();
+        int companyAge = currentYear - 2020 + 1;
+        String prefix = "INT" + currentYear + "-" + companyAge;
+        String likePattern = prefix + "%";
+        
+        String sql = "SELECT INTERN_ID FROM APP.INTERN WHERE INTERN_ID LIKE ? ORDER BY INTERN_ID DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, likePattern);
+            ps.setMaxRows(1);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String lastId = rs.getString("INTERN_ID");
+                    int dashIndex = lastId.lastIndexOf('-');
+                    if (dashIndex != -1 && dashIndex < lastId.length() - 1) {
+                        String seqPartStr = lastId.substring(dashIndex + 1);
+                        String companyAgeStr = String.valueOf(companyAge);
+                        if (seqPartStr.startsWith(companyAgeStr)) {
+                            String seqNumStr = seqPartStr.substring(companyAgeStr.length());
+                            try {
+                                int seqNum = Integer.parseInt(seqNumStr);
+                                int nextSeqNum = seqNum + 1;
+                                return prefix + String.format("%04d", nextSeqNum);
+                            } catch (NumberFormatException e) {
+                                // ignore
+                            }
                         }
                     }
                 }
-                return success;
+            }
+        }
+        return prefix + "0001";
+    }
+
+    public static String generateAdminId(Connection conn) throws SQLException {
+        int currentYear = java.time.Year.now().getValue();
+        String prefix = "ADM" + currentYear + "-";
+        String likePattern = prefix + "%";
+        
+        String sql = "SELECT ADMIN_ID FROM APP.ADMIN WHERE ADMIN_ID LIKE ? ORDER BY ADMIN_ID DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, likePattern);
+            ps.setMaxRows(1);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String lastId = rs.getString("ADMIN_ID");
+                    int dashIndex = lastId.lastIndexOf('-');
+                    if (dashIndex != -1 && dashIndex < lastId.length() - 1) {
+                        String seqPartStr = lastId.substring(dashIndex + 1);
+                        try {
+                            int seqNum = Integer.parseInt(seqPartStr);
+                            int nextSeqNum = seqNum + 1;
+                            return prefix + String.format("%04d", nextSeqNum);
+                        } catch (NumberFormatException e) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+        }
+        return prefix + "0001";
+    }
+
+    public static boolean addIntern(User internUser, String birthMonth, int birthDate, int birthYear, int age, String contactNum, ServletContext context) {
+        String sql = "INSERT INTO APP.INTERN (INTERN_ID, FIRST_NAME, MIDDLE_NAME, LAST_NAME, BIRTH_MONTH, BIRTH_DATE, BIRTH_YEAR, AGE, CITY, CONTACT_NUM, UNIVERSITY, ROLE, ROLE_CODE, OFFICE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            if (conn == null) return false;
+            
+            // Safeguard password encryption
+            String rawPassword = internUser.getPassword();
+            if (rawPassword != null && !rawPassword.startsWith("enc:")) {
+                internUser.setPassword(util.CryptoUtil.hashPassword(rawPassword));
+            }
+            
+            // Generate ID at application layer
+            String generatedId = generateInternId(conn);
+            internUser.setId(generatedId);
+            
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, internUser.getId());
+                ps.setString(2, internUser.getFirstName());
+                ps.setString(3, internUser.getMiddleName());
+                ps.setString(4, internUser.getLastName());
+                ps.setString(5, birthMonth);
+                ps.setInt(6, birthDate);
+                ps.setInt(7, birthYear);
+                ps.setInt(8, age);
+                ps.setString(9, internUser.getCity());
+                ps.setString(10, contactNum);
+                ps.setString(11, internUser.getUniversity());
+                ps.setString(12, internUser.getRole());
+                ps.setString(13, internUser.getRoleCode());
+                ps.setString(14, internUser.getOffice());
+                ps.setString(15, internUser.getEmail());
+                ps.setString(16, internUser.getPassword());
+                
+                return ps.executeUpdate() > 0;
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Intern profile: " + internUser.getEmail(), e, null, context);
@@ -374,28 +453,30 @@ public class UserDAO {
     }
 
     public static boolean addAdmin(User adminUser, ServletContext context) {
-        String sql = "INSERT INTO APP.ADMIN (FIRST_NAME, MIDDLE_NAME, LAST_NAME, ROLE_CODE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO APP.ADMIN (ADMIN_ID, FIRST_NAME, MIDDLE_NAME, LAST_NAME, ROLE_CODE, EMAIL, PASSWORD) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return false;
             
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, adminUser.getFirstName());
-                ps.setString(2, adminUser.getMiddleName());
-                ps.setString(3, adminUser.getLastName());
-                ps.setString(4, "admin");
-                ps.setString(5, adminUser.getEmail());
-                ps.setString(6, adminUser.getPassword());
+            // Safeguard password encryption
+            String rawPassword = adminUser.getPassword();
+            if (rawPassword != null && !rawPassword.startsWith("enc:")) {
+                adminUser.setPassword(util.CryptoUtil.hashPassword(rawPassword));
+            }
+            
+            // Generate ID at application layer
+            String generatedId = generateAdminId(conn);
+            adminUser.setId(generatedId);
+            
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, adminUser.getId());
+                ps.setString(2, adminUser.getFirstName());
+                ps.setString(3, adminUser.getMiddleName());
+                ps.setString(4, adminUser.getLastName());
+                ps.setString(5, "admin");
+                ps.setString(6, adminUser.getEmail());
+                ps.setString(7, adminUser.getPassword());
                 
-                boolean success = ps.executeUpdate() > 0;
-                if (success) {
-                    try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            int generatedId = rs.getInt(1);
-                            adminUser.setId(String.valueOf(generatedId));
-                        }
-                    }
-                }
-                return success;
+                return ps.executeUpdate() > 0;
             }
         } catch (SQLException e) {
             util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to insert new Admin profile: " + adminUser.getEmail(), e, null, context);
@@ -485,7 +566,12 @@ public class UserDAO {
                 ps.setString(13, internUser.getOffice());
                 ps.setString(14, internUser.getEmail());
                 if (changePassword) {
-                    ps.setString(15, internUser.getPassword());
+                    String pwd = internUser.getPassword();
+                    if (pwd != null && !pwd.startsWith("enc:")) {
+                        pwd = util.CryptoUtil.hashPassword(pwd);
+                        internUser.setPassword(pwd);
+                    }
+                    ps.setString(15, pwd);
                     ps.setString(16, internUser.getId());
                 } else {
                     ps.setString(15, internUser.getId());
@@ -584,7 +670,103 @@ public class UserDAO {
         }
     }
 
+    public static synchronized void migrateLegacyPasswords(ServletContext context) {
+        if (passwordsMigrated) {
+            return;
+        }
+        System.out.println("MIGRATION: Starting automatic password encryption migration for Derby database...");
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            if (conn == null) {
+                System.err.println("MIGRATION ERROR: Failed to connect to Derby database for migration.");
+                return;
+            }
+            
+            // 1. Migrate ADMIN table
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT ADMIN_ID, PASSWORD FROM APP.ADMIN")) {
+                while (rs.next()) {
+                    String id = rs.getString("ADMIN_ID");
+                    String pwd = rs.getString("PASSWORD");
+                    if (pwd != null && !pwd.startsWith("enc:")) {
+                        String encrypted = util.CryptoUtil.hashPassword(pwd);
+                        try (PreparedStatement ps = conn.prepareStatement("UPDATE APP.ADMIN SET PASSWORD = ? WHERE ADMIN_ID = ?")) {
+                            ps.setString(1, encrypted);
+                            ps.setString(2, id);
+                            ps.executeUpdate();
+                            System.out.println("MIGRATION: Encrypted password for ADMIN ID " + id);
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                // Fallback without schema name
+                try (Statement stmt = conn.createStatement();
+                     ResultSet rs = stmt.executeQuery("SELECT ADMIN_ID, PASSWORD FROM ADMIN")) {
+                    while (rs.next()) {
+                        String id = rs.getString("ADMIN_ID");
+                        String pwd = rs.getString("PASSWORD");
+                        if (pwd != null && !pwd.startsWith("enc:")) {
+                            String encrypted = util.CryptoUtil.hashPassword(pwd);
+                            try (PreparedStatement ps = conn.prepareStatement("UPDATE ADMIN SET PASSWORD = ? WHERE ADMIN_ID = ?")) {
+                                ps.setString(1, encrypted);
+                                ps.setString(2, id);
+                                ps.executeUpdate();
+                                System.out.println("MIGRATION: Encrypted password for ADMIN ID " + id);
+                            }
+                        }
+                    }
+                } catch (SQLException ex) {
+                    System.err.println("MIGRATION ERROR: Failed to query/update ADMIN table: " + ex.getMessage());
+                }
+            }
+            
+            // 2. Migrate INTERN table
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT INTERN_ID, PASSWORD FROM APP.INTERN")) {
+                while (rs.next()) {
+                    String id = rs.getString("INTERN_ID");
+                    String pwd = rs.getString("PASSWORD");
+                    if (pwd != null && !pwd.startsWith("enc:")) {
+                        String encrypted = util.CryptoUtil.hashPassword(pwd);
+                        try (PreparedStatement ps = conn.prepareStatement("UPDATE APP.INTERN SET PASSWORD = ? WHERE INTERN_ID = ?")) {
+                            ps.setString(1, encrypted);
+                            ps.setString(2, id);
+                            ps.executeUpdate();
+                            System.out.println("MIGRATION: Encrypted password for INTERN ID " + id);
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                // Fallback without schema name
+                try (Statement stmt = conn.createStatement();
+                     ResultSet rs = stmt.executeQuery("SELECT INTERN_ID, PASSWORD FROM INTERN")) {
+                    while (rs.next()) {
+                        String id = rs.getString("INTERN_ID");
+                        String pwd = rs.getString("PASSWORD");
+                        if (pwd != null && !pwd.startsWith("enc:")) {
+                            String encrypted = util.CryptoUtil.hashPassword(pwd);
+                            try (PreparedStatement ps = conn.prepareStatement("UPDATE INTERN SET PASSWORD = ? WHERE INTERN_ID = ?")) {
+                                ps.setString(1, encrypted);
+                                ps.setString(2, id);
+                                ps.executeUpdate();
+                                System.out.println("MIGRATION: Encrypted password for INTERN ID " + id);
+                            }
+                        }
+                    }
+                } catch (SQLException ex) {
+                    System.err.println("MIGRATION ERROR: Failed to query/update INTERN table: " + ex.getMessage());
+                }
+            }
+            
+            System.out.println("MIGRATION SUCCESS: Derby database password migration completed successfully.");
+            passwordsMigrated = true;
+        } catch (Exception e) {
+            System.err.println("MIGRATION ERROR: Unexpected error during migration: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     public static void checkDerbySchema(ServletContext context) {
+        migrateLegacyPasswords(context);
         try (Connection conn = DBConnection.getDerbyConnection(context)) {
             if (conn == null) return;
             DatabaseMetaData meta = conn.getMetaData();
@@ -638,6 +820,87 @@ public class UserDAO {
                         System.out.println("SUCCESS: Table 'APP.INTERN' altered. Column 'BASELINE_HOURS' added.");
                     } catch (SQLException ex) {
                         System.err.println("Failed to alter INTERN table for BASELINE_HOURS: " + ex.getMessage());
+                    }
+                }
+            }
+
+            boolean createdAtInternExists = false;
+            try (ResultSet rs = meta.getColumns(null, "APP", "INTERN", "CREATED_AT")) {
+                if (rs.next()) {
+                    createdAtInternExists = true;
+                }
+            }
+            if (!createdAtInternExists) {
+                try (ResultSet rs = meta.getColumns(null, null, "INTERN", "CREATED_AT")) {
+                    if (rs.next()) {
+                        createdAtInternExists = true;
+                    }
+                }
+            }
+            if (!createdAtInternExists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE INTERN ADD CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+                    System.out.println("SUCCESS: Table 'INTERN' altered. Column 'CREATED_AT' added.");
+                } catch (SQLException e) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE APP.INTERN ADD CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+                        System.out.println("SUCCESS: Table 'APP.INTERN' altered. Column 'CREATED_AT' added.");
+                    } catch (SQLException ex) {
+                        System.err.println("Failed to alter INTERN table for CREATED_AT: " + ex.getMessage());
+                    }
+                }
+            }
+
+            boolean createdAtAdminExists = false;
+            try (ResultSet rs = meta.getColumns(null, "APP", "ADMIN", "CREATED_AT")) {
+                if (rs.next()) {
+                    createdAtAdminExists = true;
+                }
+            }
+            if (!createdAtAdminExists) {
+                try (ResultSet rs = meta.getColumns(null, null, "ADMIN", "CREATED_AT")) {
+                    if (rs.next()) {
+                        createdAtAdminExists = true;
+                    }
+                }
+            }
+            if (!createdAtAdminExists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE ADMIN ADD CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+                    System.out.println("SUCCESS: Table 'ADMIN' altered. Column 'CREATED_AT' added.");
+                } catch (SQLException e) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE APP.ADMIN ADD CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+                        System.out.println("SUCCESS: Table 'APP.ADMIN' altered. Column 'CREATED_AT' added.");
+                    } catch (SQLException ex) {
+                        System.err.println("Failed to alter ADMIN table for CREATED_AT: " + ex.getMessage());
+                    }
+                }
+            }
+
+            boolean avatarPathExists = false;
+            try (ResultSet rs = meta.getColumns(null, "APP", "INTERN", "AVATAR_PATH")) {
+                if (rs.next()) {
+                    avatarPathExists = true;
+                }
+            }
+            if (!avatarPathExists) {
+                try (ResultSet rs = meta.getColumns(null, null, "INTERN", "AVATAR_PATH")) {
+                    if (rs.next()) {
+                        avatarPathExists = true;
+                    }
+                }
+            }
+            if (!avatarPathExists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE INTERN ADD AVATAR_PATH VARCHAR(255)");
+                    System.out.println("SUCCESS: Table 'INTERN' altered. Column 'AVATAR_PATH' added.");
+                } catch (SQLException e) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE APP.INTERN ADD AVATAR_PATH VARCHAR(255)");
+                        System.out.println("SUCCESS: Table 'APP.INTERN' altered. Column 'AVATAR_PATH' added.");
+                    } catch (SQLException ex) {
+                        System.err.println("Failed to alter INTERN table for AVATAR_PATH: " + ex.getMessage());
                     }
                 }
             }
@@ -722,5 +985,288 @@ public class UserDAO {
             }
         }
         return false;
+    }
+
+    private static boolean mysqlSchemaChecked = false;
+
+    public static void checkMySQLSchema(ServletContext context) {
+        if (mysqlSchemaChecked) return;
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context)) {
+            if (conn == null) {
+                System.err.println("CRITICAL: MySQL connection failed inside checkMySQLSchema!");
+                return;
+            }
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS announcements ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "title VARCHAR(255) NOT NULL, "
+                        + "content TEXT NOT NULL, "
+                        + "target_type VARCHAR(50) NOT NULL, "
+                        + "target_value VARCHAR(255), "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        + "sender_id VARCHAR(50) NOT NULL, "
+                        + "sender_name VARCHAR(255) NOT NULL"
+                        + ")");
+                
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS messages ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "sender_id VARCHAR(50) NOT NULL, "
+                        + "receiver_id VARCHAR(50) NOT NULL, "
+                        + "message_text TEXT NOT NULL, "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        + "is_read BOOLEAN DEFAULT FALSE"
+                        + ")");
+                
+                System.out.println("SUCCESS: Checked and verified MySQL announcements and messages tables.");
+                mysqlSchemaChecked = true;
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying MySQL schema: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean addAnnouncement(Announcement ann, ServletContext context) {
+        checkMySQLSchema(context);
+        String sql = "INSERT INTO announcements (title, content, target_type, target_value, sender_id, sender_name) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, ann.getTitle());
+            ps.setString(2, ann.getContent());
+            ps.setString(3, ann.getTargetType());
+            ps.setString(4, ann.getTargetValue());
+            ps.setString(5, ann.getSenderId());
+            ps.setString(6, ann.getSenderName());
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to add announcement: " + ann.getTitle(), e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static List<Announcement> getAllAnnouncements(ServletContext context) {
+        checkMySQLSchema(context);
+        List<Announcement> list = new ArrayList<>();
+        String sql = "SELECT * FROM announcements ORDER BY created_at DESC";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Announcement ann = new Announcement();
+                ann.setId(rs.getInt("id"));
+                ann.setTitle(rs.getString("title"));
+                ann.setContent(rs.getString("content"));
+                ann.setTargetType(rs.getString("target_type"));
+                ann.setTargetValue(rs.getString("target_value"));
+                ann.setCreatedAt(rs.getTimestamp("created_at"));
+                ann.setSenderId(rs.getString("sender_id"));
+                ann.setSenderName(rs.getString("sender_name"));
+                list.add(ann);
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to retrieve all announcements", e, null, context);
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static List<Announcement> getAnnouncementsForIntern(String office, String role, String city, ServletContext context) {
+        checkMySQLSchema(context);
+        List<Announcement> list = new ArrayList<>();
+        String sql = "SELECT * FROM announcements WHERE target_type = 'ALL' "
+                   + "OR (target_type = 'OFFICE' AND target_value = ?) "
+                   + "OR (target_type = 'ROLE' AND target_value = ?) "
+                   + "OR (target_type = 'CITY' AND target_value = ?) "
+                   + "ORDER BY created_at DESC";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, office);
+            ps.setString(2, role);
+            ps.setString(3, city != null ? city.trim() : "");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Announcement ann = new Announcement();
+                    ann.setId(rs.getInt("id"));
+                    ann.setTitle(rs.getString("title"));
+                    ann.setContent(rs.getString("content"));
+                    ann.setTargetType(rs.getString("target_type"));
+                    ann.setTargetValue(rs.getString("target_value"));
+                    ann.setCreatedAt(rs.getTimestamp("created_at"));
+                    ann.setSenderId(rs.getString("sender_id"));
+                    ann.setSenderName(rs.getString("sender_name"));
+                    list.add(ann);
+                }
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to retrieve announcements for intern", e, null, context);
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static boolean deleteAnnouncement(int id, ServletContext context) {
+        checkMySQLSchema(context);
+        String sql = "DELETE FROM announcements WHERE id = ?";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to delete announcement with id: " + id, e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static List<User> getAllAdmins(ServletContext context) {
+        List<User> list = new ArrayList<>();
+        String sql = "SELECT * FROM ADMIN";
+        try (Connection conn = DBConnection.getDerbyConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                User u = mapResultSetToUser(rs, "Admin", context);
+                list.add(u);
+            }
+        } catch (Exception e) {
+            String sqlApp = "SELECT * FROM APP.ADMIN";
+            try (Connection conn = DBConnection.getDerbyConnection(context);
+                 PreparedStatement ps = conn.prepareStatement(sqlApp);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    User u = mapResultSetToUser(rs, "Admin", context);
+                    list.add(u);
+                }
+            } catch (Exception ex) {
+                util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to retrieve admin profiles", ex, null, context);
+                ex.printStackTrace();
+            }
+        }
+        return list;
+    }
+
+    public static boolean sendMessage(Message msg, ServletContext context) {
+        checkMySQLSchema(context);
+        String sql = "INSERT INTO messages (sender_id, receiver_id, message_text, is_read) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, msg.getSenderId());
+            ps.setString(2, msg.getReceiverId());
+            ps.setString(3, msg.getMessageText());
+            ps.setBoolean(4, false);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to send message from " + msg.getSenderId() + " to " + msg.getReceiverId(), e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static List<Message> getMessageHistory(String user1, String user2, ServletContext context) {
+        checkMySQLSchema(context);
+        List<Message> list = new ArrayList<>();
+        String sql = "SELECT * FROM messages WHERE (sender_id = ? AND receiver_id = ?) "
+                   + "OR (sender_id = ? AND receiver_id = ?) ORDER BY created_at ASC";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user1);
+            ps.setString(2, user2);
+            ps.setString(3, user2);
+            ps.setString(4, user1);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Message m = new Message();
+                    m.setId(rs.getInt("id"));
+                    m.setSenderId(rs.getString("sender_id"));
+                    m.setReceiverId(rs.getString("receiver_id"));
+                    m.setMessageText(rs.getString("message_text"));
+                    m.setCreatedAt(rs.getTimestamp("created_at"));
+                    m.setIsRead(rs.getBoolean("is_read"));
+                    list.add(m);
+                }
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to fetch message history", e, null, context);
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static Map<String, Integer> getUnreadCounts(String userId, ServletContext context) {
+        checkMySQLSchema(context);
+        Map<String, Integer> map = new HashMap<>();
+        String sql = "SELECT sender_id, COUNT(*) AS cnt FROM messages WHERE receiver_id = ? AND is_read = false GROUP BY sender_id";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    map.put(rs.getString("sender_id"), rs.getInt("cnt"));
+                }
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to fetch unread message counts", e, null, context);
+            e.printStackTrace();
+        }
+        return map;
+    }
+
+    public static Map<String, java.sql.Timestamp> getLastMessageTimes(String userId, ServletContext context) {
+        checkMySQLSchema(context);
+        Map<String, java.sql.Timestamp> map = new HashMap<>();
+        String sql = "SELECT "
+                   + "  CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS contact_id, "
+                   + "  MAX(created_at) AS last_time "
+                   + "FROM messages "
+                   + "WHERE sender_id = ? OR receiver_id = ? "
+                   + "GROUP BY CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ps.setString(2, userId);
+            ps.setString(3, userId);
+            ps.setString(4, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    map.put(rs.getString("contact_id"), rs.getTimestamp("last_time"));
+                }
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to fetch last message times", e, null, context);
+            e.printStackTrace();
+        }
+        return map;
+    }
+
+    public static boolean markMessagesAsRead(String senderId, String receiverId, ServletContext context) {
+        checkMySQLSchema(context);
+        String sql = "UPDATE messages SET is_read = true WHERE sender_id = ? AND receiver_id = ? AND is_read = false";
+        try (Connection conn = DBConnection.getMySQLMonitoringConnection(context);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, senderId);
+            ps.setString(2, receiverId);
+            return ps.executeUpdate() >= 0;
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to mark messages as read", e, null, context);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static boolean updateAvatarPath(String userId, String path, ServletContext context) {
+        String sql = "UPDATE APP.INTERN SET AVATAR_PATH = ? WHERE INTERN_ID = ?";
+        try (Connection conn = DBConnection.getDerbyConnection(context)) {
+            if (conn == null) return false;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, path);
+                ps.setString(2, userId);
+                return ps.executeUpdate() > 0;
+            }
+        } catch (Exception e) {
+            util.ErrorLogger.logError("DATABASE TRANSACTION ERROR", "Failed to update avatar path for user " + userId, e, null, context);
+            e.printStackTrace();
+            return false;
+        }
     }
 }

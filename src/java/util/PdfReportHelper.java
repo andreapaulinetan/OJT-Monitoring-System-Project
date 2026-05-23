@@ -288,7 +288,7 @@ public class PdfReportHelper {
 
         addReportTitle(doc, "System Audit Trail Report", loggedInName);
 
-        Paragraph dbLabel = new Paragraph("Data Source: PostgreSQL (DBMS 3 — auditdb)", TD_BOLD_FONT);
+        Paragraph dbLabel = new Paragraph("Data Source: PostgreSQL (DBMS 3 — ojt_auditdb)", TD_BOLD_FONT);
         dbLabel.setSpacingBefore(5f);
         dbLabel.setSpacingAfter(10f);
         doc.add(dbLabel);
@@ -320,8 +320,8 @@ public class PdfReportHelper {
                     if (userId == null || !userId.startsWith("ADM")) {
                         userId = "ADM2020-0001";
                     }
-                } else if ("Juan Cruz".equalsIgnoreCase(username) || "INT2020-10001".equals(userId) || "INT2024-50001".equals(userId) || "INT2026-70001".equals(userId) || ("1".equals(userId) && !"James Smith".equalsIgnoreCase(username) && !"System Admin Profile".equalsIgnoreCase(username))) {
-                    userId = "INT2026-70001";
+                } else if (userId != null && userId.matches("\\d+")) {
+                    userId = "INT2026-7" + String.format("%04d", Integer.parseInt(userId));
                 }
                 
                 addCell(table, userId, TD_FONT, rowBg, Element.ALIGN_CENTER);
@@ -368,14 +368,7 @@ public class PdfReportHelper {
 
         addBorderlessProfileCell(profileTable, "Intern ID:", TD_BOLD_FONT);
         String dispId = intern.getId();
-        String uFullName = ((intern.getFirstName() != null ? intern.getFirstName() : "") + " " + (intern.getLastName() != null ? intern.getLastName() : "")).trim();
-        if ("James Smith".equalsIgnoreCase(uFullName) || "System Admin Profile".equalsIgnoreCase(uFullName) || (dispId != null && dispId.startsWith("ADM")) || "ADM2020-0001".equals(dispId) || "ADM2026-0001".equals(dispId)) {
-            if (dispId == null || !dispId.startsWith("ADM")) {
-                dispId = "ADM2020-0001";
-            }
-        } else if ("Juan Cruz".equalsIgnoreCase(uFullName) || "INT2020-10001".equals(dispId) || "INT2024-50001".equals(dispId) || "INT2026-70001".equals(dispId) || ("1".equals(dispId) && !"James Smith".equalsIgnoreCase(uFullName) && !"System Admin Profile".equalsIgnoreCase(uFullName))) {
-            dispId = "INT2026-70001";
-        } else if (dispId != null && dispId.matches("\\d+")) {
+        if (dispId != null && dispId.matches("\\d+")) {
             dispId = "INT2026-7" + String.format("%04d", Integer.parseInt(dispId));
         }
         addBorderlessProfileCell(profileTable, safeStr(dispId), TD_FONT);
@@ -396,6 +389,15 @@ public class PdfReportHelper {
         addBorderlessProfileCell(profileTable, safeStr(intern.getCity()), TD_FONT);
         addBorderlessProfileCell(profileTable, "Log Status:", TD_BOLD_FONT);
         addBorderlessProfileCell(profileTable, safeStr(intern.getLogStatus()), TD_FONT);
+
+        addBorderlessProfileCell(profileTable, "Registered At:", TD_BOLD_FONT);
+        String regTimeStr = "N/A";
+        if (intern.getCreatedAt() != null) {
+            regTimeStr = new SimpleDateFormat("MMMM dd, yyyy — hh:mm:ss a").format(intern.getCreatedAt());
+        }
+        addBorderlessProfileCell(profileTable, regTimeStr, TD_FONT);
+        addBorderlessProfileCell(profileTable, "", TD_FONT);
+        addBorderlessProfileCell(profileTable, "", TD_FONT);
 
         doc.add(profileTable);
 

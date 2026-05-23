@@ -29,7 +29,7 @@ graph TD
 * **Purpose**: Houses the high-frequency daily transaction tables: `activity_submissions` (task logs, simulated hours, and uploaded JPEG/PNG proof-of-work images) and `internship_logs` (stopwatch sessions).
 
 ### 3. PostgreSQL (Security Audit Log Database)
-* **DBMS URL**: `jdbc:postgresql://localhost:5432/auditdb`
+* **DBMS URL**: `jdbc:postgresql://localhost:5432/ojt_auditdb`
 * **Username/Password**: `postgres` / `110705` *(Customizable)*
 * **Purpose**: Hosts the secure, append-only security logs recording system actions (`LOGIN`, `LOGOUT`, `REPORT_GENERATED`) along with timestamps and origin IP addresses.
 
@@ -57,9 +57,9 @@ git clone -b Kurt https://github.com/andreapaulinetan/OJT-Monitoring-System-Proj
 ### Step 2: Set Up the PostgreSQL Database
 1. Open your PostgreSQL terminal (`psql`) or **pgAdmin**, and run:
    ```sql
-   CREATE DATABASE auditdb;
+   CREATE DATABASE ojt_auditdb;
    ```
-2. Connect to the `auditdb` database, and execute the initialization script located at:
+2. Connect to the `ojt_auditdb` database, and execute the initialization script located at:
    👉 **`database/seed_postgres.sql`**
 3. Open **`web/WEB-INF/web.xml`** and configure your local PostgreSQL password:
    ```xml
