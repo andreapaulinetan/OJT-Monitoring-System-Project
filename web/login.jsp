@@ -74,6 +74,11 @@
                         <div class="alert alert-danger">
                             Invalid input length or format.
                         </div>
+                    <% } else if ("unauthorized".equals(err)) { %>
+                        <div class="alert alert-danger">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            Access Denied: Please log in to access protected resources.
+                        </div>
                     <% } %>
                 </div>
 
