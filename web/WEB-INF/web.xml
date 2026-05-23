@@ -56,7 +56,7 @@
     </context-param>
     <context-param>
         <param-name>pgsql.password</param-name>
-        <param-value>app</param-value>
+        <param-value>110705</param-value>
     </context-param>
 
     <!-- Reporting Engine Branding Strings -->
