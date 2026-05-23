@@ -9,15 +9,18 @@
     response.setHeader("Pragma", "no-cache");
     response.setDateHeader("Expires", 0);
 
-    // Auto-redirect if already logged in
+    // Auto-redirect if already logged in on this specific tab
     String tabId = request.getParameter("tabId");
-    User loggedInUser = TabSessionHelper.getUser(session, tabId);
+    User loggedInUser = null;
+    if (tabId != null && !tabId.trim().isEmpty()) {
+        loggedInUser = (User) TabSessionHelper.getAttribute(session, tabId, "user");
+    }
     if (loggedInUser != null) {
         if ("admin".equalsIgnoreCase(loggedInUser.getRole())) {
-            response.sendRedirect("admin.jsp");
+            response.sendRedirect("admin.jsp?tabId=" + tabId);
             return;
         } else {
-            response.sendRedirect("guest.jsp");
+            response.sendRedirect("guest.jsp?tabId=" + tabId);
             return;
         }
     }
