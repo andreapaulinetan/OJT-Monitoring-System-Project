@@ -190,13 +190,15 @@ public class ReportServlet extends HttpServlet {
      */
     private byte[] generateUserListReport(ServletContext ctx, User currentUser,
                                            String headerText, String footerText) throws Exception {
-        // Get all interns from Derby
         List<User> allUsers = new ArrayList<>();
 
-        // Add the current admin as the first entry
-        allUsers.add(currentUser);
+        // Fetch all administrators from Derby
+        List<User> admins = UserDAO.getAllAdmins(ctx);
+        if (admins != null) {
+            allUsers.addAll(admins);
+        }
 
-        // Add all interns
+        // Fetch all interns from Derby
         List<User> interns = UserDAO.getAllInterns(ctx);
         if (interns != null) {
             allUsers.addAll(interns);
